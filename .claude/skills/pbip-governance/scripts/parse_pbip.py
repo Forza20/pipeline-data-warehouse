@@ -162,10 +162,11 @@ def identify_m_source(m_expr):
         (r'SharePoint\.(Files|Contents)\(\s*"([^"]+)"',
          'SharePoint', lambda r: r[1]),
         (r'OData\.Feed\(\s*"([^"]+)"', 'OData', lambda r: r[0]),
-        (r'Excel\.Workbook\(File\.Contents\(\s*"([^"]+)"',
-         'Excel File', lambda r: r[0]),
-        (r'Csv\.Document\(File\.Contents\(\s*"([^"]+)"',
-         'CSV File', lambda r: r[0]),
+        # the path may be a folder parameter joined with the file name: "C:\data\" & "sales.xlsx"
+        (r'Excel\.Workbook\(File\.Contents\(\s*((?:"[^"]*"\s*&\s*)*"[^"]+")',
+         'Excel File', lambda r: ''.join(re.findall(r'"([^"]*)"', r[0]))),
+        (r'Csv\.Document\(File\.Contents\(\s*((?:"[^"]*"\s*&\s*)*"[^"]+")',
+         'CSV File', lambda r: ''.join(re.findall(r'"([^"]*)"', r[0]))),
         (r'Folder\.Files\(\s*"([^"]+)"', 'Folder', lambda r: r[0]),
         (r'Pbi\.Dataflows?\(', 'Dataflow', lambda r: '(Power BI Dataflow)'),
         (r'#shared\s*\[', 'Shared / Dataflow', lambda r: '(Dataflow or shared)'),
@@ -696,13 +697,37 @@ def trace_m_column(query, column, queries, depth=0):
             if col in new_cols and len(new_cols) == len(src_cols):
                 src_col = src_cols[new_cols.index(col)]
                 joined = None
-                for sname, sexpr in steps.items():
-                    jfn, jargs = _parse_call(sexpr)
-                    # NestedJoin and AddJoinColumn: (table1, key1, table2, key2, newColumnName, ...)
-                    if jfn in ('Table.NestedJoin', 'Table.AddJoinColumn') and len(jargs) > 4 \
-                            and _m_str(jargs[4]) == nested:
-                        joined = _m_ident(_m_first_table_arg(jargs[2]))
-                        break
+                join_expr = None
+                # NestedJoin and AddJoinColumn: (table1, key1, table2, key2, newColumnName, ...)
+                # 1) inline in this step: Table.ExpandTableColumn(Table.NestedJoin(...), "j", ...) – the
+                #    usual shape when every join reuses the same column name, so it must win over 2)
+                jfn, jargs = _parse_call(args[0].strip())
+                if jfn in ('Table.NestedJoin', 'Table.AddJoinColumn') and len(jargs) > 4 and _m_str(jargs[4]) == nested:
+                    join_expr = jargs[2]
+                else:
+                    # 2) in an earlier step of its own
+                    for sname, sexpr in steps.items():
+                        jfn, jargs = _parse_call(sexpr)
+                        if jfn in ('Table.NestedJoin', 'Table.AddJoinColumn') and len(jargs) > 4 \
+                                and _m_str(jargs[4]) == nested:
+                            join_expr = jargs[2]
+                            break
+                if join_expr is not None:
+                    gfn, gargs = _parse_call(join_expr.strip())
+                    if gfn == 'Table.Group' and len(gargs) > 2:
+                        # joined from an aggregate: follow the aggregated column into the grouped table
+                        group_src = _m_ident(_m_first_table_arg(gargs[0]))
+                        agg = _m_item_for(gargs[2], src_col)
+                        inner = re.findall(r'\[([^\]]+)\]', agg)
+                        ev('Joined in', f'{group_src} aggregated: {src_col}' + (f' → {col}' if src_col != col else ''))
+                        ev('Aggregated', agg)
+                        if inner and group_src in queries:
+                            return finish(group_src, inner[0])
+                        if inner and group_src in steps and group_src != cur:
+                            cur, col = group_src, inner[0]
+                            continue
+                        return finish(origin={'kind': 'computed', 'query': query, 'step': cur, 'column': col})
+                    joined = _m_ident(_m_first_table_arg(join_expr))
                 ev('Joined in', f'{joined or nested}[{src_col}]' + (f' → {col}' if src_col != col else ''))
                 if joined and joined in steps and joined != cur:
                     # the joined table is a local step: keep tracing inside this query
@@ -720,7 +745,7 @@ def trace_m_column(query, column, queries, depth=0):
             keep = ', '.join(_m_str_list(args[1]))
             what = 'column names' if col == _m_str(args[2]) else 'values'
             ev('Unpivot', f'{col} = {what} from all columns except {keep}')
-            col = f'(alle kolonner undtagen {keep})'
+            col = f'(all columns except {keep})'
         elif fn == 'Table.TransformColumns' and len(args) > 1 and col in _m_first_strings(args[1]):
             ev('Transformed', _m_item_for(args[1], col))
         elif fn == 'Table.TransformColumnTypes' and len(args) > 1 and col in _m_first_strings(args[1]):
@@ -741,7 +766,10 @@ def trace_m_column(query, column, queries, depth=0):
             cur = bare
             continue
         if bare and bare in queries and bare != query:
-            if queries[bare]['kind'] == 'table':
+            # a loaded table, or a shared query with its own steps (a staging query that is not loaded):
+            # keep tracing inside it, down to the sheet or file it reads. After a navigation step
+            # (Source{[Schema=…, Item=…]}) the shared query is only a connection: stop here instead.
+            if queries[bare]['kind'] == 'table' or (queries[bare].get('steps') and not nav_obj):
                 return finish(bare, col)
             return finish(origin={'kind': 'source', 'query': bare, 'object': nav_obj,
                                   'column': col, 'source': resolve_query_source(bare, queries)})

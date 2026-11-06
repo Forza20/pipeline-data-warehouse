@@ -205,10 +205,29 @@ def column_objects(c, steps):
         if e['action'] == 'Combined (append)' and e['query'] == nav_q:
             parts = []
             for step in [x.strip() for x in e['detail'].split(',')]:
-                parts += _nav_items(steps.get((e['query'], step), ''))
+                parts += _nav_items_back(e['query'], step, steps)
             if len(parts) > 1:
                 objs = list(dict.fromkeys(parts))
     return objs
+
+
+def _nav_items_back(query, step, steps, hops=12):
+    """Sheet/table names behind a step: follow the first table argument back through the query's steps
+    until a navigation step (`Source{[Item="x", Kind="Sheet"]}[Data]`) is found."""
+    name = step[2:-1].replace('""', '"') if step.startswith('#"') and step.endswith('"') else step
+    for _ in range(hops):
+        expr = steps.get((query, name))
+        if expr is None:
+            return _nav_items(name)
+        found = _nav_items(expr)
+        if found:
+            return found
+        m = re.match(r'^\s*[\w.]+\(\s*(#"(?:[^"]|"")*"|[^\W\d][\w.]*)', expr)
+        if not m:
+            return []
+        nxt = m.group(1)
+        name = nxt[2:-1].replace('""', '"') if nxt.startswith('#"') else nxt
+    return []
 
 
 def auto_upstream_column(c, table, steps, sql):

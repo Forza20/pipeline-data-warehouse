@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.xlsx binary
+
+# Test fixtures stay byte-exact (BOM, CRLF and encodings are what the tests check)
+.claude/skills/pipeline-power-bi/tests/fixtures/** -text

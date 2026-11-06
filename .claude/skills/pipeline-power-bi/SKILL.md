@@ -1,0 +1,404 @@
+---
+name: pipeline-power-bi
+description: Turn CSV files and Excel workbooks (.xlsx/.xlsm – every sheet or Excel table becomes a table) the user attaches into a cleaned Power BI project (PBIP with TMDL) without manual Power Query work. Profiles every file and sheet, proposes the cleaning steps per table (title lines, total rows, spaces, "N/A" text, case variants, mixed date/number/boolean/id formats, duplicates, anomalies, wide month columns, orphan keys, data types, readable names) and lets the user switch each one on or off before it writes the Power Query steps, relationships, date table and measures. Optional dashboard layout and data catalog. No database, no Supabase, no GitHub. Use it when the user wants a Power BI report from CSV or Excel files, asks to clean CSV or Excel data for Power BI, wants Power Query steps written for them, or types /pipeline-power-bi.
+---
+
+# pipeline-power-bi – from CSV and Excel files to a cleaned Power BI project
+
+The user attaches CSV files and/or Excel workbooks. A CSV file is one table; in a workbook every sheet
+(tab) is one table – or, when a sheet holds a formatted Excel table, that Excel table is. This skill
+measures what is wrong in each of them, **proposes** a fix for every
+problem, and writes only the fixes the user keeps as named Power Query steps in a PBIP project. The
+user never edits Power Query by hand, and every proposal is a choice they can switch on or off – now,
+at the review before the build, and on any later run.
+
+Talk to the user in their language (the language they write in), in plain words: say "table" and
+"cleaning step", not "partition" or "M expression". All files the skill writes are in English unless the
+user picks another report language.
+
+Arguments: file paths or a folder (optional – otherwise ask), `--name <report name>`, `--resume <run-id>`.
+
+## Principles
+
+1. **The user decides, every time.** Nothing is cleaned, renamed, removed or modelled without the user's
+   choice. Every question has the recommended option first, marked "(Recommended)", with what it does,
+   how many rows it touches and whether it changes the numbers. "Accept all recommended" is one click
+   for those who want speed; "choose one by one" and "skip" are always offered next to it.
+2. **Choices are kept** in `runs/<run-id>/choices.json`. Before the build the user sees all of them and
+   can change any; `--resume <run-id>` reopens them later. Never ask again what is already answered,
+   unless the user asks to change it.
+3. **Nothing leaves the machine.** No upload, no database, no GitHub. Do not print whole files or long
+   value lists in chat – counts and at most 3 examples.
+4. **The source files are never changed.** All cleaning happens in Power Query, so a refresh with a new
+   export of the same files repeats every step.
+5. Only facts from the profile. A problem the profile did not measure is not proposed.
+6. **Model like a data modeller, not a copier.** One sheet is not one table. The goal is a star schema:
+   one fact per business process at its lowest grain, flat dimensions, no test rows, no lookup chains,
+   one marked date table. [references/modeling-guide.md](references/modeling-guide.md) holds the rules;
+   step 4b turns them into proposals the user accepts or declines.
+
+Ask with AskUserQuestion: at most 4 questions per call, 2–4 options per question (the tool adds "Other"),
+each question understandable on its own (name the table and column in it). Use `multiSelect` where
+several options can be kept; single-select for variants that exclude each other.
+
+## Files
+
+```
+runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
+    data/                          # copies of the CSV/Excel files (unless the user keeps them in place)
+    profile.json                   # Profile-Sources.ps1 output (reads CSV and Excel)
+    choices.json                   # every answer – the single source for the build
+    cleaning-log.md                # table → step → rows → choice (written at the build)
+    expected-values.md             # rows and totals to check the report against
+    checks.dax                     # the same checks as one DAX query (Desktop → DAX query view)
+    overview.html                  # project overview page (build-overview.js)
+    layout-mapping.md              # from pbip-layout (when the dashboard is chosen)
+    governance/                    # from pbip-governance: model.json, handover.md, <Name>_azdo_wiki.zip
+    pbip/<Name>.pbip, <Name>.Report/, <Name>.SemanticModel/
+```
+
+`choices.json`:
+```json
+{
+  "run_id": "2026-11-06_pbi_sales", "name": "Sales", "source_folder": "runs/2026-11-06_pbi_sales/data/",
+  "copy_files": true, "report_culture": "en-US", "currency": "USD", "report_language": "en",
+  "tables": {
+    "fact_orders": { "include": true, "source": { "kind": "csv", "file": "fact_orders.csv" },
+      "table_name": "Sales", "role": "fact", "mode": "one-by-one",
+      "fixes": [ { "fix": "F08", "column": "order_date", "keep": true, "variant": "day-first" },
+                 { "fix": "F14", "column": "amount", "check": "Zero values", "keep": false } ] },
+    "tblKunder": { "include": true, "source": { "kind": "excel table", "file": "salg.xlsx", "sheet": "Kunder", "item": "tblKunder" },
+      "table_name": "Customer", "role": "dimension", "mode": "recommended", "fixes": [] },
+    "Noter": { "include": false, "source": { "kind": "sheet", "file": "salg.xlsx", "sheet": "Noter", "item": "Noter" } }
+  },
+  "model": { "relationships": ["Sales[customer_id] -> Customer[customer_id]"], "date_table": true,
+             "incomplete_month": "flag", "measures": ["Total amount", "Orders"] },
+  "extras": { "layout": false, "catalog": false, "desktop": true },
+  "status": { "profile": "done", "questions": "done", "build": "pending", "verify": "pending" }
+}
+```
+
+## Step 0 – Check the tools (show a short status line after the check)
+
+Windows 10/11 with Windows PowerShell 5.1 (Power BI Desktop needs Windows). Check without installing:
+
+| Program | Needed for | Check | Install (only after a yes) |
+|---|---|---|---|
+| Node.js 18+ | report validation | `node --version` | `winget install --id OpenJS.NodeJS.LTS -e` |
+| Power BI report CLI | validating the report | `powerbi-report-author --version` | `npm install -g @microsoft/powerbi-report-authoring-cli` |
+| Power BI Desktop | loading the data, the first refresh, screenshots | `Get-Command PBIDesktop -ErrorAction SilentlyContinue` or `Get-AppxPackage *PowerBI*` | `winget install --id Microsoft.PowerBI -e` |
+| Python 3.12 + openpyxl | only for the data catalog (extra) | `py -3.12 -c "import openpyxl"` | `winget install --id Python.Python.3.12 -e --scope user`, then `-m pip install openpyxl` |
+
+Also check the skills `powerbi-authoring:powerbi-report-cli` and `powerbi-authoring:semantic-model-authoring`
+are listed (else: `/plugin marketplace add microsoft/skills-for-fabric`, `/plugin install powerbi-authoring@fabric-collection`, restart).
+Missing programs: one AskUserQuestion (multiSelect) "Which of these should I install now?", install only
+the chosen ones, one command per call, then check the version. Without Node or the CLI the build still
+works, but validation falls back to the JSON check in tmdl-templates.md section 11 – say so. Without
+Power BI Desktop the project is written but not loaded; the user opens it on another PC.
+
+## Step 1 – The files
+
+1. Paths from the arguments, or ask in chat for the **path** of the file(s) or the folder – not an
+   upload: the chat accepts only images and text as attachments and rejects `.xlsx` (and often `.csv`).
+   Tell the user how: "In File Explorer, hold Shift, right-click the file and choose *Copy as path*, then
+   paste it here (a folder works too)." Strip surrounding quotes from pasted paths. Accept `.csv`, `.txt` (with delimiters), `.xlsx` and
+   `.xlsm` – CSV and Excel can be mixed. `.xls` (Excel 97–2003): ask the user to save it as `.xlsx` in
+   Excel (File → Save As) – the profiler cannot read it. A file open in Excel can still be read; Excel's
+   lock files (`~$…`) are skipped.
+2. Show per file: name, size, and ask the report name if `--name` is missing (proposal: the folder or
+   main file name, readable). Excel's sheets are listed after the profile (step 2).
+3. Ask: "Copy the files into the run folder (Recommended)" – the project keeps working if the originals
+   move · "Read them where they are" – a refresh picks up new exports in that folder. Save as
+   `copy_files`; the folder becomes the `SourceFolder` parameter.
+4. Run-id `<yyyy-MM-dd>_pbi_<name-in-lowercase-with-dashes>`. Exists already: ask "Continue that run" ·
+   "Start again (the old folder is kept as …_old)" · "Stop".
+
+## Step 2 – Profile
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Profile-Sources.ps1 -Path "<folder or file1,file2>" -OutFile runs\<run-id>\profile.json
+```
+Read-only; prints one line per table. Then read `profile.json` (per table: `kind` = `csv` / `sheet` /
+`excel table`, `file`, `sheet`, `excelTable`, `range`, `hidden`, `isEmpty`, `encoding`, `delimiter`,
+`headerRow`, `headerCells`, `dataRows`, `columns[]` with `kind`/`readable`/`min`/`max`/`sum`,
+`findings[]` with `fix`, `column`, `rows`, `detail`, `recommended`, `variant`; plus `relations[]`, where
+`matchedBy` = `name` or `values`). Read it with `Get-Content -Raw -Encoding UTF8 | ConvertFrom-Json`,
+one table at a time – never paste it whole.
+
+Show the user one overview table: file (and sheet / Excel table) → rows · columns · problems found (not
+counting F17) · proposed role (fact = the table other tables do not point at, with dates and amounts;
+dimension = a table others point at; other).
+
+**Workbooks – which sheets?** When a workbook has more than one sheet or Excel table, ask first (one
+AskUserQuestion, multiSelect, max 4 options per question – more questions if needed): "Which sheets in
+<file> should become tables in the report?" One option per sheet/Excel table, label = its name, description
+= rows · columns · "Excel table on sheet X" · "hidden sheet" · "empty". Sheets with data are pre-recommended
+("(Recommended)" in the label); hidden, empty and one-column note sheets are not, and neither is a sheet
+with an **F22** finding (an exact copy – name the original in its description). A sheet whose data is
+also inside an Excel table on the same sheet appears only once (the Excel table). Write `include` per
+table in `choices.json`; unticked tables are skipped in every later step.
+
+**Tables that belong together (F21)** – right after, one single-select per pair: "<A> and <B> have the
+same columns (<only-in lists>). Append them into one table?" · "Append into one table '<proposal>'
+(Recommended)" · "Keep them as two tables". With append, step 4 cleans the combined table once.
+
+**A first design sketch before the cleaning.** Mark in the overview which sources the star schema will
+most likely leave out (copies, a list of ids that another table already holds, a currency table when all
+amounts are in one currency) or use only to look up a few columns (address, city, region, subcategory,
+detail tables). Step 4 then asks about fewer tables: a left-out source is not cleaned, and a lookup-only
+source is asked only about the steps that touch the columns the design takes from it (keys, names, test
+rows). Step 4b confirms or changes the sketch.
+
+One line after it: "Next I go through the tables (sheets) one by one; you decide every step."
+
+## Step 3 – Report settings (one AskUserQuestion call)
+
+1. *Report language and number format:* "English, en-US, USD (Recommended)" · "Danish, da-DK, DKK" ·
+   "English, en-GB, GBP" · Other. The **source** format of each file is measured by the profile; this is
+   only how the report shows numbers and dates.
+2. *Table names and roles* (multiSelect is wrong here – single-select): "Use the proposed names (Recommended)"
+   with the list in the description (`fact_orders` → Sales (fact), `dim_customers` → Customer …) ·
+   "Keep the file names" · "I'll type the names" (then ask in chat).
+3. *Readable column names (F02) for all tables:* "Yes – order_date becomes Order date (Recommended)" ·
+   "Keep the names from the files". This sets F02 for every table; it can still be changed per table.
+
+## Step 4 – Cleaning, table by table ("faneblad for faneblad")
+
+Every included table: each CSV file and each chosen sheet or Excel table. Name the sheet in the
+question ("Sheet Salg in salg.xlsx"). Facts first, then dimensions, then the rest. For each table,
+**one** AskUserQuestion call:
+
+- Question 1 (single-select): "<table> (<file>, <rows> rows) has <n> proposed cleaning steps. How do you
+  want to go through them?" · "Accept the <k> recommended steps (Recommended)" with the step list in the
+  description and in `preview` · "Choose step by step" · "No cleaning for this table (only data types)".
+- With "accept": keep every finding with `recommended: true` at its default variant, drop the others,
+  and write them to `choices.json`. Show one line: "<table>: <k> steps kept, <m> not kept (<names>)."
+- With "step by step": the next calls group the findings into questions of at most 4 options, in the
+  order of [references/fix-catalog.md](references/fix-catalog.md):
+  - *Structure* (F01, F20, F03, F04, F19, F25), *Text* (F05, F06, F07, F23), *Formats* (F11, F08,
+    F09, F10), *Rows* (F27, F12, F13, F15, F14, F24), *Shape and keys* (F16, F18), *Codes* (F28),
+    *Privacy* (F26), *Types and names* (F17, F02). F29 and M02 are not asked here – they are model
+    choices (step 4b).
+  - **F27 (test rows) and F13 (repeated entities): show the rows themselves** (the profile's examples –
+    the first fields of each row), so the user sees *which* rows go. A copy from a migration often has an
+    odd `source_id` or a code outside the normal range; say so when the examples show it, and offer to
+    remove exactly those rows instead of "keep first".
+  - **F28 (codes):** ask in chat for the names ("10 = Web, 20 = Store …"); with no answer keep the code.
+  - multiSelect, one option per finding: label = fix in plain words + column ("Parse 4 date formats in
+    order_date"); description = the profile's `detail`, rows affected, "changes the totals" when the
+    catalog says so, and "(Recommended)" when recommended. Tell the user once: "Tick the steps you
+    want; unticked steps are not applied."
+  - A kept finding with variants (F08, F13, F14, F15, F18, F20, M01, F07) gets one follow-up
+    single-select with the variants from the catalog, default first. Ask only when the default is not
+    obviously right (F08 without day/month evidence, F14 spike limit, F18) – otherwise use the default
+    and name it in the confirmation line.
+  - F17 (data types) is always listed and recommended; if the user drops it, say that sums and date
+    filters will not work on text columns.
+- With "no cleaning": keep only F17 and – if chosen in step 3 – F02.
+- F11 and F18 concern two tables: when the user keeps F11 on one table, propose the same target format
+  for the key in the other tables in their turn (pre-recommended). F18 is asked on the fact table but
+  built in the dimension.
+- After each table, write `choices.json`. If the user changes their mind about an earlier table, update
+  it there – do not start over.
+
+## Step 4b – Design the model (star schema)
+
+Read [references/modeling-guide.md](references/modeling-guide.md) first. Cleaning made each table
+correct; now decide which tables the report gets. Work from the profile: `relations[]`, column kinds,
+dates and amounts per table, and the findings F21, F22, F29, M02, F28.
+
+1. **Draft the design** (in your head, then as a `preview`): the business processes, one fact per process
+   with its grain, the dimensions, and for every source table where it ends up – *fact*, *dimension*,
+   *merged into <dimension>*, *staging only*, *left out (why)*. Use the guide's detection rules:
+   header + lines → one line-level fact; a key with dates in 3+ tables → process fact; lookup chains →
+   flatten; one-to-one tables and primary-flag details (F29) → merge; repeated attributes (M02) → new
+   dimension; status/priority/channel/codes (F28) → junk dimension; two columns pointing at the same
+   dimension (ship-to/bill-to city, several dates) → role-playing with inactive relationships; name joins
+   → surrogate keys; a user-to-region sheet → security role.
+2. **Ask** (AskUserQuestion, a single-select first): "Use the proposed star schema (<n> facts, <m>
+   dimensions) (Recommended)" with the design in `preview` (one line per model table: name · grain ·
+   built from) · "Choose design decision by design decision" · "Keep one table per sheet (no reshaping)".
+   With "decision by decision": one multiSelect per group (max 4 options each) – *facts* (line-level
+   fact, process fact, split repeated attributes), *dimensions* (each flattening/merge), *small flags*
+   (junk dimension, code names), *roles and security* (role-playing, RLS role). Each option says what it
+   changes for the user ("orders per category can be counted directly", "one customer table instead of
+   five").
+3. Write the design to `choices.json` → `design`: `facts[]` (name, grain, sources, keys), `dimensions[]`
+   (name, sources, merged lookups, surrogate key yes/no), `staging_only[]`, `left_out[]` with reasons,
+   `roles[]`. Cleaning choices from step 4 stay attached to the source tables; the build applies them in
+   the staging queries before the merges.
+4. Run the guide's checklist (§9) on the design and tell the user any point that is not met, with the
+   reason (e.g. "City stays its own table because targets are set per city").
+
+## Step 5 – The model (one or two AskUserQuestion calls)
+
+Relationships, date and measures now follow the design from step 4b: facts relate to dimensions on the
+surrogate or natural keys the design names; the profile's `relations[]` between tables that were merged
+away are dropped.
+
+1. *Relationships* (multiSelect): one option per `relations[]` entry with `preferred: true` (max 4 per
+   question), label "Sales → Customer on customer_id", description: many-to-one, matched ids, orphans
+   (and whether F11/F18 fix them). `matchedBy: text` = the tables share a name column (CustomerName)
+   instead of an id – say so; it works, but a renamed customer breaks the link. `needsUniqueTarget` =
+   the target has repeated names; the relationship needs its F13 step kept. Relations of an appended
+   source (F21) become one relationship from the combined table; relations of a left-out copy (F22) are
+   dropped. Recommended when ≥ 95 % of the ids match after the chosen fixes.
+   One-to-one relations between two dimensions: describe them and recommend **not** relating them
+   (merge or keep apart) unless the user asks.
+2. *Date table:* "Yes – a calendar table linked to <fact>[<date>] (Recommended)" · "No". With more date
+   columns in the fact, the others are inactive relationships (tmdl-templates.md section 7).
+3. *Incomplete last month* (only with an M01 finding): the three variants from the catalog.
+4. *Measures* (multiSelect, up to 4 per question, recommended ones first): proposals from the columns –
+   sum of each amount column ("Total amount"; with F14 *flag*: only rows with `amount issue = "ok"`, say
+   so), row count of the fact ("Orders"), distinct count of each dimension key ("Customers"), average per
+   row ("Average order value"), share of a flag ("Paid share"), latest complete month and previous month
+   for the main amount when there is a date table. All measures go into `_Measures` with display folders.
+
+## Step 6 – Extras (one AskUserQuestion call, multiSelect)
+
+The run always ends with an **overview page** (`overview.html`, step 8.7) and a **DAX check file**
+(`checks.dax`) – they are part of the hand-over, not extras. Ask about the rest (two questions, max 4
+options each, recommended ones first):
+
+1. *Report and documentation* (multiSelect): "Sales overview dashboard – the **pbip-layout** skill
+  (Recommended)" – then ask its colour/sections/title questions as in `/messy-pipeline` section 2b ·
+  "Data catalog, lineage page and dbdiagram model – the **pbip-catalog** skill (Recommended)" (needs
+  Python + openpyxl) · "Governance and handover – the **pbip-governance** skill (Recommended)": PII
+  audit (visible personal data), RLS inventory, data sources, handover Markdown and an Azure DevOps wiki
+  bundle · "Obsidian note" (only when `pipeline.config.json` has `obsidian.enabled: true` – say the vault path).
+2. *Check and publish* (multiSelect): "Open in Power BI Desktop, refresh and check the numbers
+   (Recommended)" (only if Desktop is installed; skip it when free memory is below 1.5 GB and say why) ·
+   "Publish the overview page as a private page I can share" (only when the Artifact tool is available).
+
+Without the dashboard the report gets one simple page (a card per measure and a table of the main fact)
+so it opens.
+
+## Step 7 – Review before the build
+
+Show all choices compact: the design first (facts with grain, dimensions, what was merged, staging only
+or left out), then per source one line (`Sales: 9 steps – Parse dates (day-first), Parse amount,
+… · not kept: Zero values`), then relationships, date table, measures, extras. Ask:
+"Build the project (Recommended)" · "Change the cleaning of a table" (ask which, then repeat step 4 for
+it) · "Change the model or extras" · "Stop here (choices are saved)". Repeat until "Build" or "Stop".
+
+## Step 8 – Build
+
+Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyContinue | ? MainWindowTitle`
+→ ask the user to save and close it).
+
+1. Copy the files to `data/` when `copy_files` is true.
+2. `expected-values.md` from the profile: rows per table after the kept row-removing fixes (F03, F04,
+   F12, F13, F15/F14 *remove*), distinct keys, min/max dates, orphans left. Mark each value with the
+   fixes it assumes.
+3. **The model is generated, not hand-written.** Write the build spec into `choices.json` → `build`
+   ([references/build-spec.md](references/build-spec.md)): staging per source with its kept steps by fix
+   id, the design's tables with their ops and final columns, date, relationships, measures, roles. Then:
+   ```
+   node .claude\skills\pipeline-power-bi\scripts\build-model.js runs\<run-id>
+   ```
+   It refuses a spec with errors and writes nothing; fix the spec and run it again. The report itself
+   comes from `powerbi-report-author scaffold <run>\pbip --name <Name> --model-path ../<Name>.SemanticModel`
+   (first build only). A later change (`--resume`) changes the spec and runs the script again. What the
+   script builds, in two layers (source-model.md section 2c):
+   - **Staging (not loaded):** one `expression` per included source in query group `01_Stage` (CSV:
+     section 2; sheet or Excel table: section 2b), with its kept cleaning steps in catalog order (step
+     names `#"Fxx …"`).
+   - **Model tables (loaded):** the design's dimensions (`02_Dimensions`) and facts (`03_Facts`), built
+     from the staging queries with merges, surrogate keys and junk dimensions (`#"M… …"` step names:
+     `M10 Merge address into customer`, `M20 Add product key`). With "one table per sheet" in step 4b, each
+     staging query is loaded as its own table instead.
+   - `expressions.tmdl` (SourceFolder + only the functions used + the staging queries), date table
+     (marked, auto date/time off), relationships, `_Measures`, RLS roles (`roles/<name>.tmdl`), model
+     culture = report culture, report page.
+4. `cleaning-log.md`: per table a row per finding – fix, column, rows, kept/not kept, variant, step
+   name. Not kept findings stay in the log, so the user can see what was left as it is.
+5. Validate:
+   - TMDL: when `powerbi-modeling-mcp` is available, `connection_operations` → `ConnectFolder` on
+     `<Name>.SemanticModel/definition` (parses the model offline). Otherwise check tabs, quotes and unique
+     `lineageTag`s by script.
+   - Every column a query returns has a TMDL column with the same `sourceColumn`, and the other way
+     round (compare the last step's names with the TMDL by script).
+   - Report: `powerbi-report-author validate <Name>.Report` (or section 11 of tmdl-templates.md).
+   - Fix and repeat until clean. Do not report a build as done with validation errors.
+6. **The other skills – load them, do not imitate them.** Run each chosen one by loading it with the
+   Skill tool (`pbip-layout`, `pbip-catalog`, `pbip-governance`) or, when the Skill tool cannot load it,
+   by reading its `SKILL.md` by path (`.claude/skills/<name>/SKILL.md`) and following it step by step.
+   Never call only their scripts – the skills hold the steps that make the output right.
+   - **pbip-layout**, *pipeline mode* (its SKILL.md section "Pipeline mode"): the user's colour/section/
+     title answers from step 6 as a profile, the slot table from its `layout.md`, missing measures from
+     its `measures.md`, `docs/layout-config.json`, and **`layout-mapping.md` in the run folder** (slot →
+     measure → expected value → fallback → open points). Do this after the model validates.
+   - **pbip-catalog**: `build_catalog.py <pbip> --html`, then AI descriptions for every missing field
+     (its step 3, with keys described from the relationships) and the second run. Report: counts,
+     description status, possible PII, and how much upstream lineage it could trace. With a staging layer
+     the trace stops at merges – say how many fields reach the source.
+   - **pbip-governance**: `parse_pbip.py <pbip>` (capture stdout from Python, not a PowerShell `>` – that
+     adds a BOM), then `generate_azdo_wiki.py <json> --output governance/<Name>_azdo_wiki.zip`, and a
+     handover Markdown `governance/handover.md` (its step 3, option 2). Its PII audit must agree with the
+     model: a **visible** column flagged as personal data (a person's name such as an account manager)
+     goes back to the user as a question – hide it, keep it visible, or remove it – and on hide/remove the
+     TMDL is changed and validated again.
+   - If a skill fails, finish the run without it, say what failed and how to rerun it alone.
+7. **Overview page** (always):
+   `node .claude\skills\pipeline-power-bi\scripts\build-overview.js runs\<run-id> [--vault "<vault>" --folder <folder>]`
+   – sources → staging → model → report, the star schema, cleaning steps per source, relationships,
+   measures, privacy/security and the control numbers in one `overview.html`; with `--vault` also an
+   Obsidian note (`<vault>/<folder>/Power BI/<run-id>.md`, only when the user chose it). When the user
+   chose to publish it: load the `artifact-design` skill's rules and publish **`overview.page.html`** (the
+   same page without document wrapper tags, written next to it) with the Artifact tool (icon `diagram`);
+   republish the same file path on later runs so the link stays. Otherwise give the path of
+   `overview.html`, which opens in any browser.
+8. **`checks.dax`** (always): one `EVALUATE` with a row per check – row counts per model table, every
+   headline measure, orphan checks (`ISBLANK ( RELATED (...) )` per relationship of the main fact) and
+   "test rows left = 0" per F27 – each with its expected value from `expected-values.md` and a
+   Difference column. Example: `runs/2026-11-06_pbi_dataset/checks.dax`.
+
+## Step 9 – Check the numbers
+
+- With Desktop: open `<Name>.pbip`, ask the user to click **Refresh** (and approve the file access
+  prompt for the folder), then run the DAX checks of source-model.md section 4 with
+  `dax_query_operations` and compare with `expected-values.md`. A query error in a step: read the error
+  (it names the step, e.g. `F08 Parse order_date`), fix the step, rebuild, refresh again.
+- Without Desktop: give the user `checks.dax` (paste into Desktop → DAX query view → Run; every
+  Difference should be 0) and `expected-values.md` for the cards.
+- Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
+  explain at once: follow the **reconcile** skill (`.claude/skills/reconcile/SKILL.md`) – split it by the
+  dimensions until it sits in one slice and name the rows behind it. Write the result into
+  `expected-values.md` (column "In Power BI") and rebuild the overview page.
+
+## Step 10 – Hand-over (5–8 lines)
+
+What was built and the result of the check; links relative to the repository root to
+`runs/<run-id>/pbip/<Name>.pbip`, `overview.html` (or its published link), `checks.dax`,
+`cleaning-log.md`, `expected-values.md`, and what the chosen skills made (`layout-mapping.md`,
+`pbip/docs/catalog.xlsx`, `lineage.html`, `model.dbml`, `governance/handover.md` and the wiki zip, the
+Obsidian note); the governance flags in one line (visible personal data, RLS roles); how to change a choice later: `/pipeline-power-bi --resume <run-id>` → "Change the cleaning of a
+table" → rebuild, or in Power BI Desktop → Transform data → *Applied steps* → right-click a step →
+Delete (every step is named after its fix). Where to point the files: Transform data → Manage parameters
+→ `SourceFolder`. For Excel: the queries find sheets and Excel tables by name, so renaming a sheet or
+table in the workbook breaks the refresh – keep the names, or tell the skill on a `--resume`.
+
+## Reference files
+
+- [references/fix-catalog.md](references/fix-catalog.md) – every fix: recommended or not, variants, the
+  M step, and whether it changes the numbers. Read before step 4.
+- [references/modeling-guide.md](references/modeling-guide.md) – how to turn cleaned tables into a star
+  schema: grain, line-level and process facts, flat dimensions, junk and role-playing dimensions,
+  surrogate keys, what to leave out, security, date, staging, review checklist. Read before step 4b.
+- [references/source-model.md](references/source-model.md) – folder parameter, the four parse functions, the
+  CSV and Excel table/partition templates, staging queries and star-schema patterns (section 2c), date
+  table and DAX checks. Read before step 8.
+- [scripts/Profile-Sources.ps1](scripts/Profile-Sources.ps1) – the read-only profiler for CSV and Excel (Windows
+  PowerShell 5.1; Excel need not be installed).
+- [scripts/build-model.js](scripts/build-model.js) + [references/build-spec.md](references/build-spec.md) –
+  the model generator and its spec (choices.json → `build`). Read the spec reference before step 8.
+- [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
+  from the run folder.
+- Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
+- [tests/run-tests.js](tests/run-tests.js) – 68 checks of the profiler, the model generator and the overview
+  page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
+  script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
+  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass.
+- `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
+  1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load
+  errors.

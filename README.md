@@ -49,6 +49,30 @@ Results are in `runs/<run-id>/` (git-ignored): `scorecard.md`, the PBIP (`pbip/<
 BI Desktop and refresh with the `powerbi_reader` login), `pbip/docs/catalog.xlsx`, `lineage.md`, `lineage.html`,
 `model.dbml` and a project site `site.html`.
 
+### Without Supabase: `/pipeline-power-bi`
+
+Have CSV files or Excel workbooks and want a cleaned Power BI report, without a database? Type
+`/pipeline-power-bi` and attach the files (or give their folder). In a workbook every sheet – or the Excel
+table on it – becomes a table, and you choose which sheets to include. It needs no setup command, no Supabase and no GitHub, only Windows, Node.js,
+the Power BI report CLI and, to load the data, Power BI Desktop.
+
+1. It profiles every file: title lines, total rows, spaces, "N/A" text, case variants, mixed date, number,
+   true/false and id formats, duplicates, anomalies, wide month columns, orphan keys.
+2. It proposes the cleaning steps **table by table**. For each table you accept the recommended steps with one
+   click, tick the steps you want one by one, or skip the table. Every proposal shows how many rows it touches
+   and whether it changes the totals.
+3. It proposes a star schema – one fact per business process at its lowest grain, flat dimensions,
+   test rows and copies left out, codes given names, a security role from a user-to-region sheet – and you
+   accept the whole design or decide point by point (`references/modeling-guide.md` holds the rules).
+4. It asks about relationships, a date table and measures, and about extras (dashboard, catalog, check in Power
+   BI Desktop). Before the build it shows all your choices, and you can change any of them.
+5. It writes the PBIP. Every cleaning step is a named Power Query step (`F08 Parse order_date` …), so you can
+   still switch one off in Power BI under *Applied steps*.
+
+Results are in `runs/<date>_pbi_<name>/`: the PBIP, `cleaning-log.md` (what was and was not cleaned) and
+`expected-values.md` (the numbers to check the report against). `/pipeline-power-bi --resume <run-id>` reopens
+your choices.
+
 ## Passwords and data
 
 - You choose the passwords of the two database roles yourself in the Supabase SQL Editor. They are never
@@ -65,7 +89,7 @@ BI Desktop and refresh with the `powerbi_reader` login), `pbip/docs/catalog.xlsx
   commands/pipeline-data-warehouse.md   setup
   commands/messy-pipeline.md            the run (orchestrator)
   agents/                               dataset-publisher, medallion-builder, layout-applier, catalog-builder
-  skills/                               the seven skills the agents use (see below)
+  skills/                               the skills (see below); pipeline-power-bi runs on its own
   settings.json                         permissions for this folder only
 supabase/migrations/                    roles and guarded helper functions (run once in the SQL Editor)
 tools/                                  score.js, build-site.js, sample-sql.js, update-vault.js
@@ -82,6 +106,7 @@ pipeline.config.example.json            the shape of your pipeline.config.json
 | `pbip-governance` | the PBIP parser `pbip-catalog` builds on, PII heuristics |
 | `reconcile` | finds where two numbers that should agree diverge (used when scoring) |
 | `pr-review` | reviews a skill fix before it is merged |
+| `pipeline-power-bi` | CSV files and Excel workbooks → profile → cleaning steps you switch on or off per table/sheet → PBIP/TMDL with named Power Query steps (no database) |
 
 ## Licence
 

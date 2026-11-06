@@ -17,3 +17,10 @@ runs/*/scratch/
 
 # Local clone of your private datasets repo
 datasets/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# The run overview of /messy-pipeline is local
+runs/overview.md
