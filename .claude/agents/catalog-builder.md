@@ -8,7 +8,9 @@ model: sonnet
 You are step 4 of `/messy-pipeline`. Working directory: the repository root. You get one input: the path
 to `runs\<run-id>\run.json`. You cannot ask the user anything.
 
-Read `pipeline.config.json` first (`tools.python`, `supabase.project_ref`).
+Read `pipeline.config.json` first (`tools.python`, `supabase.project_ref`, `catalog.dbml`). When
+`catalog.dbml` is `false`, pass `--no-dbml` to `build_catalog.py` and skip every `model.dbml` check below;
+`model.dbml` is then not expected.
 
 ## Method
 
@@ -48,7 +50,7 @@ Read `pipeline.config.json` first (`tools.python`, `supabase.project_ref`).
      Overview, Tables, Columns, Measures, Dashboard, Relationships, Sources.
    - Counts in `catalog.json` equal the TMDL: tables (`tables\*.tmdl`), measures (`measure ` lines),
      relationships (`relationships.tmdl`).
-   - Every slot present in `docs\layout-config.json` (KPI 1–4, Trend, Monthly card 1–3, Bars, Table,
+   - Every slot present in `docs\layout-config.json` (KPI 1–4, Trend, Monthly card 1–3, Bars per category, Top 10 table,
      Highlight 1–2 – a profile may switch some off) is tagged on at least one field in the Dashboard sheet,
      and `lineage.md` has one graph per slot.
    - Every model table appears as a `Table` in `model.dbml`, and every relationship as a `Ref`.

@@ -176,8 +176,8 @@ Sections:
    error. Never show answer-key rows to an agent.
 4. **Layout** – validation result, `layout-mapping.md`, and your own review of the screenshot (Read it).
    A unit difference between the dashboard and other pages is a remark, not an error.
-5. **Catalog** – from `catalog-report.md` and your own spot checks: `catalog.xlsx`, `lineage.md` and
-   `model.dbml` exist; table/measure/relationship counts equal the TMDL; every dashboard slot in
+5. **Catalog** – from `catalog-report.md` and your own spot checks: `catalog.xlsx`, `lineage.md` and – when
+   `catalog.dbml` is true in the config – `model.dbml` exist; table/measure/relationship counts equal the TMDL; every dashboard slot in
    `layout-config.json` tagged; the `Revenue` lineage reaches a CSV column; description status and "possible
    PII". A missing file or a count mismatch is a technical error; a lineage gap or missing descriptions is a
    remark.
@@ -226,5 +226,6 @@ none." On approval:
 
 run-id, result, the most important findings, and links relative to the repository root to
 `runs/<run_id>/scorecard.md`, `runs/<run_id>/screenshots/dashboard.png` (if any),
-`runs/<run_id>/pbip/<Name>.pbip` and `runs/<run_id>/pbip/docs/catalog.xlsx`, the project site, and how to open
-`model.dbml` in dbdiagram.io (Create diagram → paste the file, or Import → DBML).
+`runs/<run_id>/pbip/<Name>.pbip` and `runs/<run_id>/pbip/docs/catalog.xlsx`, the project site, and – when
+`catalog.dbml` is true – how to open `model.dbml` in dbdiagram.io (Create diagram → paste the file, or
+Import → DBML).

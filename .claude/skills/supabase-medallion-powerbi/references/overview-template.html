@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Medallion overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<!--
+  supabase-medallion-powerbi · overview page (Phase 9).
+  Copy this file to <project>/docs/overview.html and replace ONLY the JSON in <script id="overview-data">.
+  Every number must come from a query or a file count of this build – never estimate.
+  Single dark look on purpose; no other edits needed.
+-->
+<style>
+:root {
+  --bg: #0e0c1a; --panel: #161329; --frame: #1b1733; --ink: #ece9f8; --muted: #9b95ba; --line: #3a3460;
+  --accent: #a898ff; --bronze: #f0a05a; --silver: #cfccdc; --gold: #f5c94a; --warn: #ff7b5c; --warn-soft: #3a1e26; --ok: #5ed6a2;
+  --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--mono); font-size: 14px; line-height: 1.45;
+  padding-block: 28px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(20px, 2.4vw, 26px); margin: 0 0 4px; letter-spacing: -.01em; }
+.sub { color: var(--muted); margin: 0 0 22px; }
+.scroll { overflow-x: auto; }
+.stage { min-width: 1040px; display: grid; grid-template-columns: 170px 40px 1fr 40px 220px; align-items: center; gap: 0; padding: 8px 4px 4px; }
+.arrow { height: 2px; background: var(--muted); position: relative; margin: 0 6px; }
+.arrow::after { content: ""; position: absolute; right: -2px; top: -5px; border: 6px solid transparent; border-left: 8px solid var(--muted); border-right: 0; }
+.sources { display: grid; justify-items: center; gap: 14px; text-align: center; }
+.ftypes { display: grid; grid-template-columns: repeat(2, auto); gap: 10px 18px; }
+.ft { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; }
+.ft svg { width: 22px; height: 26px; }
+.ft b { color: var(--ink); font-weight: 600; }
+.big { font-family: var(--display); font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.lbl { color: var(--muted); font-size: 12.5px; }
+.frame { border: 1px dashed var(--line); border-radius: 18px; background: var(--frame); padding: 30px 18px 20px; position: relative; }
+.frame-title { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--bg); padding: 0 12px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.layers { display: grid; grid-template-columns: 1fr 36px 1fr 36px 1fr 36px 1fr; align-items: start; }
+.layer { display: grid; justify-items: center; text-align: center; gap: 6px; }
+.layer svg { width: 74px; height: 74px; }
+.layer .name { font-size: 15px; font-weight: 500; margin-top: 2px; }
+.layer .n { display: flex; align-items: baseline; gap: 6px; }
+.layer .n span { color: var(--muted); font-size: 13px; }
+.layer .d { color: var(--muted); font-size: 12px; max-width: 18ch; }
+.gate { margin-top: 26px; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font-size: 13px; font-weight: 600; background: var(--frame); justify-self: center; position: relative; }
+.gate::before { content: ""; position: absolute; right: 100%; top: 50%; width: 8px; height: 1.5px; background: var(--muted); }
+.gate::after { content: ""; position: absolute; left: 100%; top: 50%; width: 8px; height: 1.5px; background: var(--muted); }
+.gate.badge { position: absolute; top: -6px; right: -12px; margin: 0; width: 26px; height: 26px; font-size: 12px; }
+.gate.badge::before, .gate.badge::after { display: none; }
+.flag { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 4px 12px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); border: 1px solid rgba(255,123,92,.35); font-size: 12px; white-space: nowrap; }
+.consumers { display: grid; gap: 18px; padding-left: 6px; }
+.cons { display: grid; grid-template-columns: 34px 1fr; gap: 0 12px; align-items: start; }
+.cons svg { width: 30px; height: 30px; color: var(--gold); grid-row: span 2; }
+.cons .t { font-size: 15px; } .cons .t b { font-family: var(--display); font-size: 22px; font-weight: 600; margin-right: 6px; }
+.cons .d { color: var(--muted); font-size: 12px; }
+.foot { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 46px; color: var(--muted); font-size: 13px; }
+.foot span { display: inline-flex; align-items: center; gap: 8px; }
+.foot b { color: var(--ink); font-weight: 600; }
+.foot svg { width: 18px; height: 18px; }
+.note { color: var(--muted); font-size: 12px; margin-top: 18px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+  <div class="scroll" role="region" aria-label="Medallion overview" tabindex="0"><div class="stage" id="stage"></div></div>
+  <div class="foot" id="foot"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<!-- Replace this JSON for each project. Keys: see references/overview.md -->
+<script id="overview-data" type="application/json">
+{
+  "title": "Example · medallion in Supabase",
+  "subtitle": "From source files to Power BI – built with supabase-medallion-powerbi.",
+  "frameTitle": "supabase · project «my-project» · mp_saas_s7_*",
+  "sources": { "files": [ { "type": "csv", "count": 8 } ], "systems": 3, "systemsLabel": "systems", "formatsLabel": "in 1 format" },
+  "layers": {
+    "landing": { "n": 8, "unit": "files", "desc": "raw, as delivered" },
+    "bronze":  { "n": 9, "unit": "tables", "desc": "every row as received" },
+    "silver":  { "n": 7, "unit": "tables", "desc": "cleaned, typed and combined" },
+    "gold":    { "n": 8, "unit": "tables", "desc": "star schema" }
+  },
+  "flag": { "rows": 200, "label": "flagged" },
+  "consumers": [
+    { "icon": "report", "n": 4, "label": "report pages", "desc": "Power BI · 42 visuals" },
+    { "icon": "measure", "n": 46, "label": "measures", "desc": "en-US · _Measures" },
+    { "icon": "people", "n": 1, "label": "reader role", "desc": "powerbi_reader · RLS" }
+  ],
+  "footer": [
+    { "icon": "check", "text": "<b>45 checks</b> at 4 control points" },
+    { "icon": "decision", "text": "<b>22 decisions</b> logged" },
+    { "icon": "equal", "text": "<b>0 differences</b> from control values" }
+  ],
+  "note": "Source: SQL counts on bronze/silver/gold, quality_checks.sql and the PBIP files."
+}
+</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById('overview-data').textContent);
+  var nf = function (n) { return Number(n).toLocaleString(document.documentElement.lang || 'en-US'); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  function file(t) { return '<svg viewBox="0 0 22 26" aria-hidden="true"><path d="M2 1h12l6 6v18H2z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14 1v6h6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6 13h10M6 17h10M6 21h7" stroke="currentColor" stroke-width="1.2"/></svg>'; }
+  function db(c, fill) { return '<svg viewBox="0 0 74 74" aria-hidden="true"><defs><linearGradient id="g' + c.replace(/\W/g, '') + '" x1="0" x2="1"><stop offset="0" stop-color="' + c + '" stop-opacity=".95"/><stop offset="1" stop-color="' + c + '" stop-opacity=".55"/></linearGradient></defs>' +
+    '<path d="M12 16v42c0 4.4 11 8 25 8s25-3.6 25-8V16" fill="url(#g' + c.replace(/\W/g, '') + ')" fill-opacity="' + fill + '" stroke="' + c + '" stroke-width="2"/>' +
+    '<ellipse cx="37" cy="16" rx="25" ry="8" fill="' + c + '" fill-opacity=".25" stroke="' + c + '" stroke-width="2"/>' +
+    '<path d="M12 30c0 4.4 11 8 25 8s25-3.6 25-8M12 44c0 4.4 11 8 25 8s25-3.6 25-8" fill="none" stroke="#0e0c1a" stroke-opacity=".55" stroke-width="2"/></svg>'; }
+  var folder = '<svg viewBox="0 0 74 74" aria-hidden="true"><path d="M8 18h20l6 7h32v35H8z" fill="#a898ff" fill-opacity=".22" stroke="#a898ff" stroke-width="2"/><path d="M8 30h58" stroke="#a898ff" stroke-width="2"/><path d="M26 42h22" stroke="#a898ff" stroke-width="2"/></svg>';
+  var icons = {
+    report: '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="24" height="20" rx="2"/><path d="M3 11h24M9 20v-4M14 20v-6M19 20v-3"/></svg>',
+    measure: '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="22" height="22" rx="4"/><path d="M19 10h-8l5 5-5 5h8"/></svg>',
+    people: '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="11" cy="11" r="4"/><circle cx="21" cy="12" r="3"/><path d="M3 25c1-5 4-7 8-7s7 2 8 7M18 19c4 0 7 2 8 6"/></svg>',
+    cube: '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M15 3l11 6v12l-11 6-11-6V9z"/><path d="M4 9l11 6 11-6M15 15v12"/></svg>',
+    page: '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="24" height="20" rx="2"/><path d="M3 10h24M7 7.5h2"/></svg>'
+  };
+  var ficons = {
+    check: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 1.5l6 2.5v5c0 3.5-2.6 6-6 7.5C5.6 15 3 12.5 3 9V4z"/><path d="M6 9l2 2 4-4"/></svg>',
+    decision: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="2" width="12" height="14" rx="1.5"/><path d="M6 6h6M6 9h6M6 12h4"/></svg>',
+    equal: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="9" r="7.5"/><path d="M6 7.5h6M6 10.5h6"/></svg>',
+    clock: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="9" r="7.5"/><path d="M9 5v4l3 2"/></svg>'
+  };
+  document.getElementById('title').textContent = D.title || '';
+  document.getElementById('subtitle').textContent = D.subtitle || '';
+  document.title = D.title || document.title;
+
+  var s = D.sources || {}, files = s.files || [];
+  var src = '<div class="sources"><div class="ftypes">' + files.map(function (f) { return '<span class="ft">' + file(f.type) + esc(f.type) + ' <b>' + nf(f.count) + '</b></span>'; }).join('') + '</div>' +
+    '<div class="lbl">sources</div><div class="big">' + nf(s.systems != null ? s.systems : files.reduce(function (a, f) { return a + f.count; }, 0)) + ' <span class="lbl" style="font-size:14px">' + esc(s.systemsLabel || '') + '</span></div><div class="lbl">' + esc(s.formatsLabel || '') + '</div></div>';
+
+  var L = D.layers || {};
+  function layer(key, icon, colorVar, badge) {
+    var x = L[key] || {};
+    return '<div class="layer"><div style="position:relative">' + icon + (badge ? '<span class="gate badge">' + badge + '</span>' : '') + '</div><div class="name" style="color:' + colorVar + '">' + esc(key) + '</div>' +
+      '<div class="n"><span class="big">' + nf(x.n || 0) + '</span><span>' + esc(x.unit || '') + '</span></div><div class="d">' + esc(x.desc || '') + '</div>' +
+      (key === 'silver' && D.flag && D.flag.rows ? '<span class="flag"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 3h8l-1 8H3zM4 3V1.5h4V3"/></svg>' + esc(D.flag.label || 'flagged') + ': ' + nf(D.flag.rows) + ' rows</span>' : '') + '</div>';
+  }
+  var frame = '<div class="frame"><div class="frame-title">' + esc(D.frameTitle || '') + '</div><div class="layers">' +
+    layer('landing', folder, 'var(--ink)') + '<div class="gate">1</div>' +
+    layer('bronze', db('#f0a05a', '.9'), 'var(--ink)') + '<div class="gate">2</div>' +
+    layer('silver', db('#cfccdc', '.8'), 'var(--ink)', '3') + '<div class="gate">4</div>' +
+    layer('gold', db('#f5c94a', '.9'), 'var(--ink)') + '</div></div>';
+  var cons = '<div class="consumers">' + (D.consumers || []).map(function (c) {
+    return '<div class="cons">' + (icons[c.icon] || icons.cube) + '<span class="t"><b>' + nf(c.n) + '</b>' + esc(c.label) + '</span><span class="d">' + esc(c.desc || '') + '</span></div>'; }).join('') + '</div>';
+  document.getElementById('stage').innerHTML = src + '<div class="arrow"></div>' + frame + '<div class="arrow"></div>' + cons;
+
+  document.getElementById('foot').innerHTML = (D.footer || []).map(function (f) {
+    return '<span>' + (ficons[f.icon] || ficons.check) + '<span>' + String(f.text || '').replace(/<(?!\/?b>)[^>]*>/g, '') + '</span></span>'; }).join('');
+  document.getElementById('note').textContent = D.note || '';
+})();
+</script>
+</body>
+</html>

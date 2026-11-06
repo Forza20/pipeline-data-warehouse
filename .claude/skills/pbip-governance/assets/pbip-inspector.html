@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>PBIP Governance Inspector</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #111827;
+    --paper: #ffffff;
+    --paper-2: #f3f4f6;
+    --rule: #1f2937;
+    --accent: #2563eb;
+    --accent-soft: #bfdbfe;
+    --ok: #0f766e;
+    --warn: #b45309;
+    --pii: #b91c1c;
+    --muted: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--paper); color: var(--ink); font-family: 'Inter Tight', system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+  body { min-height: 100vh; }
+
+  .masthead {
+    border-bottom: 3px double var(--ink);
+    padding: 32px 48px 24px;
+    background: var(--paper);
+  }
+  .masthead-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    font-size: 56px;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .subhead {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 17px;
+    color: var(--muted);
+    margin-top: 8px;
+    max-width: 640px;
+  }
+
+  .container { padding: 32px 48px 80px; max-width: 1400px; margin: 0 auto; }
+
+  /* DROPZONE */
+  .dropzone {
+    border: 2px dashed var(--ink);
+    border-radius: 2px;
+    padding: 64px 32px;
+    text-align: center;
+    background: var(--paper-2);
+    transition: all 0.15s ease;
+    cursor: pointer;
+    position: relative;
+  }
+  .dropzone.drag { background: var(--accent-soft); border-color: var(--accent); }
+  .dropzone h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .dropzone p { color: var(--muted); font-size: 14px; }
+  .dropzone .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-top: 16px; color: var(--muted); }
+  .dropzone input { display: none; }
+  .dropzone .btn {
+    display: inline-block;
+    margin-top: 20px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: none;
+    cursor: pointer;
+  }
+  .dropzone .btn:hover { background: var(--accent); }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin: 32px 0 0;
+    border-bottom: 1px solid var(--ink);
+  }
+  .tab {
+    padding: 12px 22px;
+    background: transparent;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .tab:hover { color: var(--ink); }
+  .tab-count {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 1px 6px;
+    font-size: 10px;
+    margin-left: 6px;
+    border-radius: 2px;
+  }
+
+  .panel { display: none; padding: 32px 0; }
+  .panel.active { display: block; }
+
+  /* OVERVIEW STATS */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin-bottom: 32px; }
+  .stat { background: var(--paper); padding: 20px 18px; }
+  .stat-num { font-family: 'Fraunces', serif; font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+  .stat-num.warn { color: var(--warn); }
+  .stat-num.pii { color: var(--pii); }
+  .stat-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+
+  /* SECTIONS */
+  .section { margin-bottom: 40px; }
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 8px;
+    margin-bottom: 18px;
+  }
+  .section-title em { font-style: italic; color: var(--accent); font-weight: 400; }
+
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--ink); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--paper-2); vertical-align: top; }
+  tr:hover td { background: var(--paper-2); }
+  td.mono, th.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  .badge { display: inline-block; padding: 2px 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.05em; border-radius: 2px; text-transform: uppercase; }
+  .badge-pii { background: var(--pii); color: var(--paper); }
+  .badge-rls { background: var(--warn); color: var(--paper); }
+  .badge-source { background: var(--ok); color: var(--paper); }
+  .badge-dim { background: var(--paper-2); color: var(--muted); border: 1px solid var(--muted); }
+  .badge-cardinality { background: var(--ink); color: var(--paper); }
+  .badge-measure { background: var(--accent); color: var(--paper); }
+
+  /* DAX */
+  .dax, .mquery { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; background: var(--paper-2); padding: 10px 12px; border-left: 3px solid var(--accent); white-space: pre-wrap; max-height: 200px; overflow: auto; margin-top: 6px; line-height: 1.4; }
+
+  /* LINEAGE */
+  #lineage-network { width: 100%; height: 640px; border: 1px solid var(--ink); background: var(--paper-2); }
+  .legend { display: flex; gap: 20px; margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  /* FILTERS / ACTIONS */
+  .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .search-input { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid var(--ink); background: var(--paper); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .search-input:focus { outline: none; border-color: var(--accent); }
+  .btn-export { background: var(--ink); color: var(--paper); padding: 8px 18px; border: none; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+  .btn-export:hover { background: var(--accent); }
+  .btn-export.secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--ink); }
+
+  /* DETAIL CARDS (measures, roles) */
+  .card { border: 1px solid var(--paper-2); padding: 16px 18px; margin-bottom: 12px; background: var(--paper); }
+  .card:hover { border-color: var(--ink); }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .card-title { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+  .card-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+  .card-desc { font-style: italic; color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* VISUAL / PAGE display */
+  .page-block { border-top: 2px solid var(--ink); padding-top: 18px; margin-top: 24px; }
+  .page-block:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+  .page-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .page-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .visual-row { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--paper-2); align-items: start; }
+  .visual-row:last-child { border-bottom: none; }
+  .visual-type { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+  .visual-title { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .field-list { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--ink); }
+  .field-list .field { display: inline-block; padding: 2px 6px; background: var(--paper-2); margin: 2px 4px 2px 0; border-radius: 2px; }
+
+  /* EMPTY / ERROR */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); font-style: italic; font-family: 'Fraunces', serif; font-size: 18px; }
+  .error-box { background: #fef2f2; border: 1px solid var(--pii); padding: 16px 20px; margin: 20px 0; font-size: 13px; }
+  .error-box strong { color: var(--pii); }
+
+  /* FOOTER */
+  footer { border-top: 3px double var(--ink); padding: 24px 48px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-top">
+    <span>Power BI · Governance Instrument № 02</span>
+    <span id="today"></span>
+  </div>
+  <h1>The PBIP <em>Inspector</em></h1>
+  <p class="subhead">A browser-only lineage &amp; governance report for Power BI Project files — parse TMDL, audit PII, inspect visuals, export for handover. Nothing leaves your machine.</p>
+</header>
+
+<main class="container">
+
+  <div id="dropzone" class="dropzone">
+    <h2>Drop your PBIP project folder</h2>
+    <p>or select it from disk — the folder that contains <code>*.SemanticModel</code> and <code>*.Report</code></p>
+    <label class="btn" for="folderInput">Choose folder</label>
+    <input id="folderInput" type="file" webkitdirectory directory multiple>
+    <div class="mono">Runs locally. No upload. No server.</div>
+  </div>
+
+  <div id="results" style="display:none;">
+    <div class="tabs">
+      <button class="tab active" data-panel="overview">Overview</button>
+      <button class="tab" data-panel="governance">Governance <span class="tab-count" id="count-gov">0</span></button>
+      <button class="tab" data-panel="lineage">Lineage</button>
+      <button class="tab" data-panel="measures">Measures <span class="tab-count" id="count-meas">0</span></button>
+      <button class="tab" data-panel="sources">Sources <span class="tab-count" id="count-src">0</span></button>
+      <button class="tab" data-panel="visuals">Visuals <span class="tab-count" id="count-vis">0</span></button>
+      <button class="tab" data-panel="export">Export</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section id="panel-overview" class="panel active">
+      <div class="stats" id="statgrid"></div>
+      <div class="section">
+        <h3 class="section-title">Model <em>at a glance</em></h3>
+        <div id="overview-body"></div>
+      </div>
+    </section>
+
+    <!-- GOVERNANCE -->
+    <section id="panel-governance" class="panel">
+      <div class="section">
+        <h3 class="section-title">Potential <em>PII</em> columns</h3>
+        <p class="card-desc" style="margin-bottom:16px;">Heuristic match against DA/EN field names. Review these manually before publishing — false positives are expected.</p>
+        <div id="pii-body"></div>
+      </div>
+      <div class="section">
+        <h3 class="section-title">Row-Level <em>Security</em> roles</h3>
+        <div id="rls-body"></div>
+      </div>
+    </section>
+
+    <!-- LINEAGE -->
+    <section id="panel-lineage" class="panel">
+      <div class="section">
+        <h3 class="section-title">Model <em>lineage</em></h3>
+        <p class="card-desc" style="margin-bottom:16px;">Drag nodes to rearrange. Scroll to zoom. Click a node to highlight its neighborhood.</p>
+        <div id="lineage-network"></div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#111827"></span> Fact / large table</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#2563eb"></span> Dimension</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#0f766e"></span> Calculation group / date</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#b45309"></span> Hidden / technical</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MEASURES -->
+    <section id="panel-measures" class="panel">
+      <div class="section">
+        <div class="toolbar">
+          <input type="text" class="search-input" id="measure-search" placeholder="Filter measures by name, table, or DAX content…">
+        </div>
+        <div id="measures-body"></div>
+      </div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="panel-sources" class="panel">
+      <div class="section">
+        <h3 class="section-title">Data <em>sources</em></h3>
+        <p class="card-desc" style="margin-bottom:16px;">Extracted from Power Query M expressions. Shows unique source endpoints and the tables that draw from them.</p>
+        <div id="sources-body"></div>
+      </div>
+    </section>
+
+    <!-- VISUALS -->
+    <section id="panel-visuals" class="panel">
+      <div class="section">
+        <h3 class="section-title">Pages &amp; <em>visuals</em></h3>
+        <div id="visuals-body"></div>
+      </div>
+    </section>
+
+    <!-- EXPORT -->
+    <section id="panel-export" class="panel">
+      <div class="section">
+        <h3 class="section-title">Export <em>handover</em></h3>
+        <p class="card-desc" style="margin-bottom:20px;">Generate documentation ready to drop into Azure DevOps, Confluence, or a README.</p>
+        <div class="toolbar">
+          <button class="btn-export" id="export-md">Download Markdown handover</button>
+          <button class="btn-export secondary" id="export-json">Download raw JSON</button>
+          <button class="btn-export secondary" id="copy-md">Copy Markdown to clipboard</button>
+        </div>
+      </div>
+      <div class="section">
+        <h3 class="section-title">Azure DevOps <em>Wiki</em> bundle</h3>
+        <p class="card-desc" style="margin-bottom:14px;">
+          Downloads a <code>.zip</code> with a folder structure ready for <strong>Publish code as wiki</strong> — includes
+          <code>.order</code> files, Mermaid flowcharts (relationships + data lineage), collapsible DAX sections, auto-TOC,
+          and <code>:warning:</code> badges on PII/RLS pages. All Mermaid uses the <code>:::mermaid</code> fence that Azure DevOps expects.
+        </p>
+        <div class="toolbar">
+          <button class="btn-export" id="export-azdo">Download Azure DevOps Wiki (.zip)</button>
+        </div>
+        <div class="card" style="margin-top:18px;">
+          <div class="card-title" style="margin-bottom:8px;">How to publish</div>
+          <div style="font-size:13px; line-height:1.6;">
+            1. Unzip into a folder in your Git repo (e.g. <code>/wiki/</code>)<br>
+            2. Commit and push to Azure DevOps Repos<br>
+            3. In Azure DevOps → <strong>Overview → Wiki</strong> → <strong>Publish code as wiki</strong><br>
+            4. Point at your repo, branch, and the wiki folder → Publish
+          </div>
+        </div>
+      </div>
+      <div class="section" style="margin-top:30px;">
+        <h3 class="section-title">Markdown <em>preview</em></h3>
+        <pre id="md-preview" style="background:var(--paper-2); padding:20px; max-height:500px; overflow:auto; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.5; white-space:pre-wrap; border-left:3px solid var(--accent);"></pre>
+      </div>
+    </section>
+  </div>
+
+  <div id="errorbox"></div>
+</main>
+
+<footer>
+  <span>v2.0 · PBIP Inspector · Azure DevOps Wiki export</span>
+  <span>All parsing runs locally in-browser</span>
+</footer>
+
+<script>
+/* ================================================================
+   PBIP Governance Inspector
+   Parses: *.SemanticModel/definition (TMDL) + *.Report/definition (PBIR JSON)
+   ================================================================ */
+
+document.getElementById('today').textContent = new Date().toISOString().slice(0,10);
+
+// PII heuristic (DA + EN) - same rules as pii_reason() in scripts/parse_pbip.py.
+// Column names are split into words, so `name` does not hit product_name and `ip` does
+// not hit shipping_date. `name` and `city` only count in a person context (see below).
+const PII_WORDS = new Set(["accountnumber", "address", "adresse", "birth", "birthdate", "birthday", "brugerid", "brugernavn", "cardnumber", "civilstand", "contact", "cpr", "cprnr", "cprnummer", "creditcard", "dateofbirth", "deviceid", "dob", "efternavn", "email", "ethnic", "ethnicity", "firstname", "fodsel", "fodselsdato", "foedsel", "foedselsdato", "fornavn", "fullname", "fødsel", "fødselsdato", "gade", "gender", "iban", "income", "indkomst", "ip", "ipaddress", "koen", "kontakt", "kontaktperson", "kontonummer", "kortnummer", "køn", "lastname", "loen", "løn", "mail", "marital", "maritalstatus", "mellemnavn", "middlename", "mobil", "mobile", "nationalitet", "nationality", "pasnummer", "passport", "phone", "postal", "postalcode", "postcode", "postnr", "postnummer", "religion", "salary", "sex", "ssn", "street", "streetname", "surname", "telefon", "telefonnummer", "telephone", "tlf", "userid", "username", "zip", "zipcode"]);
+const PII_PERSON_ROLES = new Set(["ansvarlig", "ejer", "manager", "owner", "saelger", "salesperson", "sælger"]);
+const PII_NAME_WORDS = new Set(["name", "navn"]);
+const PII_PERSON_WORDS = new Set(["borger", "bruger", "client", "contact", "customer", "ejer", "elev", "employee", "first", "full", "klient", "kontakt", "kunde", "last", "manager", "medarbejder", "medlem", "member", "middle", "owner", "patient", "person", "student", "user"]);
+const PII_NOT_PERSON = new Set(["afdeling", "ark", "brand", "butik", "by", "campaign", "category", "channel", "city", "column", "company", "country", "dag", "day", "department", "event", "fil", "file", "firma", "group", "gruppe", "kampagne", "kanal", "kategori", "land", "leverandor", "leverandør", "maaned", "month", "måned", "product", "produkt", "project", "projekt", "region", "role", "rolle", "segment", "sheet", "shop", "site", "status", "store", "subcategory", "supplier", "table", "team", "type", "uge", "vendor", "virksomhed", "week"]);
+const PII_PERSON_LOCATION = new Set(["by", "city", "town"]);
+const PII_PERSON_TABLE_WORDS = new Set(["bruger", "brugere", "client", "clients", "contact", "contacts", "customer", "customers", "employee", "employees", "klient", "klienter", "kontakt", "kontakter", "kunde", "kunder", "medarbejder", "medarbejdere", "medlem", "medlemmer", "member", "members", "patient", "patients", "people", "person", "personer", "persons", "user", "users"]);
+
+function piiNameWords(name) {
+  let s = String(name || '');
+  s = s.replace(/([a-zæøå0-9])([A-ZÆØÅ])/g, '$1 $2');
+  s = s.replace(/([A-ZÆØÅ]+)([A-ZÆØÅ][a-zæøå])/g, '$1 $2');
+  return s.toLowerCase().split(/[^0-9a-zæøå]+/).filter(Boolean);
+}
+
+// Why a column looks like personal data ('' when it does not). Heuristic only.
+function piiReason(colName, tableName) {
+  const words = piiNameWords(colName);
+  if (!words.length) return '';
+  const cands = [...words];
+  for (let i = 0; i + 1 < words.length; i++) cands.push(words[i] + words[i + 1]);
+  for (let i = 0; i + 2 < words.length; i++) cands.push(words[i] + words[i + 1] + words[i + 2]);
+  for (const w of cands) if (PII_WORDS.has(w)) return w;
+  const tableWords = new Set(tableName ? piiNameWords(tableName) : []);
+  const personTable = [...tableWords].some(w => PII_PERSON_TABLE_WORDS.has(w));
+  const ws = new Set(words);
+  const has = set => [...ws].some(w => set.has(w));
+  if (has(PII_PERSON_ROLES) && !has(PII_NOT_PERSON)) return [...ws].find(w => PII_PERSON_ROLES.has(w));
+  if (has(PII_NAME_WORDS) && !has(PII_NOT_PERSON)) {
+    const others = [...ws].filter(w => !PII_NAME_WORDS.has(w)).length;
+    if (has(PII_PERSON_WORDS) || (personTable && others <= 1)) return 'person name';
+  }
+  if (personTable && has(PII_PERSON_LOCATION) && ws.size <= 2) return 'by (persontabel)';
+  return '';
+}
+
+const state = {
+  files: {},           // filename -> text
+  model: null,         // parsed model
+  report: null,        // parsed report
+};
+
+// ---------- DROPZONE ----------
+const dz = document.getElementById('dropzone');
+const fi = document.getElementById('folderInput');
+dz.addEventListener('click', e => { if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') fi.click(); });
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', async e => {
+  e.preventDefault();
+  dz.classList.remove('drag');
+  const items = e.dataTransfer.items;
+  const files = [];
+  for (const it of items) {
+    const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
+    if (entry) await readEntry(entry, '', files);
+  }
+  await processFiles(files);
+});
+fi.addEventListener('change', async e => {
+  const files = Array.from(e.target.files).map(f => ({ path: f.webkitRelativePath || f.name, file: f }));
+  await processFiles(files);
+});
+
+async function readEntry(entry, path, out) {
+  if (entry.isFile) {
+    await new Promise(res => entry.file(f => { out.push({ path: path + entry.name, file: f }); res(); }));
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const kids = await new Promise(res => reader.readEntries(res));
+    for (const k of kids) await readEntry(k, path + entry.name + '/', out);
+  }
+}
+
+async function processFiles(files) {
+  state.files = {};
+  for (const { path, file } of files) {
+    const lower = path.toLowerCase();
+    if (lower.endsWith('.tmdl') || lower.endsWith('.json') || lower.endsWith('.bim') || lower.endsWith('.pbip')) {
+      try {
+        state.files[path] = await file.text();
+      } catch (e) { /* skip */ }
+    }
+  }
+  try {
+    state.model = parseModel(state.files);
+    state.report = parseReport(state.files);
+    renderAll();
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('errorbox').innerHTML = '';
+    document.getElementById('dropzone').style.display = 'none';
+  } catch (err) {
+    console.error(err);
+    document.getElementById('errorbox').innerHTML =
+      `<div class="error-box"><strong>Parse error:</strong> ${err.message}. Make sure you selected the PBIP project root folder (containing both <code>*.SemanticModel</code> and <code>*.Report</code> subfolders).</div>`;
+  }
+}
+
+// ---------- TMDL PARSER (lightweight) ----------
+/* TMDL is an indented, human-readable format. We parse just enough to extract:
+   - tables (with columns, hidden flag, dataCategory)
+   - measures (name, expression, displayFolder, description, format)
+   - relationships
+   - roles (RLS filter expressions)
+   - partitions (M source expressions)
+*/
+function parseModel(files) {
+  const tmdlFiles = Object.entries(files).filter(([p]) => /\.SemanticModel\/definition\/.*\.tmdl$/i.test(p));
+  const bimFile = Object.entries(files).find(([p]) => /\.SemanticModel\/model\.bim$/i.test(p));
+
+  const model = {
+    name: '',
+    tables: [],        // { name, isHidden, columns:[{name,dataType,isHidden,isKey}], measures:[...], partitions:[{name, mExpression}] }
+    relationships: [], // { from:{table,column}, to:{table,column}, crossFilter, active }
+    roles: [],         // { name, tablePermissions:[{table, filter}] }
+    dataSources: [],   // { type, details, tablesUsing:[] }
+  };
+
+  // Detect project name
+  const pbip = Object.keys(files).find(p => p.endsWith('.pbip'));
+  if (pbip) model.name = pbip.split('/').pop().replace('.pbip','');
+
+  if (tmdlFiles.length > 0) {
+    // TMDL parsing
+    for (const [path, text] of tmdlFiles) {
+      const fileName = path.split('/').pop().toLowerCase();
+      if (/\/tables\//i.test(path)) {
+        const t = parseTableTMDL(text);
+        if (t) model.tables.push(t);
+      } else if (fileName === 'relationships.tmdl') {
+        model.relationships = parseRelationshipsTMDL(text);
+      } else if (/\/roles\//i.test(path) || fileName === 'roles.tmdl') {
+        const roles = parseRolesTMDL(text);
+        model.roles.push(...roles);
+      } else if (fileName === 'model.tmdl' || fileName === 'database.tmdl') {
+        // Sometimes relationships appear at model level
+        const extraRel = parseRelationshipsTMDL(text);
+        if (extraRel.length) model.relationships.push(...extraRel);
+      }
+    }
+  } else if (bimFile) {
+    // Fallback: try parsing model.bim (TMSL JSON)
+    try {
+      const obj = JSON.parse(bimFile[1]);
+      parseTMSL(obj, model);
+    } catch (e) { throw new Error('Could not parse model.bim: ' + e.message); }
+  } else {
+    throw new Error('No TMDL files or model.bim found. Is this a PBIP project?');
+  }
+
+  // Build data source index from M expressions
+  model.dataSources = extractDataSources(model.tables);
+
+  return model;
+}
+
+function parseTableTMDL(text) {
+  const lines = text.split(/\r?\n/);
+  const table = { name: '', isHidden: false, dataCategory: '', description: '', columns: [], measures: [], partitions: [] };
+  let i = 0;
+  // Header: "table TableName" (possibly quoted)
+  const headerMatch = text.match(/^\s*table\s+(.+?)\s*$/m);
+  if (!headerMatch) return null;
+  table.name = unquoteTMDL(headerMatch[1]);
+
+  // walk line-by-line; find top-level children (column, measure, partition)
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    const indent = line.length - line.trimStart().length;
+
+    if (indent === 0 && /^table\s/.test(trimmed)) {
+      // root, capture table-level props that appear on following indented lines
+      i++;
+      while (i < lines.length) {
+        const l = lines[i];
+        const ind = l.length - l.trimStart().length;
+        const t = l.trim();
+        if (ind === 0 && t) break; // next top-level block (shouldn't happen in one table file, but safe)
+        if (ind > 0) {
+          if (/^isHidden\s*:?\s*true/i.test(t)) table.isHidden = true;
+          const dcMatch = t.match(/^dataCategory\s*:?\s*(.+)$/i);
+          if (dcMatch) table.dataCategory = dcMatch[1].trim();
+          // description may be multiline string prefixed by ///
+          if (t.startsWith('///')) table.description += t.replace(/^\/\/\/\s?/, '') + ' ';
+        }
+        // start of column / measure / partition
+        if (ind === 1 || (ind > 0 && /^(column|measure|partition|hierarchy|calculationGroup)\s+/.test(t))) {
+          break;
+        }
+        i++;
+      }
+      continue;
+    }
+
+    // Column / Measure / Partition blocks (indented ~1 tab from table)
+    if (/^column\s+/.test(trimmed)) {
+      const nameMatch = trimmed.match(/^column\s+(.+?)\s*(=.*)?$/);
+      const col = { name: unquoteTMDL(nameMatch ? nameMatch[1] : ''), dataType: '', isHidden: false, isKey: false, isCalculated: /=/.test(trimmed) };
+      const base = indent;
+      i++;
+      while (i < lines.length) {
+        const l = lines[i]; const ind = l.length - l.trimStart().length; const t = l.trim();
+        if (ind <= base && t) break;
+        const dt = t.match(/^dataType\s*:?\s*(\w+)/i);
+        if (dt) col.dataType = dt[1];
+        if (/^isHidden\s*:?\s*true/i.test(t)) col.isHidden = true;
+        if (/^isKey\s*:?\s*true/i.test(t)) col.isKey = true;
+        i++;
+      }
+      table.columns.push(col);
+      continue;
+    }
+
+    if (/^measure\s+/.test(trimmed)) {
+      // measure Name = <expression>   OR   measure Name =\n  expression lines...
+      const m = { name: '', expression: '', displayFolder: '', description: '', formatString: '', isHidden: false };
+      const nameMatch = trimmed.match(/^measure\s+(.+?)\s*=\s*(.*)$/);
+      if (nameMatch) {
+        m.name = unquoteTMDL(nameMatch[1]);
+        m.expression = nameMatch[2].trim();
+      } else {
+        const just = trimmed.match(/^measure\s+(.+?)\s*$/);
+        if (just) m.name = unquoteTMDL(just[1]);
+      }
+      const base = indent;
+      i++;
+      // collect indented expression lines + props
+      const exprLines = m.expression ? [m.expression] : [];
+      let collectingExpr = !m.expression; // if the "= <expr>" form was present, we already have one-line expr
+      while (i < lines.length) {
+        const l = lines[i]; const ind = l.length - l.trimStart().length; const t = l.trim();
+        if (ind <= base && t) break;
+        const df = t.match(/^displayFolder\s*:?\s*(.+)$/i);
+        const desc = t.startsWith('///') ? t.replace(/^\/\/\/\s?/, '') : null;
+        const fs = t.match(/^formatString\s*:?\s*(.+)$/i);
+        const hid = /^isHidden\s*:?\s*true/i.test(t);
+        if (df) { m.displayFolder = df[1].trim(); i++; continue; }
+        if (desc !== null) { m.description += desc + ' '; i++; continue; }
+        if (fs) { m.formatString = fs[1].trim(); i++; continue; }
+        if (hid) { m.isHidden = true; i++; continue; }
+        // otherwise it's part of the expression (multi-line DAX)
+        if (ind > base) {
+          exprLines.push(l.slice(base + 1)); // strip one indent
+        }
+        i++;
+      }
+      m.expression = exprLines.join('\n').trim();
+      // Strip leading "```" code fences if present
+      m.expression = m.expression.replace(/^```[\w-]*\n?/, '').replace(/\n?```\s*$/, '');
+      table.measures.push(m);
+      continue;
+    }
+
+    if (/^partition\s+/.test(trimmed)) {
+      const p = { name: '', mode: 'import', mExpression: '', sourceType: '' };
+      const nameMatch = trimmed.match(/^partition\s+(.+?)\s*=\s*(\w+)?/);
+      if (nameMatch) { p.name = unquoteTMDL(nameMatch[1]); if (nameMatch[2]) p.sourceType = nameMatch[2]; }
+      const base = indent;
+      i++;
+      const mLines = [];
+      let inSource = false;
+      let sourceIndent = -1;
+      while (i < lines.length) {
+        const l = lines[i]; const ind = l.length - l.trimStart().length; const t = l.trim();
+        if (ind <= base && t) break;
+        const md = t.match(/^mode\s*:?\s*(\w+)/i);
+        if (md) p.mode = md[1].toLowerCase();
+        if (/^source\s*=/.test(t) || /^source\s*$/.test(t)) {
+          inSource = true;
+          sourceIndent = ind;
+          const inlineM = t.match(/^source\s*=\s*(.+)$/);
+          if (inlineM) mLines.push(inlineM[1]);
+          i++;
+          continue;
+        }
+        if (inSource) {
+          if (ind > sourceIndent) {
+            mLines.push(l.slice(sourceIndent + 1));
+          } else if (t) {
+            inSource = false;
+          }
+        }
+        i++;
+      }
+      p.mExpression = mLines.join('\n').trim().replace(/^```m?\n?/, '').replace(/\n?```\s*$/, '');
+      table.partitions.push(p);
+      continue;
+    }
+
+    i++;
+  }
+
+  table.description = table.description.trim();
+  return table;
+}
+
+function parseRelationshipsTMDL(text) {
+  // Relationships block pattern:
+  // relationship abc123
+  //     fromColumn: Table.Column
+  //     toColumn: OtherTable.OtherColumn
+  //     crossFilteringBehavior: bothDirections
+  //     isActive: false
+  const rels = [];
+  const regex = /relationship\s+[\w-]+\s*\n((?:[ \t]+.*\n?)+)/g;
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    const body = m[1];
+    const rel = { from: {}, to: {}, crossFilter: 'singleDirection', active: true };
+    const fc = body.match(/fromColumn\s*:?\s*(.+)/);
+    const tc = body.match(/toColumn\s*:?\s*(.+)/);
+    const cf = body.match(/crossFilteringBehavior\s*:?\s*(\w+)/);
+    const ac = body.match(/isActive\s*:?\s*(false|true)/i);
+    if (fc) { const [t,c] = splitTableColumn(fc[1].trim()); rel.from = { table: t, column: c }; }
+    if (tc) { const [t,c] = splitTableColumn(tc[1].trim()); rel.to = { table: t, column: c }; }
+    if (cf) rel.crossFilter = cf[1];
+    if (ac) rel.active = ac[1].toLowerCase() === 'true';
+    if (rel.from.table && rel.to.table) rels.push(rel);
+  }
+  return rels;
+}
+
+function parseRolesTMDL(text) {
+  const roles = [];
+  // role Name
+  //   modelPermission: read
+  //   tablePermission Table = <filter DAX>
+  const roleRegex = /^role\s+(.+?)\s*$/m;
+  const lines = text.split(/\r?\n/);
+  let current = null;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const trimmed = l.trim();
+    const indent = l.length - l.trimStart().length;
+    if (indent === 0 && /^role\s+/.test(trimmed)) {
+      if (current) roles.push(current);
+      current = { name: unquoteTMDL(trimmed.replace(/^role\s+/, '').trim()), modelPermission: 'read', tablePermissions: [] };
+    } else if (current && /^tablePermission\s+/.test(trimmed)) {
+      const tpMatch = trimmed.match(/^tablePermission\s+(.+?)\s*=\s*(.*)$/);
+      if (tpMatch) {
+        const tp = { table: unquoteTMDL(tpMatch[1]), filter: tpMatch[2].trim() };
+        // multi-line filter?
+        if (!tp.filter) {
+          const base = indent;
+          const exprLines = [];
+          let j = i + 1;
+          while (j < lines.length) {
+            const ll = lines[j]; const ind = ll.length - ll.trimStart().length;
+            if (ind <= base && ll.trim()) break;
+            exprLines.push(ll.trim()); j++;
+          }
+          tp.filter = exprLines.join('\n');
+          i = j - 1;
+        }
+        current.tablePermissions.push(tp);
+      }
+    } else if (current && /^modelPermission\s*:?\s*(\w+)/.test(trimmed)) {
+      current.modelPermission = trimmed.match(/modelPermission\s*:?\s*(\w+)/)[1];
+    }
+  }
+  if (current) roles.push(current);
+  return roles;
+}
+
+function parseTMSL(obj, model) {
+  const m = obj.model || obj;
+  if (m.tables) {
+    for (const t of m.tables) {
+      const table = { name: t.name, isHidden: !!t.isHidden, dataCategory: t.dataCategory || '', description: t.description || '', columns: [], measures: [], partitions: [] };
+      (t.columns || []).forEach(c => table.columns.push({
+        name: c.name, dataType: c.dataType || '', isHidden: !!c.isHidden, isKey: !!c.isKey, isCalculated: c.type === 'calculated'
+      }));
+      (t.measures || []).forEach(me => table.measures.push({
+        name: me.name, expression: Array.isArray(me.expression) ? me.expression.join('\n') : (me.expression || ''),
+        displayFolder: me.displayFolder || '', description: me.description || '', formatString: me.formatString || '', isHidden: !!me.isHidden
+      }));
+      (t.partitions || []).forEach(p => {
+        const src = p.source || {};
+        const expr = Array.isArray(src.expression) ? src.expression.join('\n') : (src.expression || '');
+        table.partitions.push({ name: p.name, mode: p.mode || 'import', mExpression: expr, sourceType: src.type || '' });
+      });
+      model.tables.push(table);
+    }
+  }
+  if (m.relationships) {
+    for (const r of m.relationships) {
+      model.relationships.push({
+        from: { table: r.fromTable, column: r.fromColumn },
+        to: { table: r.toTable, column: r.toColumn },
+        crossFilter: r.crossFilteringBehavior || 'singleDirection',
+        active: r.isActive !== false
+      });
+    }
+  }
+  if (m.roles) {
+    for (const r of m.roles) {
+      const role = { name: r.name, modelPermission: r.modelPermission || 'read', tablePermissions: [] };
+      (r.tablePermissions || []).forEach(tp => role.tablePermissions.push({ table: tp.name || tp.table, filter: tp.filterExpression || tp.filter || '' }));
+      model.roles.push(role);
+    }
+  }
+}
+
+function unquoteTMDL(s) {
+  return s.trim().replace(/^'/, '').replace(/'$/, '').replace(/^"/, '').replace(/"$/, '');
+}
+function splitTableColumn(s) {
+  // Table.Column with optional quotes
+  const m = s.match(/^'?([^'.]+)'?\.'?([^']+)'?$/);
+  if (m) return [m[1], m[2]];
+  const parts = s.split('.');
+  return [parts[0], parts.slice(1).join('.')];
+}
+
+// ---------- DATA SOURCE EXTRACTION ----------
+function extractDataSources(tables) {
+  const sources = {};
+  for (const t of tables) {
+    for (const p of t.partitions) {
+      const src = identifyMSource(p.mExpression);
+      const key = src.kind + '::' + src.details;
+      if (!sources[key]) sources[key] = { ...src, tables: [] };
+      if (!sources[key].tables.includes(t.name)) sources[key].tables.push(t.name);
+    }
+  }
+  return Object.values(sources);
+}
+
+function identifyMSource(m) {
+  if (!m) return { kind: 'Unknown', details: '(no expression)' };
+  const patterns = [
+    { re: /Sql\.Databases?\(\s*"([^"]+)"(?:\s*,\s*"([^"]+)")?/i, kind: 'SQL Server', format: (r) => r[2] ? `${r[1]} / ${r[2]}` : r[1] },
+    { re: /Snowflake\.Databases\(\s*"([^"]+)"\s*,\s*"([^"]+)"/i, kind: 'Snowflake', format: (r) => `${r[1]} / ${r[2]}` },
+    { re: /AzureStorage\.DataLake\(\s*"([^"]+)"/i, kind: 'Azure Data Lake', format: (r) => r[1] },
+    { re: /AzureStorage\.Blobs\(\s*"([^"]+)"/i, kind: 'Azure Blob', format: (r) => r[1] },
+    { re: /Databricks\.Catalogs\(\s*"([^"]+)"/i, kind: 'Databricks', format: (r) => r[1] },
+    { re: /PostgreSQL\.Database\(\s*"([^"]+)"\s*,\s*"([^"]+)"/i, kind: 'PostgreSQL', format: (r) => `${r[1]} / ${r[2]}` },
+    { re: /MySQL\.Database\(\s*"([^"]+)"\s*,\s*"([^"]+)"/i, kind: 'MySQL', format: (r) => `${r[1]} / ${r[2]}` },
+    { re: /Oracle\.Database\(\s*"([^"]+)"/i, kind: 'Oracle', format: (r) => r[1] },
+    { re: /Web\.Contents\(\s*"([^"]+)"/i, kind: 'Web / REST', format: (r) => r[1] },
+    { re: /SharePoint\.(Files|Contents)\(\s*"([^"]+)"/i, kind: 'SharePoint', format: (r) => r[2] },
+    { re: /OData\.Feed\(\s*"([^"]+)"/i, kind: 'OData', format: (r) => r[1] },
+    { re: /Excel\.Workbook\(File\.Contents\(\s*"([^"]+)"/i, kind: 'Excel File', format: (r) => r[1] },
+    { re: /Csv\.Document\(File\.Contents\(\s*"([^"]+)"/i, kind: 'CSV File', format: (r) => r[1] },
+    { re: /Folder\.Files\(\s*"([^"]+)"/i, kind: 'Folder', format: (r) => r[1] },
+    { re: /#shared\s*\[/i, kind: 'Shared / Dataflow', format: () => '(Dataflow or shared)' },
+    { re: /Pbi\.Dataflows?\(/i, kind: 'Dataflow', format: () => '(Power BI Dataflow)' }
+  ];
+  for (const p of patterns) {
+    const r = m.match(p.re);
+    if (r) return { kind: p.kind, details: p.format(r) };
+  }
+  return { kind: 'Other', details: '(unrecognized)' };
+}
+
+// ---------- PBIR REPORT PARSER ----------
+function parseReport(files) {
+  const pages = [];
+  // PBIR: *.Report/definition/pages/<pageFolder>/page.json  + visuals/<visualFolder>/visual.json
+  const pageFiles = Object.entries(files).filter(([p]) => /\.Report\/definition\/pages\/[^/]+\/page\.json$/i.test(p));
+  const pagesFile = Object.entries(files).find(([p]) => /\.Report\/definition\/pages\/pages\.json$/i.test(p));
+
+  if (pageFiles.length > 0) {
+    // New PBIR format
+    const pageOrder = {};
+    if (pagesFile) {
+      try {
+        const pf = JSON.parse(pagesFile[1]);
+        if (Array.isArray(pf.pageOrder)) pf.pageOrder.forEach((n, i) => pageOrder[n] = i);
+      } catch {}
+    }
+
+    for (const [path, text] of pageFiles) {
+      try {
+        const obj = JSON.parse(text);
+        const folder = path.match(/pages\/([^/]+)\/page\.json/i)[1];
+        const page = { name: obj.name || folder, displayName: obj.displayName || folder, visuals: [], order: pageOrder[obj.name] ?? 999 };
+        // find visuals
+        const visualFiles = Object.entries(files).filter(([p]) =>
+          new RegExp(`\\.Report\\/definition\\/pages\\/${folder}\\/visuals\\/[^/]+\\/visual\\.json$`, 'i').test(p)
+        );
+        for (const [vp, vt] of visualFiles) {
+          try {
+            const vo = JSON.parse(vt);
+            page.visuals.push(extractVisual(vo));
+          } catch {}
+        }
+        pages.push(page);
+      } catch {}
+    }
+    pages.sort((a,b) => a.order - b.order);
+  } else {
+    // Legacy PBIP: report.json
+    const reportFile = Object.entries(files).find(([p]) => /\.Report\/report\.json$/i.test(p));
+    if (reportFile) {
+      try {
+        const obj = JSON.parse(reportFile[1]);
+        if (obj.sections) {
+          for (const s of obj.sections) {
+            const page = { name: s.name, displayName: s.displayName || s.name, visuals: [] };
+            for (const vc of (s.visualContainers || [])) {
+              try {
+                const config = JSON.parse(vc.config || '{}');
+                const query = vc.query ? (typeof vc.query === 'string' ? JSON.parse(vc.query) : vc.query) : null;
+                page.visuals.push(extractLegacyVisual(config, query));
+              } catch {}
+            }
+            pages.push(page);
+          }
+        }
+      } catch {}
+    }
+  }
+
+  return { pages };
+}
+
+function extractVisual(vo) {
+  const visual = { type: 'unknown', title: '', fields: [] };
+  // PBIR: visual.visual.visualType, visual.visual.query.queryState
+  const inner = vo.visual || vo;
+  visual.type = inner.visualType || 'unknown';
+  // Title from objects
+  try {
+    const tobj = inner.objects?.title?.[0]?.properties?.text?.expr?.Literal?.Value;
+    if (tobj) visual.title = tobj.replace(/^'/, '').replace(/'$/, '');
+  } catch {}
+  // fields
+  const qs = inner.query?.queryState || {};
+  for (const role of Object.keys(qs)) {
+    const projections = qs[role].projections || [];
+    for (const pr of projections) {
+      const field = extractFieldFromExpr(pr);
+      if (field) visual.fields.push(field);
+    }
+  }
+  return visual;
+}
+
+function extractLegacyVisual(config, query) {
+  const visual = { type: 'unknown', title: '', fields: [] };
+  visual.type = config?.singleVisual?.visualType || 'unknown';
+  try {
+    const t = config?.singleVisual?.objects?.title?.[0]?.properties?.text?.expr?.Literal?.Value;
+    if (t) visual.title = t.replace(/^'/, '').replace(/'$/, '');
+  } catch {}
+  const projections = config?.singleVisual?.projections || {};
+  for (const role of Object.keys(projections)) {
+    for (const pr of projections[role]) {
+      // pr.queryRef looks like "Table.Column" or "Measure"
+      if (pr.queryRef) visual.fields.push(pr.queryRef);
+    }
+  }
+  return visual;
+}
+
+function extractFieldFromExpr(pr) {
+  // pr has "field" with Column or Measure with Expression.SourceRef.Entity
+  try {
+    const f = pr.field || pr;
+    const col = f.Column || f.Measure || f.HierarchyLevel;
+    if (!col) return null;
+    const entity = col.Expression?.SourceRef?.Entity || col.Expression?.SourceRef?.Source;
+    const prop = col.Property || col.Level;
+    if (entity && prop) return `${entity}.${prop}`;
+    if (prop) return prop;
+    return null;
+  } catch { return null; }
+}
+
+// ---------- RENDERING ----------
+function renderAll() {
+  renderOverview();
+  renderGovernance();
+  renderLineage();
+  renderMeasures();
+  renderSources();
+  renderVisuals();
+  renderExport();
+  setupTabs();
+}
+
+function renderOverview() {
+  const m = state.model;
+  const r = state.report;
+  const totalMeasures = m.tables.reduce((a,t) => a + t.measures.length, 0);
+  const totalColumns = m.tables.reduce((a,t) => a + t.columns.length, 0);
+  const piiCount = countPII();
+  const visibleTables = m.tables.filter(t => !t.isHidden).length;
+  const totalVisuals = (r?.pages || []).reduce((a,p) => a + p.visuals.length, 0);
+
+  document.getElementById('count-gov').textContent = piiCount + m.roles.length;
+  document.getElementById('count-meas').textContent = totalMeasures;
+  document.getElementById('count-src').textContent = m.dataSources.length;
+  document.getElementById('count-vis').textContent = totalVisuals;
+
+  const statgrid = document.getElementById('statgrid');
+  statgrid.innerHTML = `
+    <div class="stat"><div class="stat-num">${m.tables.length}</div><div class="stat-label">Tables (${visibleTables} visible)</div></div>
+    <div class="stat"><div class="stat-num">${totalColumns}</div><div class="stat-label">Columns</div></div>
+    <div class="stat"><div class="stat-num">${totalMeasures}</div><div class="stat-label">Measures</div></div>
+    <div class="stat"><div class="stat-num">${m.relationships.length}</div><div class="stat-label">Relationships</div></div>
+    <div class="stat"><div class="stat-num ${piiCount>0?'pii':''}">${piiCount}</div><div class="stat-label">Potential PII</div></div>
+    <div class="stat"><div class="stat-num ${m.roles.length>0?'warn':''}">${m.roles.length}</div><div class="stat-label">RLS Roles</div></div>
+    <div class="stat"><div class="stat-num">${m.dataSources.length}</div><div class="stat-label">Data Sources</div></div>
+    <div class="stat"><div class="stat-num">${(r?.pages || []).length}</div><div class="stat-label">Report Pages</div></div>
+  `;
+
+  // Body: table summary
+  const body = document.getElementById('overview-body');
+  const rows = m.tables.map(t => {
+    const part = t.partitions[0];
+    const src = part ? identifyMSource(part.mExpression) : { kind:'-', details:'-' };
+    return `<tr>
+      <td class="mono">${escapeHtml(t.name)} ${t.isHidden?'<span class="badge badge-dim">hidden</span>':''}</td>
+      <td>${t.columns.length}</td>
+      <td>${t.measures.length}</td>
+      <td class="mono" style="font-size:11px;">${escapeHtml(src.kind)}</td>
+      <td style="font-size:11px; color:var(--muted);">${escapeHtml(part?.mode || '-')}</td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = `
+    <table>
+      <thead><tr><th>Table</th><th>Columns</th><th>Measures</th><th>Source</th><th>Mode</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function countPII() {
+  let n = 0;
+  for (const t of state.model.tables) for (const c of t.columns) if (isPII(c.name, t.name)) n++;
+  return n;
+}
+
+function isPII(colName, tableName) {
+  return piiReason(colName, tableName) !== '';
+}
+
+function renderGovernance() {
+  const m = state.model;
+  // PII
+  const piiRows = [];
+  for (const t of m.tables) {
+    for (const c of t.columns) {
+      if (isPII(c.name, t.name)) {
+        const matched = piiReason(c.name, t.name);
+        piiRows.push(`<tr>
+          <td class="mono">${escapeHtml(t.name)}</td>
+          <td class="mono">${escapeHtml(c.name)} <span class="badge badge-pii">${escapeHtml(matched)}</span></td>
+          <td>${escapeHtml(c.dataType || '-')}</td>
+          <td>${c.isHidden ? '<span class="badge badge-dim">hidden</span>' : '<span class="badge" style="background:var(--accent);color:var(--paper);">visible</span>'}</td>
+        </tr>`);
+      }
+    }
+  }
+  document.getElementById('pii-body').innerHTML = piiRows.length ?
+    `<table><thead><tr><th>Table</th><th>Column</th><th>Type</th><th>Visibility</th></tr></thead><tbody>${piiRows.join('')}</tbody></table>` :
+    '<div class="empty">No potential PII columns matched. ✓</div>';
+
+  // RLS
+  const rlsBody = document.getElementById('rls-body');
+  if (m.roles.length === 0) {
+    rlsBody.innerHTML = '<div class="empty">No RLS roles defined in this model.</div>';
+  } else {
+    rlsBody.innerHTML = m.roles.map(r => `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">${escapeHtml(r.name)} <span class="badge badge-rls">RLS</span></div>
+          <div class="card-meta">permission: ${escapeHtml(r.modelPermission)}</div>
+        </div>
+        ${r.tablePermissions.length === 0 ? '<div class="card-desc">No table-level filters.</div>' :
+          r.tablePermissions.map(tp => `
+            <div style="margin-top:10px;">
+              <div class="mono" style="font-size:12px; font-weight:600;">${escapeHtml(tp.table)}</div>
+              <div class="dax">${escapeHtml(tp.filter)}</div>
+            </div>`).join('')
+        }
+      </div>
+    `).join('');
+  }
+}
+
+function renderLineage() {
+  const m = state.model;
+  const nodes = m.tables.map(t => {
+    let color = '#111827', font = {color:'#ffffff'};
+    if (t.isHidden) { color = '#b45309'; }
+    else if (t.name.toLowerCase().match(/^(dim|d_|lkp)/) || t.name.toLowerCase().includes('dim')) { color = '#2563eb'; }
+    else if (t.name.toLowerCase().includes('date') || t.name.toLowerCase().includes('calendar') || t.name.toLowerCase().includes('kalender')) { color = '#0f766e'; }
+    return {
+      id: t.name,
+      label: `${t.name}\n(${t.columns.length}c · ${t.measures.length}m)`,
+      shape: 'box',
+      color: { background: color, border: '#111827' },
+      font: { color: font.color, face: 'JetBrains Mono', size: 12 },
+      margin: 12
+    };
+  });
+  const edges = m.relationships.map((r,i) => ({
+    from: r.from.table, to: r.to.table,
+    arrows: r.crossFilter === 'bothDirections' ? 'to, from' : 'to',
+    color: { color: r.active ? '#111827' : '#b45309' },
+    dashes: !r.active,
+    label: r.crossFilter === 'bothDirections' ? '⇔' : '',
+    font: { size: 11, face: 'JetBrains Mono' },
+    smooth: { type: 'cubicBezier' }
+  }));
+  const container = document.getElementById('lineage-network');
+  new vis.Network(container, { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) }, {
+    layout: { improvedLayout: true },
+    physics: { barnesHut: { gravitationalConstant: -4000, springLength: 140 }, stabilization: { iterations: 200 } },
+    interaction: { hover: true, zoomView: true }
+  });
+}
+
+function renderMeasures() {
+  const m = state.model;
+  const allMeasures = [];
+  for (const t of m.tables) for (const me of t.measures) allMeasures.push({ ...me, table: t.name });
+  allMeasures.sort((a,b) => a.name.localeCompare(b.name));
+
+  const render = (filter='') => {
+    const f = filter.toLowerCase();
+    const shown = allMeasures.filter(me =>
+      !f || me.name.toLowerCase().includes(f) || me.table.toLowerCase().includes(f) || me.expression.toLowerCase().includes(f)
+    );
+    document.getElementById('measures-body').innerHTML = shown.length ? shown.map(me => `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">${escapeHtml(me.name)} <span class="badge badge-measure">${escapeHtml(me.table)}</span></div>
+          <div class="card-meta">${escapeHtml(me.displayFolder || '')}${me.formatString?' · '+escapeHtml(me.formatString):''}${me.isHidden?' · hidden':''}</div>
+        </div>
+        ${me.description ? `<div class="card-desc">${escapeHtml(me.description)}</div>` : ''}
+        <div class="dax">${escapeHtml(me.expression) || '<em>(empty)</em>'}</div>
+      </div>
+    `).join('') : '<div class="empty">No measures match.</div>';
+  };
+  render();
+  document.getElementById('measure-search').addEventListener('input', e => render(e.target.value));
+}
+
+function renderSources() {
+  const m = state.model;
+  const body = document.getElementById('sources-body');
+  if (m.dataSources.length === 0) {
+    body.innerHTML = '<div class="empty">No data sources found.</div>';
+    return;
+  }
+  body.innerHTML = m.dataSources.map(s => `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">${escapeHtml(s.details)} <span class="badge badge-source">${escapeHtml(s.kind)}</span></div>
+        <div class="card-meta">${s.tables.length} table${s.tables.length!==1?'s':''}</div>
+      </div>
+      <div class="field-list" style="margin-top:8px;">
+        ${s.tables.map(t => `<span class="field">${escapeHtml(t)}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderVisuals() {
+  const r = state.report;
+  const body = document.getElementById('visuals-body');
+  if (!r || !r.pages || r.pages.length === 0) {
+    body.innerHTML = '<div class="empty">No report pages found. Make sure you included the <code>*.Report</code> folder.</div>';
+    return;
+  }
+  body.innerHTML = r.pages.map(p => `
+    <div class="page-block">
+      <div class="page-title">${escapeHtml(p.displayName)}</div>
+      <div class="page-meta">${p.visuals.length} visual${p.visuals.length!==1?'s':''} · internal name: ${escapeHtml(p.name)}</div>
+      ${p.visuals.length === 0 ? '<div class="empty" style="padding:20px;">Empty page.</div>' :
+        p.visuals.map(v => `
+          <div class="visual-row">
+            <div>
+              <div class="visual-type">${escapeHtml(v.type)}</div>
+              ${v.title ? `<div class="visual-title">${escapeHtml(v.title)}</div>` : ''}
+            </div>
+            <div class="field-list">
+              ${v.fields.length === 0 ? '<span style="color:var(--muted);font-style:italic;">no bound fields</span>' :
+                v.fields.map(f => `<span class="field">${escapeHtml(f)}</span>`).join('')}
+            </div>
+          </div>`).join('')}
+    </div>
+  `).join('');
+}
+
+// ---------- AZURE DEVOPS WIKI EXPORT ----------
+/* Generates a zip with the folder structure expected by "Publish code as wiki":
+   /
+   ├── .order                         (top-level page order)
+   ├── Home.md                        (landing page with TOC + overview)
+   ├── Governance.md                  (PII + RLS with :warning: badges)
+   ├── Lineage.md                     (Mermaid flowcharts: relationships + source→table→visual)
+   ├── Data-Sources.md
+   ├── Relationships.md
+   ├── Tables/
+   │   ├── .order
+   │   ├── <Table1>.md                (one page per table: columns + collapsible measures)
+   │   └── ...
+   ├── Report-Pages/
+   │   ├── .order
+   │   └── <Page1>.md
+   └── attachments/                   (reserved)
+*/
+
+function wikiFilename(name) {
+  // Azure DevOps wiki page filenames: spaces → -, strip forbidden chars: # ? : * " < > | \ /
+  return String(name)
+    .replace(/[#?:*"<>|\\/]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'untitled';
+}
+
+function mermaidEscape(label) {
+  // Mermaid node labels: quote and escape problematic chars
+  return String(label).replace(/"/g, '#quot;').replace(/\n/g, ' ');
+}
+
+function buildMermaidRelationships() {
+  const m = state.model;
+  if (m.relationships.length === 0) return '';
+  const nodes = new Set();
+  let body = ':::mermaid\nflowchart LR\n';
+  // Node styling: dim vs fact classes (heuristic)
+  const dimNodes = [], factNodes = [], hiddenNodes = [];
+  for (const t of m.tables) {
+    const id = 't_' + wikiFilename(t.name).replace(/-/g, '_');
+    if (t.isHidden) hiddenNodes.push(id);
+    else if (/^(dim|d_|lkp)|dim|date|calendar|kalender/i.test(t.name)) dimNodes.push(id);
+    else factNodes.push(id);
+  }
+
+  for (const rel of m.relationships) {
+    const fId = 't_' + wikiFilename(rel.from.table).replace(/-/g, '_');
+    const tId = 't_' + wikiFilename(rel.to.table).replace(/-/g, '_');
+    nodes.add(`${fId}["${mermaidEscape(rel.from.table)}"]`);
+    nodes.add(`${tId}["${mermaidEscape(rel.to.table)}"]`);
+    const arrow = rel.crossFilter === 'bothDirections' ? '<-->' : '-->';
+    const label = rel.active ? '' : '|inactive|';
+    body += `    ${fId} ${arrow}${label} ${tId}\n`;
+  }
+  // Add isolated tables (no relationships)
+  for (const t of m.tables) {
+    const id = 't_' + wikiFilename(t.name).replace(/-/g, '_');
+    nodes.add(`${id}["${mermaidEscape(t.name)}"]`);
+  }
+  body = ':::mermaid\nflowchart LR\n' + Array.from(nodes).map(n => '    ' + n).join('\n') + '\n';
+  for (const rel of m.relationships) {
+    const fId = 't_' + wikiFilename(rel.from.table).replace(/-/g, '_');
+    const tId = 't_' + wikiFilename(rel.to.table).replace(/-/g, '_');
+    const arrow = rel.crossFilter === 'bothDirections' ? '<-->' : '-->';
+    const label = !rel.active ? '|inactive|' : '';
+    body += `    ${fId} ${arrow}${label} ${tId}\n`;
+  }
+  body += '    classDef dim fill:#bfdbfe,stroke:#111827,color:#111827\n';
+  body += '    classDef fact fill:#111827,stroke:#111827,color:#ffffff\n';
+  body += '    classDef hidden fill:#f3f4f6,stroke:#b45309,color:#6b7280,stroke-dasharray: 3 3\n';
+  if (dimNodes.length) body += `    class ${dimNodes.join(',')} dim\n`;
+  if (factNodes.length) body += `    class ${factNodes.join(',')} fact\n`;
+  if (hiddenNodes.length) body += `    class ${hiddenNodes.join(',')} hidden\n`;
+  body += ':::\n';
+  return body;
+}
+
+function buildMermaidLineage() {
+  // Source → Table → Page flowchart
+  const m = state.model;
+  const r = state.report;
+  if (m.tables.length === 0) return '';
+
+  const srcNodes = [], tableNodes = [], pageNodes = [];
+  const edges = [];
+
+  // Sources → Tables
+  for (let si = 0; si < m.dataSources.length; si++) {
+    const s = m.dataSources[si];
+    const sid = 's_' + si;
+    const label = `${s.kind}<br/>${s.details.length > 40 ? s.details.slice(0,37)+'...' : s.details}`;
+    srcNodes.push(`${sid}["${mermaidEscape(label)}"]`);
+    for (const tName of s.tables) {
+      const tid = 't_' + wikiFilename(tName).replace(/-/g, '_');
+      edges.push(`${sid} --> ${tid}`);
+    }
+  }
+
+  // Tables (only those referenced by sources or visuals)
+  const referencedTables = new Set();
+  for (const s of m.dataSources) for (const t of s.tables) referencedTables.add(t);
+
+  // Tables → Pages (via visuals)
+  if (r && r.pages) {
+    for (let pi = 0; pi < r.pages.length; pi++) {
+      const p = r.pages[pi];
+      const pid = 'p_' + pi;
+      pageNodes.push(`${pid}(["${mermaidEscape(p.displayName)}"])`);
+      const tablesOnPage = new Set();
+      for (const v of p.visuals) {
+        for (const f of v.fields) {
+          const tableName = f.includes('.') ? f.split('.')[0] : null;
+          if (tableName) {
+            tablesOnPage.add(tableName);
+            referencedTables.add(tableName);
+          }
+        }
+      }
+      for (const t of tablesOnPage) {
+        const tid = 't_' + wikiFilename(t).replace(/-/g, '_');
+        edges.push(`${tid} --> ${pid}`);
+      }
+    }
+  }
+
+  for (const t of m.tables) {
+    if (referencedTables.has(t.name)) {
+      const tid = 't_' + wikiFilename(t.name).replace(/-/g, '_');
+      tableNodes.push(`${tid}["${mermaidEscape(t.name)}"]`);
+    }
+  }
+
+  let body = ':::mermaid\nflowchart LR\n';
+  if (srcNodes.length) body += '    subgraph SOURCES["Data Sources"]\n        ' + srcNodes.join('\n        ') + '\n    end\n';
+  if (tableNodes.length) body += '    subgraph MODEL["Semantic Model"]\n        ' + tableNodes.join('\n        ') + '\n    end\n';
+  if (pageNodes.length) body += '    subgraph REPORT["Report Pages"]\n        ' + pageNodes.join('\n        ') + '\n    end\n';
+  body += edges.map(e => '    ' + e).join('\n') + '\n';
+  body += '    classDef src fill:#0f766e,stroke:#111827,color:#ffffff\n';
+  body += '    classDef tbl fill:#111827,stroke:#111827,color:#ffffff\n';
+  body += '    classDef pg fill:#2563eb,stroke:#111827,color:#ffffff\n';
+  if (srcNodes.length) body += '    class ' + srcNodes.map((_,i) => 's_'+i).join(',') + ' src\n';
+  if (tableNodes.length) {
+    const ids = [];
+    for (const t of m.tables) if (referencedTables.has(t.name)) ids.push('t_' + wikiFilename(t.name).replace(/-/g, '_'));
+    body += '    class ' + ids.join(',') + ' tbl\n';
+  }
+  if (pageNodes.length) body += '    class ' + pageNodes.map((_,i) => 'p_'+i).join(',') + ' pg\n';
+  body += ':::\n';
+  return body;
+}
+
+function buildHomePage() {
+  const m = state.model;
+  const r = state.report;
+  const d = new Date().toISOString().slice(0,10);
+  const piiCount = countPII();
+  const totalMeasures = m.tables.reduce((a,t) => a + t.measures.length, 0);
+  const totalColumns = m.tables.reduce((a,t) => a + t.columns.length, 0);
+  const totalVisuals = (r?.pages || []).reduce((a,p) => a + p.visuals.length, 0);
+
+  let md = `# ${m.name || 'Power BI Semantic Model'}\n\n`;
+  md += `> Handover documentation — generated ${d} by **PBIP Governance Inspector v2.0**\n\n`;
+  md += `[[_TOC_]]\n\n`;
+  md += `## Summary\n\n`;
+  md += `| Metric | Count |\n|---|---:|\n`;
+  md += `| Tables | ${m.tables.length} |\n`;
+  md += `| Columns | ${totalColumns} |\n`;
+  md += `| Measures | ${totalMeasures} |\n`;
+  md += `| Relationships | ${m.relationships.length} |\n`;
+  md += `| RLS roles | ${m.roles.length} |\n`;
+  md += `| Data sources | ${m.dataSources.length} |\n`;
+  md += `| Report pages | ${(r?.pages || []).length} |\n`;
+  md += `| Visuals | ${totalVisuals} |\n`;
+  md += `| Potential PII columns | ${piiCount > 0 ? ':warning: ' : ''}${piiCount} |\n\n`;
+
+  md += `## Governance snapshot\n\n`;
+  if (piiCount > 0) md += `:warning: **${piiCount} potential PII column${piiCount!==1?'s':''} detected** — see [Governance](/Governance).\n\n`;
+  if (m.roles.length > 0) md += `:warning: **${m.roles.length} RLS role${m.roles.length!==1?'s':''} configured** — see [Governance](/Governance).\n\n`;
+  if (piiCount === 0 && m.roles.length === 0) md += `No PII or RLS flags detected. :white_check_mark:\n\n`;
+
+  md += `## Table index\n\n`;
+  md += `| Table | Columns | Measures | Source | Mode |\n|---|---:|---:|---|---|\n`;
+  for (const t of m.tables) {
+    const part = t.partitions[0];
+    const src = part ? identifyMSource(part.mExpression) : { kind:'-', details:'-' };
+    md += `| [${t.name}](/Tables/${wikiFilename(t.name)})${t.isHidden?' _(hidden)_':''} | ${t.columns.length} | ${t.measures.length} | ${src.kind} | ${part?.mode || '-'} |\n`;
+  }
+  md += `\n`;
+
+  md += `## All measures\n\n`;
+  md += `_Full DAX bodies are on each table page._\n\n`;
+  const allMeasures = [];
+  for (const t of m.tables) for (const me of t.measures) allMeasures.push({ table: t.name, name: me.name, folder: me.displayFolder });
+  allMeasures.sort((a,b) => a.name.localeCompare(b.name));
+  if (allMeasures.length === 0) md += `_No measures._\n\n`;
+  else {
+    md += `| Measure | Table | Display folder |\n|---|---|---|\n`;
+    for (const me of allMeasures) {
+      md += `| [${me.name}](/Tables/${wikiFilename(me.table)}#${wikiFilename(me.name).toLowerCase()}) | \`${me.table}\` | ${me.folder || '-'} |\n`;
+    }
+    md += `\n`;
+  }
+  return md;
+}
+
+function buildGovernancePage() {
+  const m = state.model;
+  let md = `# :shield: Governance\n\n[[_TOC_]]\n\n`;
+  const piis = [];
+  for (const t of m.tables) for (const c of t.columns) if (isPII(c.name, t.name)) {
+    const matched = piiReason(c.name, t.name);
+    piis.push({ table: t.name, col: c.name, type: c.dataType, hidden: c.isHidden, matched });
+  }
+
+  md += `## :warning: Potential PII columns\n\n`;
+  md += `> Heuristic match against DA/EN field names. **Review manually before publishing** — false positives are expected.\n\n`;
+  if (piis.length === 0) md += `No potential PII columns matched. :white_check_mark:\n\n`;
+  else {
+    md += `| Table | Column | Match | Type | Visibility |\n|---|---|---|---|---|\n`;
+    for (const p of piis) {
+      const vis = p.hidden ? ':lock: hidden' : ':eye: **visible**';
+      md += `| \`${p.table}\` | \`${p.col}\` | \`${p.matched}\` | ${p.type||'-'} | ${vis} |\n`;
+    }
+    md += `\n`;
+  }
+
+  md += `## :key: Row-Level Security roles\n\n`;
+  if (m.roles.length === 0) md += `No RLS roles defined in this model.\n\n`;
+  else {
+    for (const role of m.roles) {
+      md += `### :warning: ${role.name}\n\n`;
+      md += `- **Model permission:** \`${role.modelPermission}\`\n`;
+      md += `- **Table filters:** ${role.tablePermissions.length}\n\n`;
+      if (role.tablePermissions.length > 0) {
+        for (const tp of role.tablePermissions) {
+          md += `<details><summary><b>${tp.table}</b> — filter expression</summary>\n\n`;
+          md += `\`\`\`dax\n${tp.filter}\n\`\`\`\n\n`;
+          md += `</details>\n\n`;
+        }
+      }
+    }
+  }
+  return md;
+}
+
+function buildLineagePage() {
+  const m = state.model;
+  const r = state.report;
+  let md = `# :link: Data Lineage\n\n[[_TOC_]]\n\n`;
+
+  md += `## Relationships\n\n`;
+  md += `Each node is a table. Arrows follow the filter direction. Bidirectional relationships use \`<-->\`, inactive relationships are labeled \`inactive\`.\n\n`;
+  if (m.relationships.length === 0) md += `_No relationships._\n\n`;
+  else md += buildMermaidRelationships() + '\n';
+
+  md += `## Source → Table → Page\n\n`;
+  md += `End-to-end lineage from data sources through the semantic model to the report pages that consume them.\n\n`;
+  md += buildMermaidLineage() + '\n';
+
+  md += `## Relationships (table)\n\n`;
+  if (m.relationships.length === 0) md += `_None._\n\n`;
+  else {
+    md += `| From | To | Cross-filter | Active |\n|---|---|---|---|\n`;
+    for (const rel of m.relationships) {
+      md += `| \`${rel.from.table}[${rel.from.column}]\` | \`${rel.to.table}[${rel.to.column}]\` | ${rel.crossFilter} | ${rel.active?':white_check_mark:':':x:'} |\n`;
+    }
+    md += `\n`;
+  }
+  return md;
+}
+
+function buildDataSourcesPage() {
+  const m = state.model;
+  let md = `# :cloud: Data Sources\n\n[[_TOC_]]\n\n`;
+  md += `_Extracted from Power Query M expressions._\n\n`;
+  if (m.dataSources.length === 0) { md += `No data sources detected.\n`; return md; }
+  for (const s of m.dataSources) {
+    md += `## ${s.kind} — \`${s.details}\`\n\n`;
+    md += `**Tables using this source:** ${s.tables.map(t => `[${t}](/Tables/${wikiFilename(t)})`).join(', ')}\n\n`;
+  }
+  return md;
+}
+
+function buildTablePage(t) {
+  let md = `# ${t.name}\n\n`;
+  if (t.isHidden) md += `> :lock: This table is **hidden** from report authors.\n\n`;
+  if (t.description) md += `_${t.description}_\n\n`;
+  md += `[[_TOC_]]\n\n`;
+
+  // Source
+  if (t.partitions.length > 0) {
+    const p = t.partitions[0];
+    const src = identifyMSource(p.mExpression);
+    md += `## Source\n\n`;
+    md += `- **Type:** ${src.kind}\n`;
+    md += `- **Details:** \`${src.details}\`\n`;
+    md += `- **Storage mode:** \`${p.mode}\`\n\n`;
+    if (p.mExpression) {
+      md += `<details><summary>M expression</summary>\n\n`;
+      md += `\`\`\`powerquery\n${p.mExpression}\n\`\`\`\n\n`;
+      md += `</details>\n\n`;
+    }
+  }
+
+  // Columns
+  md += `## Columns (${t.columns.length})\n\n`;
+  if (t.columns.length === 0) md += `_No columns._\n\n`;
+  else {
+    md += `| Name | Type | Flags |\n|---|---|---|\n`;
+    for (const c of t.columns) {
+      const flags = [];
+      if (c.isKey) flags.push(':key: key');
+      if (c.isHidden) flags.push(':lock: hidden');
+      if (c.isCalculated) flags.push(':abacus: calculated');
+      if (isPII(c.name, t.name)) flags.push(':warning: **PII?**');
+      md += `| \`${c.name}\` | ${c.dataType || '-'} | ${flags.join(' · ') || '-'} |\n`;
+    }
+    md += `\n`;
+  }
+
+  // Measures
+  md += `## Measures (${t.measures.length})\n\n`;
+  if (t.measures.length === 0) md += `_No measures._\n\n`;
+  else {
+    for (const me of t.measures) {
+      md += `### ${me.name}\n\n`;
+      const meta = [];
+      if (me.displayFolder) meta.push(`:file_folder: \`${me.displayFolder}\``);
+      if (me.formatString) meta.push(`format: \`${me.formatString}\``);
+      if (me.isHidden) meta.push(':lock: hidden');
+      if (meta.length) md += meta.join(' · ') + '\n\n';
+      if (me.description) md += `> ${me.description}\n\n`;
+      md += `<details><summary>DAX</summary>\n\n`;
+      md += `\`\`\`dax\n${me.expression || '(empty)'}\n\`\`\`\n\n`;
+      md += `</details>\n\n`;
+    }
+  }
+  return md;
+}
+
+function buildReportPagePage(page) {
+  let md = `# :bar_chart: ${page.displayName}\n\n`;
+  md += `- **Internal name:** \`${page.name}\`\n`;
+  md += `- **Visuals:** ${page.visuals.length}\n\n`;
+  if (page.visuals.length === 0) { md += `_Empty page._\n`; return md; }
+  md += `## Visuals\n\n`;
+  md += `| # | Type | Title | Fields |\n|---:|---|---|---|\n`;
+  page.visuals.forEach((v, i) => {
+    const fields = v.fields.length === 0 ? '_none_' : v.fields.map(f => `\`${f}\``).join(', ');
+    md += `| ${i+1} | ${v.type} | ${v.title || '-'} | ${fields} |\n`;
+  });
+  md += `\n`;
+  return md;
+}
+
+async function exportAzdoWiki() {
+  const m = state.model;
+  const r = state.report;
+  const zip = new JSZip();
+
+  // Top-level .order
+  const topOrder = ['Home', 'Governance', 'Lineage', 'Data-Sources', 'Tables', 'Report-Pages'];
+  zip.file('.order', topOrder.join('\n') + '\n');
+
+  // Home + top-level pages
+  zip.file('Home.md', buildHomePage());
+  zip.file('Governance.md', buildGovernancePage());
+  zip.file('Lineage.md', buildLineagePage());
+  zip.file('Data-Sources.md', buildDataSourcesPage());
+
+  // Tables folder
+  const tablesFolder = zip.folder('Tables');
+  const tableOrder = [];
+  for (const t of m.tables) {
+    const fn = wikiFilename(t.name);
+    tablesFolder.file(fn + '.md', buildTablePage(t));
+    tableOrder.push(fn);
+  }
+  tablesFolder.file('.order', tableOrder.join('\n') + '\n');
+  // Tables landing page
+  let tablesIndex = `# :page_facing_up: Tables\n\n[[_TOC_]]\n\n| Table | Columns | Measures | Hidden |\n|---|---:|---:|---|\n`;
+  for (const t of m.tables) {
+    tablesIndex += `| [${t.name}](/Tables/${wikiFilename(t.name)}) | ${t.columns.length} | ${t.measures.length} | ${t.isHidden?':lock:':''} |\n`;
+  }
+  zip.file('Tables.md', tablesIndex);
+
+  // Report Pages folder
+  const pagesFolder = zip.folder('Report-Pages');
+  const pageOrder = [];
+  if (r && r.pages) {
+    for (const p of r.pages) {
+      const fn = wikiFilename(p.displayName);
+      pagesFolder.file(fn + '.md', buildReportPagePage(p));
+      pageOrder.push(fn);
+    }
+    pagesFolder.file('.order', pageOrder.join('\n') + '\n');
+    let pageIndex = `# :bar_chart: Report Pages\n\n| Page | Visuals |\n|---|---:|\n`;
+    for (const p of r.pages) pageIndex += `| [${p.displayName}](/Report-Pages/${wikiFilename(p.displayName)}) | ${p.visuals.length} |\n`;
+    zip.file('Report-Pages.md', pageIndex);
+  } else {
+    pagesFolder.file('.order', '');
+    zip.file('Report-Pages.md', `# :bar_chart: Report Pages\n\n_No report pages found._\n`);
+  }
+
+  // README for the repo folder itself
+  zip.file('README.md',
+`# ${m.name || 'Power BI Semantic Model'} — Wiki
+
+This folder is structured for Azure DevOps **Publish code as wiki**.
+
+## Publish steps
+
+1. Commit and push this folder to your Azure DevOps Git repository.
+2. In Azure DevOps → **Overview → Wiki** → **Publish code as wiki**.
+3. Select the repo, branch, and this folder as the wiki root.
+
+Generated by PBIP Governance Inspector v2.0 on ${new Date().toISOString().slice(0,10)}.
+`);
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${wikiFilename(m.name || 'pbip')}_azdo_wiki_${new Date().toISOString().slice(0,10)}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ---------- EXPORT ----------
+function buildMarkdown() {
+  const m = state.model;
+  const r = state.report;
+  const d = new Date().toISOString().slice(0,10);
+  let md = `# ${m.name || 'Power BI Semantic Model'} — Handover Documentation\n\n`;
+  md += `_Generated ${d} · PBIP Governance Inspector v1.0_\n\n`;
+  md += `## Summary\n\n`;
+  md += `| Item | Count |\n|---|---|\n`;
+  md += `| Tables | ${m.tables.length} |\n`;
+  md += `| Columns | ${m.tables.reduce((a,t) => a + t.columns.length, 0)} |\n`;
+  md += `| Measures | ${m.tables.reduce((a,t) => a + t.measures.length, 0)} |\n`;
+  md += `| Relationships | ${m.relationships.length} |\n`;
+  md += `| RLS Roles | ${m.roles.length} |\n`;
+  md += `| Data Sources | ${m.dataSources.length} |\n`;
+  md += `| Report Pages | ${(r?.pages || []).length} |\n`;
+  md += `| Potential PII | ${countPII()} |\n\n`;
+
+  md += `## Data Sources\n\n`;
+  if (m.dataSources.length === 0) md += `_No data sources detected._\n\n`;
+  else {
+    for (const s of m.dataSources) {
+      md += `- **${s.kind}** — \`${s.details}\` · tables: ${s.tables.map(t=>`\`${t}\``).join(', ')}\n`;
+    }
+    md += `\n`;
+  }
+
+  md += `## Governance\n\n`;
+  md += `### Potential PII columns\n\n`;
+  const piis = [];
+  for (const t of m.tables) for (const c of t.columns) if (isPII(c.name, t.name)) piis.push({table:t.name,col:c.name,type:c.dataType,hidden:c.isHidden});
+  if (piis.length === 0) md += `_None matched._\n\n`;
+  else {
+    md += `| Table | Column | Type | Visibility |\n|---|---|---|---|\n`;
+    piis.forEach(p => md += `| \`${p.table}\` | \`${p.col}\` | ${p.type||'-'} | ${p.hidden?'hidden':'visible'} |\n`);
+    md += `\n`;
+  }
+
+  md += `### Row-Level Security\n\n`;
+  if (m.roles.length === 0) md += `_No RLS roles defined._\n\n`;
+  else {
+    for (const role of m.roles) {
+      md += `#### ${role.name}\n\nModel permission: \`${role.modelPermission}\`\n\n`;
+      if (role.tablePermissions.length === 0) md += `_No table filters._\n\n`;
+      else for (const tp of role.tablePermissions) {
+        md += `- Table \`${tp.table}\`:\n  \`\`\`dax\n  ${tp.filter}\n  \`\`\`\n`;
+      }
+      md += `\n`;
+    }
+  }
+
+  md += `## Tables & Measures\n\n`;
+  for (const t of m.tables) {
+    md += `### ${t.name}${t.isHidden?' _(hidden)_':''}\n\n`;
+    if (t.description) md += `_${t.description}_\n\n`;
+    md += `**Columns (${t.columns.length}):** `;
+    md += t.columns.map(c => `\`${c.name}\`${c.isKey?'🔑':''}`).join(', ') + `\n\n`;
+    if (t.measures.length > 0) {
+      md += `**Measures (${t.measures.length}):**\n\n`;
+      for (const me of t.measures) {
+        md += `- **${me.name}**${me.displayFolder?` · _${me.displayFolder}_`:''}\n`;
+        if (me.description) md += `  - ${me.description}\n`;
+        md += `  \`\`\`dax\n  ${me.expression.split('\n').join('\n  ')}\n  \`\`\`\n`;
+      }
+    }
+    md += `\n`;
+  }
+
+  md += `## Relationships\n\n`;
+  if (m.relationships.length === 0) md += `_No relationships._\n\n`;
+  else {
+    md += `| From | To | Cross-filter | Active |\n|---|---|---|---|\n`;
+    for (const rel of m.relationships) {
+      md += `| \`${rel.from.table}[${rel.from.column}]\` | \`${rel.to.table}[${rel.to.column}]\` | ${rel.crossFilter} | ${rel.active?'✓':'✗'} |\n`;
+    }
+    md += `\n`;
+  }
+
+  md += `## Report Pages & Visuals\n\n`;
+  if (!r || !r.pages || r.pages.length === 0) md += `_No report found._\n\n`;
+  else {
+    for (const p of r.pages) {
+      md += `### ${p.displayName}\n\n`;
+      if (p.visuals.length === 0) md += `_Empty page._\n\n`;
+      else {
+        md += `| Visual type | Title | Fields |\n|---|---|---|\n`;
+        for (const v of p.visuals) {
+          md += `| ${v.type} | ${v.title||'-'} | ${v.fields.map(f=>`\`${f}\``).join(', ') || '_none_'} |\n`;
+        }
+        md += `\n`;
+      }
+    }
+  }
+  md += `\n---\n\n_End of document._\n`;
+  return md;
+}
+
+function renderExport() {
+  const md = buildMarkdown();
+  document.getElementById('md-preview').textContent = md;
+  document.getElementById('export-md').onclick = () => downloadBlob(md, `${state.model.name || 'handover'}_handover_${new Date().toISOString().slice(0,10)}.md`, 'text/markdown');
+  document.getElementById('export-json').onclick = () => downloadBlob(JSON.stringify({model: state.model, report: state.report}, null, 2), `${state.model.name || 'handover'}_export_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+  document.getElementById('copy-md').onclick = () => {
+    navigator.clipboard.writeText(md).then(() => {
+      document.getElementById('copy-md').textContent = 'Copied ✓';
+      setTimeout(() => document.getElementById('copy-md').textContent = 'Copy Markdown to clipboard', 1800);
+    });
+  };
+  document.getElementById('export-azdo').onclick = async () => {
+    const btn = document.getElementById('export-azdo');
+    const orig = btn.textContent;
+    btn.textContent = 'Building zip…';
+    btn.disabled = true;
+    try {
+      await exportAzdoWiki();
+      btn.textContent = 'Downloaded ✓';
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+    } catch (e) {
+      console.error(e);
+      btn.textContent = 'Error — see console';
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+    }
+  };
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    };
+  });
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>

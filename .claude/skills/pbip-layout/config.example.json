@@ -1,0 +1,48 @@
+{
+  "pageName": "Dashboard",
+  "title": "Sales overview",
+  "subtitle": "Data Modeling PBIP",
+  "navLabels": { "Net sales over tid": "Trend", "Page 1": "Side 1" },
+  "kpis": [
+    { "measure": "_measures[net_sales]", "label": "Net Sales" },
+    { "measure": "_measures[total_orders]", "label": "Orders" },
+    { "measure": "_measures[gross_margin]", "label": "Gross Margin" },
+    { "measure": "_measures[gross_margin_pct]", "label": "Margin %" }
+  ],
+  "trend": {
+    "monthColumn": "dim_date[MonthStart]",
+    "measure": "_measures[net_sales]",
+    "label": "Net Sales",
+    "title": "Net Sales Trending"
+  },
+  "monthly": [
+    { "title": "Monthly Net Sales", "sparkMeasure": "_measures[net_sales]", "currentMeasure": "_measures[net_sales_cm]", "labelMeasure": "_measures[net_sales_label]", "colorMeasure": "_measures[net_sales_cm_color]" },
+    { "title": "Monthly Orders", "sparkMeasure": "_measures[total_orders]", "currentMeasure": "_measures[orders_cm]", "labelMeasure": "_measures[orders_label]", "colorMeasure": "_measures[orders_cm_color]" },
+    { "title": "Monthly Active Customers", "sparkMeasure": "_measures[total_active_customers]", "currentMeasure": "_measures[customers_cm]", "labelMeasure": "_measures[customers_label]", "colorMeasure": "_measures[customers_cm_color]" }
+  ],
+  "bar": {
+    "title": "Orders by Category",
+    "categoryColumn": "dim_products[category]",
+    "categoryLabel": "Category",
+    "measure": "_measures[total_orders]",
+    "measureLabel": "Orders"
+  },
+  "table": {
+    "title": "Top Ten Products",
+    "rowColumn": "dim_products[product_name]",
+    "columns": [
+      { "measure": "_measures[total_orders]", "label": "Orders" },
+      { "measure": "_measures[net_sales]", "label": "Net Sales" },
+      { "measure": "_measures[gross_margin_pct]", "label": "Margin %" }
+    ],
+    "sortMeasure": "_measures[total_orders]",
+    "dataBarMeasure": "_measures[total_orders]",
+    "gradientMeasure": "_measures[gross_margin_pct]",
+    "gradientHigherIsWorse": false,
+    "topN": { "count": 10, "orderByColumn": "fact_sales[order_id]", "function": 2 }
+  },
+  "highlights": [
+    { "header": "Most Ordered Category", "measure": "_measures[top_category]" },
+    { "header": "Top Sales Channel", "measure": "_measures[top_channel]" }
+  ]
+}

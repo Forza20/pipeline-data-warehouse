@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lineage · __PROJECT__</title>
+<style>
+  :root {
+    --bg: #16132a; --panel: #1f1b36; --panel-line: #2c2750; --node: #26213f; --node-line: #3a3462;
+    --text: #e6e3f5; --muted: #8f89b3; --edge: rgba(160, 152, 210, .32); --edge-hi: #d4cdfb;
+    --sel: #cfc8fa; --warn: #e0707a;
+    --mono: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--mono); }
+  body { padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px));
+         padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  header { max-width: 1400px; margin: 0 auto 16px; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 3px; height: 12px; border-radius: 1px; display: inline-block; }
+  .legend .dash { width: 14px; height: 10px; border: 1px dashed var(--warn); border-radius: 3px; }
+  .frame { max-width: 1400px; margin: 0 auto; overflow-x: auto; border: 1px solid var(--panel-line);
+           border-radius: 10px; background: #13112400; }
+  .cols { position: relative; display: flex; gap: 64px; padding: 16px; width: max-content; min-width: 100%; }
+  svg.edges { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; overflow: visible; }
+  .col { position: relative; z-index: 1; width: 230px; flex: none; background: var(--panel);
+         border-radius: 8px; padding: 12px 10px 14px; align-self: flex-start; }
+  .col h2 { font-size: 13px; font-weight: 700; margin: 0 2px; overflow-wrap: anywhere; }
+  .col .count { color: var(--muted); font-size: 12px; margin: 2px 2px 10px; }
+  .grp { color: var(--muted); font-size: 11.5px; margin: 12px 2px 6px; overflow-wrap: anywhere; }
+  .grp:first-of-type { margin-top: 4px; }
+  .node { position: relative; display: block; width: 100%; text-align: left; margin: 0 0 6px;
+          padding: 5px 8px 5px 12px; background: var(--node); color: var(--text); font: 12px var(--mono);
+          border: 1px solid var(--node-line); border-radius: 4px; cursor: pointer;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .15s; }
+  .node::before { content: ""; position: absolute; left: 3px; top: 4px; bottom: 4px; width: 3px;
+                  border-radius: 1px; background: var(--bar); }
+  .node:hover { border-color: #5a5390; }
+  .node:focus-visible { outline: 2px solid var(--sel); outline-offset: 1px; }
+  .node.unused { border: 1px dashed var(--warn); }
+  .node.unused::before { background: var(--warn); }
+  .node.sel { border: 2px solid var(--sel); padding: 4px 7px 4px 11px; }
+  .dim .node:not(.on) { opacity: .25; }
+  path { fill: none; stroke: var(--edge); stroke-width: 1; transition: opacity .15s; }
+  .dim path:not(.on) { opacity: .08; }
+  path.on { stroke: var(--edge-hi); stroke-width: 1.4; }
+  #tip { position: fixed; z-index: 10; max-width: 340px; padding: 8px 10px; background: #0f0d1e;
+         border: 1px solid var(--node-line); border-radius: 6px; font-size: 11.5px; line-height: 1.5;
+         pointer-events: none; display: none; }
+  #tip b { font-weight: 600; }
+  #tip .m { color: var(--muted); }
+  .empty { padding: 24px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <div class="sub" id="sub"></div>
+  <div class="legend" id="legend"></div>
+</header>
+<div class="frame"><div class="cols" id="cols"><svg class="edges" id="edges"></svg></div></div>
+<div id="tip"></div>
+
+<script id="lineage-data" type="application/json">/*__DATA__*/{}</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById('lineage-data').textContent);
+  var colsEl = document.getElementById('cols'), svg = document.getElementById('edges');
+  var tip = document.getElementById('tip');
+  var byId = {}, outs = {}, ins = {}, els = {}, paths = [];
+  (D.nodes || []).forEach(function (n) { byId[n.id] = n; outs[n.id] = []; ins[n.id] = []; });
+  (D.edges || []).forEach(function (e) { outs[e[0]].push(e[1]); ins[e[1]].push(e[0]); });
+
+  document.getElementById('title').textContent = 'Lineage · ' + (D.project || '');
+  document.getElementById('sub').textContent =
+    (D.nodes || []).length + ' objekter · ' + (D.edges || []).length + ' forbindelser · genereret ' +
+    (D.generated || '') + ' by pbip-catalog' + (D.sqlUsed ? '' : ' · without SQL files (Power Query only)') +
+    '. Click a table to see its whole path.';
+
+  // legend: one entry per kind that occurs
+  var seenKind = {}, legend = document.getElementById('legend');
+  (D.nodes || []).forEach(function (n) {
+    if (seenKind[n.kind]) return; seenKind[n.kind] = 1;
+    var s = document.createElement('span'), i = document.createElement('i');
+    i.style.background = n.color; s.appendChild(i); s.appendChild(document.createTextNode(n.kind));
+    legend.appendChild(s);
+  });
+  if ((D.nodes || []).some(function (n) { return n.unused; })) {
+    var s = document.createElement('span'), i = document.createElement('i');
+    i.className = 'dash'; s.appendChild(i); s.appendChild(document.createTextNode('not used further'));
+    legend.appendChild(s);
+  }
+
+  // order nodes: right to left, each column grouped by the node it feeds
+  var cols = (D.columns || []).map(function (c) { return { c: c, nodes: [] }; });
+  (D.nodes || []).forEach(function (n) { cols[n.col].nodes.push(n); });
+  var pos = {}, rel = {};
+  function primary(n) {
+    var best = null;
+    outs[n.id].forEach(function (t) {
+      var tn = byId[t]; if (tn.col <= n.col) return;
+      if (!best || tn.col < best.col || (tn.col === best.col && pos[t] < pos[best.id])) best = tn;
+    });
+    return best;
+  }
+  for (var ci = cols.length - 1; ci >= 0; ci--) {
+    var col = cols[ci], groups = {}, order = [];
+    col.nodes.forEach(function (n) {
+      var p = ci === cols.length - 1 ? null : primary(n), k = p ? p.id : '';
+      if (!groups[k]) { groups[k] = { target: p, nodes: [] }; order.push(k); }
+      groups[k].nodes.push(n);
+    });
+    order.sort(function (a, b) {
+      var A = groups[a].target, B = groups[b].target;
+      if (!A || !B) return A ? -1 : B ? 1 : 0;
+      return (rel[A.id] - rel[B.id]) || A.label.localeCompare(B.label);
+    });
+    col.groups = order.map(function (k) {
+      var g = groups[k];
+      if (ci < cols.length - 1 || g.target) g.nodes.sort(function (a, b) {
+        return (a.unused - b.unused) || a.label.localeCompare(b.label);
+      });
+      return g;
+    });
+    var i = 0, total = col.nodes.length || 1;
+    col.groups.forEach(function (g) { g.nodes.forEach(function (n) { pos[n.id] = i; rel[n.id] = i / total; i++; }); });
+  }
+
+  // render
+  if (!cols.length) {
+    var e = document.createElement('div'); e.className = 'empty';
+    e.textContent = 'No lineage found in the project.'; colsEl.appendChild(e);
+  }
+  cols.forEach(function (col) {
+    var box = document.createElement('section'); box.className = 'col';
+    var h = document.createElement('h2'); h.textContent = col.c.title; box.appendChild(h);
+    var cnt = document.createElement('div'); cnt.className = 'count';
+    cnt.textContent = col.c.count + ' ' + col.c.unit; box.appendChild(cnt);
+    var showLabels = col.groups.length > 1;
+    col.groups.forEach(function (g) {
+      if (showLabels && (g.nodes.length > 1 || !g.target)) {
+        var gl = document.createElement('div'); gl.className = 'grp';
+        gl.textContent = g.target ? 'feeds ' + g.target.label :
+          (g.nodes.every(function (n) { return n.unused; }) ? 'not used further' : 'feeds later layers');
+        box.appendChild(gl);
+      }
+      g.nodes.forEach(function (n) {
+        var b = document.createElement('button'); b.type = 'button';
+        b.className = 'node' + (n.unused ? ' unused' : '');
+        b.style.setProperty('--bar', n.color); b.textContent = n.label;
+        b.addEventListener('click', function (ev) { ev.stopPropagation(); select(n.id); });
+        b.addEventListener('mouseenter', function (ev) { showTip(n, ev); });
+        b.addEventListener('mousemove', moveTip);
+        b.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+        els[n.id] = b; box.appendChild(b);
+      });
+    });
+    colsEl.appendChild(box);
+  });
+
+  function draw() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    paths = [];
+    var base = colsEl.getBoundingClientRect();
+    svg.setAttribute('width', colsEl.scrollWidth); svg.setAttribute('height', colsEl.scrollHeight);
+    (D.edges || []).forEach(function (e) {
+      var a = els[e[0]], b = els[e[1]]; if (!a || !b) return;
+      var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      var x1 = ra.right - base.left, y1 = ra.top + ra.height / 2 - base.top;
+      var x2 = rb.left - base.left, y2 = rb.top + rb.height / 2 - base.top;
+      var dx = Math.max(32, Math.abs(x2 - x1) / 2);
+      var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', 'M' + x1 + ',' + y1 + ' C' + (x1 + dx) + ',' + y1 + ' ' + (x2 - dx) + ',' + y2 + ' ' + x2 + ',' + y2);
+      p._e = e; svg.appendChild(p); paths.push(p);
+    });
+    if (current) select(current, true);
+  }
+
+  var current = null;
+  function walk(start, adj) {
+    var seen = {}, stack = [start];
+    while (stack.length) { var n = stack.pop(); if (seen[n]) continue; seen[n] = 1; stack = stack.concat(adj[n]); }
+    return seen;
+  }
+  function select(id, keep) {
+    if (!keep && current === id) id = null;
+    current = id;
+    Object.keys(els).forEach(function (k) { els[k].classList.remove('on', 'sel'); });
+    paths.forEach(function (p) { p.classList.remove('on'); });
+    colsEl.classList.toggle('dim', !!id);
+    if (!id) return;
+    var up = walk(id, ins), down = walk(id, outs), on = {};
+    Object.keys(up).concat(Object.keys(down)).forEach(function (k) { on[k] = 1; els[k] && els[k].classList.add('on'); });
+    els[id].classList.add('sel');
+    paths.forEach(function (p) {
+      var a = p._e[0], b = p._e[1];
+      if ((up[a] && up[b]) || (down[a] && down[b])) p.classList.add('on');
+    });
+  }
+  document.addEventListener('click', function () { if (current) select(current); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && current) select(current); });
+
+  function showTip(n, ev) {
+    tip.innerHTML = '';
+    function line(text, cls, bold) {
+      var d = document.createElement('div'); if (cls) d.className = cls;
+      if (bold) { var b = document.createElement('b'); b.textContent = text; d.appendChild(b); } else d.textContent = text;
+      tip.appendChild(d);
+    }
+    line(n.title, '', true);
+    line(n.kind + (n.type ? ' · ' + n.type : '') + ' · ' + ins[n.id].length + ' ind, ' + outs[n.id].length + ' ud', 'm');
+    if (n.desc) line(n.desc);
+    if (n.unusedText) line(n.unusedText, 'm');
+    tip.style.display = 'block'; moveTip(ev);
+  }
+  function moveTip(ev) {
+    var x = ev.clientX + 14, y = ev.clientY + 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+    if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+  }
+
+  var t; addEventListener('resize', function () { clearTimeout(t); t = setTimeout(draw, 80); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw); else draw();
+  draw();
+})();
+</script>
+</body>
+</html>

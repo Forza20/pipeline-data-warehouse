@@ -20,6 +20,9 @@
     "psql": "C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe",
     "python": "C:\\Users\\you\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
   },
+  "catalog": {
+    "dbml": true
+  },
   "obsidian": {
     "enabled": false,
     "vault": null,

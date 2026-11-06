@@ -67,6 +67,9 @@ Ask with AskUserQuestion (each question standing on its own):
    against.
 4. **Obsidian notes:** "No (Recommended)" · "Yes – I will give the vault path". With yes, ask for the path in
    chat and check the folder exists.
+5. **dbdiagram.io data model** (a second AskUserQuestion call): "Yes – write `model.dbml` for dbdiagram.io
+   (Recommended)" · "No". With yes, every run writes the data model as DBML that can be pasted into
+   dbdiagram.io (free, in the browser); with no, the catalog skips it.
 
 Pooler host: the Session pooler host in Supabase → Connect. Try `aws-0-<region>.pooler.supabase.com` and
 `aws-1-<region>.pooler.supabase.com` (region from `get_project`) in step 4.3; if neither works, ask them to
