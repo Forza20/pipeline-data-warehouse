@@ -198,7 +198,7 @@ new text (verbatim), and the reason with numbers from this run. Then ask: "Appro
 none." On approval:
 1. Edit the skill in `.claude\skills\<skill>\` on a branch `pipeline/<run_id>` of this repository, and commit
    (message in a file, `git commit -q -F <file>`, ending with the user's usual attribution if any).
-2. **Review before merge:** follow `.claudeskillspr-reviewSKILL.md` on `git diff main...pipeline/<run_id>`, with the
+2. **Review before merge:** follow `.claude/skills/pr-review/SKILL.md` on `git diff main...pipeline/<run_id>`, with the
    repository's own conventions as the standards (the SKILL.md files, README). Save the page as
    `runs\<run_id>\pr-review.html`. *Approve*: `git switch -q main`, `git merge -q --ff-only pipeline/<run_id>`,
    delete the branch. *Changes requested*: fix the high-risk findings on the branch and review again (at most
