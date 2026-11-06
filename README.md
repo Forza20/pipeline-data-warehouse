@@ -69,9 +69,16 @@ the Power BI report CLI and, to load the data, Power BI Desktop.
 5. It writes the PBIP. Every cleaning step is a named Power Query step (`F08 Parse order_date` …), so you can
    still switch one off in Power BI under *Applied steps*.
 
-Results are in `runs/<date>_pbi_<name>/`: the PBIP, `cleaning-log.md` (what was and was not cleaned) and
-`expected-values.md` (the numbers to check the report against). `/pipeline-power-bi --resume <run-id>` reopens
-your choices.
+Results are in `runs/<date>_pbi_<name>/`: the PBIP, `overview.html` (sources → staging → star schema → report),
+`cleaning-log.md` (what was and was not cleaned), `expected-values.md` and `checks.dax` (paste it into Power BI's
+DAX query view after a refresh; every difference should be 0). `/pipeline-power-bi --resume <run-id>` reopens
+your choices. The model is generated from the choices by `scripts/build-model.js`, so a changed choice is a rerun,
+not a hand edit.
+
+To skip the approval prompt for the profiler, add
+`"PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File *Profile-Sources.ps1*)"` to `permissions.allow` in
+`.claude/settings.json` (or your own `settings.local.json`). After changing the skill's scripts, run its tests:
+`node .claude/skills/pipeline-power-bi/tests/run-tests.js`.
 
 ## Passwords and data
 

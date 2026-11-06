@@ -2,7 +2,8 @@
 
 `scripts/build-model.js runs/<run-id>` turns this spec into the semantic model (TMDL). Write the spec in
 step 8 from the user's choices (steps 3–5) and the design (step 4b); never hand-write TMDL for tables,
-relationships, measures or roles. A complete example: `runs/2026-11-06_pbi_dataset/choices.json`.
+relationships, measures or roles. A complete, working example (CSV and Excel sources, every op kind,
+date table, measures, a role) is the `spec` object in [../tests/run-tests.js](../tests/run-tests.js).
 
 ```
 node .claude\skills\pipeline-power-bi\scripts\build-model.js runs\<run-id> [--out <folder>] [--name <Name>]

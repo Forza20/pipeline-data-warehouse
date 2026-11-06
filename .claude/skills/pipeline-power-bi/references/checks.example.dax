@@ -1,0 +1,38 @@
+// Example control check (from a star-schema run on an order/invoice/campaign workbook).
+// Power BI Desktop → Refresh → DAX query view (left bar) → paste this → Run.
+// Compare every value with the "Expected" column; all differences 0 = the model matches the workbook.
+
+EVALUATE
+VAR Checks =
+    {
+        ( "Rows Sales", COUNTROWS ( Sales ), 200 ),
+        ( "Rows Order process", COUNTROWS ( 'Order process' ), 80 ),
+        ( "Rows Customer", COUNTROWS ( Customer ), 60 ),
+        ( "Rows Product", COUNTROWS ( Product ), 63 ),
+        ( "Rows Campaign products", COUNTROWS ( 'Campaign products' ), 30 ),
+        ( "Rows Inventory", COUNTROWS ( Inventory ), 288 ),
+        ( "Rows Order flags", COUNTROWS ( 'Order flags' ), 14 ),
+        ( "Total sales", [Total sales], 526643.91 ),
+        ( "Orders", [Orders], 80 ),
+        ( "Customers", [Customers], 47 ),
+        ( "Gross margin", [Gross margin], 194439.84 ),
+        ( "Invoiced amount", [Invoiced amount], 428827.72 ),
+        ( "Paid amount", [Paid amount], 393981.41 ),
+        ( "Outstanding", [Outstanding], 34846.31 ),
+        ( "Campaign spend", [Campaign spend], 78840.65 ),
+        ( "Avg delivery days", [Avg delivery days], 6.01 ),
+        ( "Stock latest month", [Stock latest month], 6366 ),
+        ( "Sales lines without customer", COUNTROWS ( FILTER ( Sales, ISBLANK ( RELATED ( Customer[Customer ID] ) ) ) ), 0 ),
+        ( "Sales lines without product", COUNTROWS ( FILTER ( Sales, ISBLANK ( RELATED ( Product[Product key] ) ) ) ), 0 ),
+        ( "Sales lines without channel", COUNTROWS ( FILTER ( Sales, ISBLANK ( RELATED ( 'Order flags'[Channel] ) ) ) ), 0 ),
+        ( "Test rows left (Customer 9999)", COUNTROWS ( FILTER ( Customer, Customer[Customer ID] = 9999 ) ), 0 ),
+        ( "Test rows left (ZZZ-000)", COUNTROWS ( FILTER ( Product, Product[Product code] = "ZZZ-000" ) ), 0 )
+    }
+RETURN
+    SELECTCOLUMNS (
+        Checks,
+        "Check", [Value1],
+        "In Power BI", [Value2],
+        "Expected", [Value3],
+        "Difference", ROUND ( [Value2] - [Value3], 2 )
+    )

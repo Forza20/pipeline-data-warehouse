@@ -351,7 +351,7 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
 8. **`checks.dax`** (always): one `EVALUATE` with a row per check – row counts per model table, every
    headline measure, orphan checks (`ISBLANK ( RELATED (...) )` per relationship of the main fact) and
    "test rows left = 0" per F27 – each with its expected value from `expected-values.md` and a
-   Difference column. Example: `runs/2026-11-06_pbi_dataset/checks.dax`.
+   Difference column. Example: [references/checks.example.dax](references/checks.example.dax).
 
 ## Step 9 – Check the numbers
 

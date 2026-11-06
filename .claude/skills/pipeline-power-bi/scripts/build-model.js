@@ -145,10 +145,12 @@ function fixStep(q, f, s) {
     case 'F16': {
       q.add(`F16 Unpivot ${f.attribute || 'Period'}`, `Table.UnpivotOtherColumns(<prev>, ${L(f.keep)}, ${ms(f.attribute || 'Period')}, ${ms(f.value || 'Value')})`);
       const a = f.attribute || 'Period';
-      const conv = f.period === 'monthName'
-        ? `#date(${f.year ? `Number.From([${f.year}])` : 'Date.Year(DateTime.LocalNow())'}, List.PositionOf({"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"}, Text.Lower(Text.Start(Text.Replace(Text.Replace(_, "maj", "may"), "okt", "oct"), 3))) + 1, 1)`
-        : '#date(Number.From(Text.Start(_, 4)), Number.From(Text.End(_, 2)), 1)';
-      if (f.period === 'monthName' && f.year) return q.add(`F16 ${a} as date`, `Table.AddColumn(<prev>, ${ms(a + ' start')}, each ${conv.split('_').join(`[${a}]`)}, type date)`);
+      // v = the M expression for the period text: `_` inside TransformColumns, `[<attribute>]` inside AddColumn
+      const monthDate = (v, year) => `#date(${year}, List.PositionOf({"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"}, Text.Lower(Text.Start(Text.Replace(Text.Replace(${v}, "maj", "may"), "okt", "oct"), 3))) + 1, 1)`;
+      if (f.period === 'monthName' && f.year) {
+        return q.add(`F16 ${a} as date`, `Table.AddColumn(<prev>, ${ms(a + ' start')}, each ${monthDate(`[${a}]`, `Number.From([${f.year}])`)}, type date)`);
+      }
+      const conv = f.period === 'monthName' ? monthDate('_', 'Date.Year(DateTime.LocalNow())') : '#date(Number.From(Text.Start(_, 4)), Number.From(Text.End(_, 2)), 1)';
       return q.add(`F16 ${a} as date`, `Table.TransformColumns(<prev>, {{${ms(a)}, each ${conv}, type date}})`);
     }
     case 'F17': {
