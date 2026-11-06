@@ -1,0 +1,28 @@
+{
+  "language": "en",
+  "workspace": "C:\\path\\to\\pipeline-data-warehouse",
+  "supabase": {
+    "project_ref": "abcdefghijklmnopqrst",
+    "project_name": "my-project",
+    "pooler_host": "aws-0-eu-west-1.pooler.supabase.com",
+    "pooler_port": 5432,
+    "keep_runs": 3
+  },
+  "github": {
+    "owner": "your-github-user",
+    "datasets_repo": "messy-datasets"
+  },
+  "locale": {
+    "culture": "en-US",
+    "currency": "USD"
+  },
+  "tools": {
+    "psql": "C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe",
+    "python": "C:\\Users\\you\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
+  },
+  "obsidian": {
+    "enabled": false,
+    "vault": null,
+    "folder": "Pipeline"
+  }
+}

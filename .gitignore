@@ -1,0 +1,19 @@
+# Your own settings – created by /pipeline-data-warehouse, never committed
+pipeline.config.json
+.claude/settings.local.json
+.env
+.env.*
+.mcp.json
+
+# Power BI local files
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+
+# Pipeline runs and scratch files
+runs/*/
+!runs/.gitkeep
+runs/*/scratch/
+*.tmp
+
+# Local clone of your private datasets repo
+datasets/
