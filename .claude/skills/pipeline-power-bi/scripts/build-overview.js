@@ -241,7 +241,7 @@ if (vault) {
   note = path.join(folder, `${choices.run_id || path.basename(runDir)}.md`);
   const lines = [
     '---', `run: ${choices.run_id}`, `report: ${name}`, `source: "${(choices.source_original || '').replace(/\\/g, '/')}"`, 'type: pipeline-power-bi', '---', '',
-    `# ${name}`, '', `- Facts: ${facts.map((t) => t.name).join(', ') || '–'}`, `- Dimensions: ${dims.map((t) => t.name).join(', ') || '–'}`,
+    `# ${name}`, '', 'Built with [[pipeline-power-bi]] · back to [[Pipeline]].', '', `- Facts: ${facts.map((t) => t.name).join(', ') || '–'}`, `- Dimensions: ${dims.map((t) => t.name).join(', ') || '–'}`,
     `- Relationships: ${model.rels.length} · measures: ${measureList.length} · cleaning steps kept: ${kept}`,
     `- Security: ${model.roles.map((r) => r.name).join(', ') || 'none'}`, `- Check in Power BI: ${(choices.status || {}).verify || 'pending'}`, '',
     '## Files', '', `- Overview page: \`${outFile.replace(/\\/g, '/')}\``, `- Project: \`${path.join(pbipDir).replace(/\\/g, '/')}\``,
