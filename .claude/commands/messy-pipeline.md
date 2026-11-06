@@ -153,6 +153,11 @@ explained deviations" sections, and only when a difference needs explaining.
 **Keep the context small:** read only the sections of the agents' docs you need (Grep, then Read with
 offset/limit); no full dumps of large tool results; use `git -q` where it exists.
 
+**Format** (`tools/build-site.js` and `tools/update-vault.js` read it): the first paragraph starts with
+`**Result: <result>** – <one-sentence summary>`; the sections are `## 1. Errors found` … `## 6. Result`; in
+section 1 the "Injected?" column says `yes` or `no` and the verdict column uses ✅ (found), ✔ (not applicable –
+checked), ⚠ (partly) or ❌ (missed); section 3 is the table from `tools/score.js`.
+
 Sections:
 1. **Errors found** – a table with one row per catalogue type 1–13: injected? / found in `model-decisions.md`
    or `data-quality.md`? / count found vs answer key / verdict (✅ found, ✔ not applicable – checked).

@@ -1,0 +1,88 @@
+# pipeline-data-warehouse
+
+A test bench for Claude Code skills that build a data warehouse. Every run:
+
+1. **generates a deliberately messy dataset** (retail, hotel or SaaS – duplicates, mixed formats, orphan keys,
+   many-to-many bridges, lying documentation …) together with a hidden answer key,
+2. **builds a medallion warehouse** (bronze → silver → gold star schema) in your Supabase project and a Power
+   BI project (PBIP/TMDL),
+3. **applies a dashboard layout** to the report, in your colours,
+4. **writes a data catalog** (Excel), data lineage (Mermaid + an HTML page) and – optionally – a
+   [dbdiagram.io](https://dbdiagram.io) model,
+5. **scores everything against the answer key** and proposes concrete fixes to the skills.
+
+Each step is a Claude Code subagent that follows a skill; the orchestrator never shows the answer key to the
+agents being tested.
+
+## What you need
+
+| | |
+|---|---|
+| Windows 10 or 11 | Power BI Desktop and the dataset generator are Windows-only |
+| [Claude Code](https://claude.com/claude-code) | in VS Code or the terminal |
+| A Supabase project | the free plan is enough (about 3 runs at a time); the pipeline only creates `mp_*` schemas, two roles and four helper functions |
+| A GitHub account | for a **private** repository that holds the datasets and answer keys |
+| Programs | Git, GitHub CLI, Node.js, Python 3.12 + openpyxl, the PostgreSQL client (psql), the Power BI report CLI; Power BI Desktop is optional. The setup command checks them and installs only the ones you choose. |
+| Claude Code add-ons | the Supabase connector (claude.ai → Settings → Connectors) and the Power BI authoring plugin from [microsoft/skills-for-fabric](https://github.com/microsoft/skills-for-fabric) |
+
+## Quick start
+
+```
+git clone https://github.com/<owner>/pipeline-data-warehouse.git
+cd pipeline-data-warehouse
+code .                                   # open the folder in VS Code and start Claude Code there
+```
+
+Then, in Claude Code:
+
+1. `/pipeline-data-warehouse` – setup. It checks your programs (and asks before installing anything), asks
+   for your Supabase project, currency and culture, GitHub account and whether you want Obsidian notes and the
+   dbdiagram.io model, guides you through the Supabase roles and passwords, creates your private datasets
+   repository and verifies everything. Your answers are saved in `pipeline.config.json` (git-ignored).
+2. Restart Claude Code.
+3. `/messy-pipeline` – a run (about 45 minutes with 20,000 rows). Before it starts it asks about the
+   dashboard colours (standard, hex codes or a screenshot of a website), sections and title, and whether the
+   warehouse decisions follow the skill's recommendations or your own answers. Quick test:
+   `/messy-pipeline retail 42 --rows 5000`. Resume a stopped run with `/messy-pipeline --resume <run-id>`.
+
+Results are in `runs/<run-id>/` (git-ignored): `scorecard.md`, the PBIP (`pbip/<Name>.pbip` – open it in Power
+BI Desktop and refresh with the `powerbi_reader` login), `pbip/docs/catalog.xlsx`, `lineage.md`, `lineage.html`,
+`model.dbml` and a project site `site.html`.
+
+## Passwords and data
+
+- You choose the passwords of the two database roles yourself in the Supabase SQL Editor. They are never
+  written to this repository, never pasted into the chat, and psql reads the loader's password from your own
+  `pgpass.conf`.
+- Supabase objects are guarded: helper functions refuse any name that is not a pipeline schema
+  (`mp_<domain>_s<seed>_bronze|silver|gold`), so your other data cannot be touched by a clean-up.
+- The answer keys live only in your private datasets repository and are read into memory for scoring.
+
+## Repository layout
+
+```
+.claude/
+  commands/pipeline-data-warehouse.md   setup
+  commands/messy-pipeline.md            the run (orchestrator)
+  agents/                               dataset-publisher, medallion-builder, layout-applier, catalog-builder
+  skills/                               the seven skills the agents use (see below)
+  settings.json                         permissions for this folder only
+supabase/migrations/                    roles and guarded helper functions (run once in the SQL Editor)
+tools/                                  score.js, build-site.js, sample-sql.js, update-vault.js
+profiles/                               saved dashboard profiles (colours, KPIs, sections, title)
+pipeline.config.example.json            the shape of your pipeline.config.json
+```
+
+| Skill | What it does |
+|---|---|
+| `messy-dataset` | seeded, deterministic messy datasets with an answer key (13 error types, any currency) |
+| `supabase-medallion-powerbi` | CSV → Supabase bronze/silver/gold → star schema → PBIP/TMDL, with a logged decision interview |
+| `pbip-layout` | the "Sales overview" dashboard page, mapped to the model's own measures, colours from a profile or a screenshot |
+| `pbip-catalog` | data catalog (Excel), lineage (Mermaid/HTML), dbdiagram.io model (optional) |
+| `pbip-governance` | the PBIP parser `pbip-catalog` builds on, PII heuristics |
+| `reconcile` | finds where two numbers that should agree diverge (used when scoring) |
+| `pr-review` | reviews a skill fix before it is merged |
+
+## Licence
+
+MIT – see `LICENSE`. Some skills are adapted from other MIT-licensed projects; see `NOTICE.md`.
