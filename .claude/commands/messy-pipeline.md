@@ -174,7 +174,7 @@ Sections:
    `<schema_prefix>gold` (e.g. `clean_revenue` and one month); a mismatch with the file is a technical error.
    Paste the table and replace each `**?**` with the logged decision that explains it (cite the id, e.g.
    R2-5) using the rules in `answers-format.md`; an unexplained difference counts as an error.
-   **A difference you cannot explain at once:** follow `.claudeskillseconcileSKILL.md` with the two sides – the answer-key
+   **A difference you cannot explain at once:** follow `.claude/skills/reconcile/SKILL.md` with the two sides – the answer-key
    value with its reference rule, and your SQL on gold – split it by the dimensions until it sits in one
    slice (status, month, key, date status …), and name each cause with the rows behind it. Save the page as
    `runs\<run_id>\reconcile-<key>.html` and cite it. A difference with no cause left after reconcile is an
