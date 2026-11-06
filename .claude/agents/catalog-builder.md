@@ -17,8 +17,9 @@ Read `pipeline.config.json` first (`tools.python`, `supabase.project_ref`, `cata
 1. Read `run.json`. If `steps.catalog.status` is `done`, stop. If `steps.layout.status` is not `done`, set
    `catalog` to `failed` with `error` = "layout not done" and stop. Set `catalog` to `running` (with
    `started`) and write it back; keep all other fields.
-2. Load the skill `pbip-catalog` with the Skill tool and follow its "Workflow" steps 1–3 in full. If the
-   Skill tool cannot load it, read `.claude\skills\pbip-catalog\SKILL.md` and `format.md` directly.
+2. Read `.claude\skills\pbip-catalog\SKILL.md` and `format.md` (this repository's copy – read them by path,
+   not with the Skill tool, so a global skill with the same name cannot shadow it) and follow the "Workflow"
+   steps 1–3 in full. Run the scripts from `.claude\skills\pbip-catalog\scripts\`.
    - Project: the folder that holds `paths.pbip` (e.g. `runs\<id>\pbip`). Output goes to its `docs\` (next to
      `layout-config.json` from step 3).
    - Python: call the full path in `tools.python` (on Windows `python3` is often a Microsoft Store stub).

@@ -16,11 +16,12 @@ Your task, in the skill's words: **pipeline mode** – apply `pbip-layout` to `p
 1. Read `run.json`. If `steps.layout.status` is `done`, stop. If `steps.medallion.status` is not `done`,
    set `failed` with `error` = "medallion not done" and stop. Set `layout` to `running` (with `started`) and
    write it back; keep all other fields.
-2. Load the skill `pbip-layout` with the Skill tool and follow it in full in its **"Pipeline mode"**
-   section, including its own prerequisites: load `powerbi-authoring:semantic-model-authoring` and
-   `powerbi-authoring:powerbi-report-cli` with the Skill tool (if they are missing, follow `pbip-layout`
-   alone and note it). If the Skill tool cannot load `pbip-layout`, read
-   `.claude\skills\pbip-layout\SKILL.md` and its files directly.
+2. Read `.claude\skills\pbip-layout\SKILL.md` (this repository's copy – read it by path, not with the Skill
+   tool, so a global skill with the same name cannot shadow it) and follow it in full in its **"Pipeline
+   mode"** section, including its own prerequisites: load `powerbi-authoring:semantic-model-authoring` and
+   `powerbi-authoring:powerbi-report-cli` with the Skill tool (if they are missing, follow `pbip-layout` alone
+   and note it). The skill's other files (layout.md, measures.md, colors.md, profile.md, scripts) are in the
+   same folder.
    - **Report profile:** use `run.json` → `profile` if set; otherwise `profiles\default.json` if it exists;
      otherwise none (the skill's *Standard*). Pass it to the skill as the profile (its `profile.md`):
      colours, theme, KPIs, sections and title come from it. Write the profile used (or "none – Standard")

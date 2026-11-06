@@ -174,7 +174,7 @@ Sections:
    `<schema_prefix>gold` (e.g. `clean_revenue` and one month); a mismatch with the file is a technical error.
    Paste the table and replace each `**?**` with the logged decision that explains it (cite the id, e.g.
    R2-5) using the rules in `answers-format.md`; an unexplained difference counts as an error.
-   **A difference you cannot explain at once:** load the `reconcile` skill with the two sides – the answer-key
+   **A difference you cannot explain at once:** follow `.claudeskillseconcileSKILL.md` with the two sides – the answer-key
    value with its reference rule, and your SQL on gold – split it by the dimensions until it sits in one
    slice (status, month, key, date status …), and name each cause with the rows behind it. Save the page as
    `runs\<run_id>\reconcile-<key>.html` and cite it. A difference with no cause left after reconcile is an
@@ -198,7 +198,7 @@ new text (verbatim), and the reason with numbers from this run. Then ask: "Appro
 none." On approval:
 1. Edit the skill in `.claude\skills\<skill>\` on a branch `pipeline/<run_id>` of this repository, and commit
    (message in a file, `git commit -q -F <file>`, ending with the user's usual attribution if any).
-2. **Review before merge:** load the `pr-review` skill on `git diff main...pipeline/<run_id>`, with the
+2. **Review before merge:** follow `.claudeskillspr-reviewSKILL.md` on `git diff main...pipeline/<run_id>`, with the
    repository's own conventions as the standards (the SKILL.md files, README). Save the page as
    `runs\<run_id>\pr-review.html`. *Approve*: `git switch -q main`, `git merge -q --ff-only pipeline/<run_id>`,
    delete the branch. *Changes requested*: fix the high-risk findings on the branch and review again (at most
