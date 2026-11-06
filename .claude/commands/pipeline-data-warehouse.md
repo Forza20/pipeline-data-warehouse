@@ -63,8 +63,8 @@ Ask with AskUserQuestion (each question standing on its own):
 2. **Currency and culture** of the generated data and the Power BI model: "USD, en-US (Recommended)" ·
    "EUR, en-IE" · "GBP, en-GB" · Other (any ISO currency code + .NET culture name, e.g. "DKK, da-DK").
 3. **GitHub:** owner = `gh api user --jq .login` (confirm it), datasets repository name "messy-datasets
-   (Recommended)" or their own. It will be **private**: it holds the answer keys the runs are scored
-   against.
+   (Recommended)" or their own. It should be **private**: it holds the answer keys the runs are scored
+   against (step 5 explains why and lets them choose).
 4. **Obsidian notes:** "No (Recommended)" · "Yes – I will give the vault path". With yes, ask for the path in
    chat and check the folder exists.
 5. **dbdiagram.io data model** (a second AskUserQuestion call): "Yes – write `model.dbml` for dbdiagram.io
@@ -108,8 +108,25 @@ step 2). It is git-ignored and holds no passwords.
    `git clone <url> datasets`, then `git -C datasets sparse-checkout set --no-cone /runs/ /README.md /.gitattributes`.
 3. An empty repo gets a first commit: `.gitattributes` with `* -text` (keeps the CSV files byte-identical)
    and a two-line `README.md`; push it.
-4. Check the repository really is private: `gh repo view <owner>/<datasets_repo> --json visibility`. Public →
-   tell them and stop: the answer keys would be readable by the agents being tested and by everyone.
+4. Check the visibility: `gh repo view <owner>/<datasets_repo> --json visibility`. Private → set
+   `github.datasets_visibility = "private"` in the config and go on. **Public** → do not stop; explain first,
+   in plain language, then let them choose:
+   - *What is in it:* every run commits its dataset **and its answer key** (`answers/<run-id>/` – the error
+     types that were injected and the numbers the warehouse should end up with). The whole test rests on the
+     agents not seeing the answer key while they work.
+   - *Private (recommended):* only they can read it, so the score shows what the skills really found.
+   - *Public – the risks:* (1) the test can be invalidated: an agent being tested could find the answer key on
+     GitHub (a web search, `gh`, a link) – it has a rule not to look, but a private repository makes it
+     impossible instead of just forbidden; (2) the score loses its value, because "8/8 errors found" only means
+     something when the answers were hidden; (3) anyone can read the expected numbers of every run, and
+     others using the same seed can copy them instead of testing their own skills. The data is synthetic and
+     holds no passwords or personal data, so it is not a security problem – the risk is to the test.
+   Then ask with AskUserQuestion, the explanation summed up in each option's description: "Make it private
+   (Recommended)" – run `gh repo edit <owner>/<datasets_repo> --visibility private --accept-visibility-change-consequences`
+   after their yes (if the permission check refuses it, give them the command or the GitHub path Settings →
+   General → Danger Zone → Change visibility, and wait); "Keep it public – I accept the risk"; "Use another
+   repository" (back to step 5.1 with a new name). Save the choice as `github.datasets_visibility`
+   (`"private"` or `"public-accepted"`).
 
 ## 6. Skills and agents
 
@@ -126,7 +143,8 @@ The skills ship in `.claude/skills/` (project skills; Claude Code loads them whe
 2. `select public.mp_drop_schema('public')` failed in 4.5; the four helpers exist; both roles exist.
 3. psql login worked (4.4).
 4. `powerbi-report-author --version`, `node --version`, `<python> -c "import openpyxl"` all work.
-5. `datasets\` is a sparse clone of a **private** repository.
+5. `datasets\` is a sparse clone of the datasets repository; private, or public with the risk accepted
+   (`github.datasets_visibility`).
 6. `pipeline.config.json` is complete and git-ignored (`git check-ignore pipeline.config.json`).
 
 Finish with a short report: a table (item → OK / missing + what to do), and the next steps:

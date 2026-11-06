@@ -21,7 +21,7 @@ agents being tested.
 | Windows 10 or 11 | Power BI Desktop and the dataset generator are Windows-only |
 | [Claude Code](https://claude.com/claude-code) | in VS Code or the terminal |
 | A Supabase project | the free plan is enough (about 3 runs at a time); the pipeline only creates `mp_*` schemas, two roles and four helper functions |
-| A GitHub account | for a **private** repository that holds the datasets and answer keys |
+| A GitHub account | for a repository that holds the datasets and answer keys – private is strongly recommended (setup explains why) |
 | Programs | Git, GitHub CLI, Node.js, Python 3.12 + openpyxl, the PostgreSQL client (psql), the Power BI report CLI; Power BI Desktop is optional. The setup command checks them and installs only the ones you choose. |
 | Claude Code add-ons | the Supabase connector (claude.ai → Settings → Connectors) and the Power BI authoring plugin from [microsoft/skills-for-fabric](https://github.com/microsoft/skills-for-fabric) |
 

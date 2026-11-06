@@ -25,9 +25,12 @@ was meant.
   with `Select-String -Quiet`, never print the file), then
   `& "<psql>" "host=<pooler_host> port=<pooler_port> dbname=postgres user=pipeline_loader.<project_ref> sslmode=require" -w -c "select current_user"`.
   Fails: ask the user to fix the password or the pgpass line, and stop.
-- `datasets\` is a clone of `<owner>/<datasets_repo>` and the repository is private
-  (`gh repo view <owner>/<datasets_repo> --json visibility`). Public: stop – the answer keys must not be
-  readable.
+- `datasets\` is a clone of `<owner>/<datasets_repo>`. Visibility (`gh repo view <owner>/<datasets_repo> --json visibility`):
+  private → fine. Public and `github.datasets_visibility` is `"public-accepted"` → go on, and note in the
+  scorecard (section 6, a remark) that the answer key was publicly readable during the run. Public without
+  that → give the same explanation and choice as `/pipeline-data-warehouse` step 5.4 (why private matters:
+  the answer key could be found by the agents being tested, the score loses its value, anyone can read the
+  expected numbers; not a security problem, the data is synthetic) and act on the answer.
 - Power BI Desktop: if it is open (`Get-Process PBIDesktop -ErrorAction SilentlyContinue | ? MainWindowTitle`),
   ask the user to save and close it.
 - **Decide Desktop yourself – do not ask.** Free memory (`Win32_OperatingSystem.FreePhysicalMemory`) below

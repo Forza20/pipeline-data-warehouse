@@ -10,7 +10,8 @@
   },
   "github": {
     "owner": "your-github-user",
-    "datasets_repo": "messy-datasets"
+    "datasets_repo": "messy-datasets",
+    "datasets_visibility": "private"
   },
   "locale": {
     "culture": "en-US",
