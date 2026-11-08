@@ -14,7 +14,7 @@ Input: a file, the current diff, or a branch before its merge.
 
 1. Scope the change: the files, the lines and the purpose of the change.
 2. Security: secrets in the code, access rights, personal data that reaches the consumers.
-3. Correctness: data types, money, the numbers the change produces, and the same result on a rerun or a backfill.
+3. Correctness: data types, money, the numbers the change produces, and the same result on a rerun or a backfill. For a data model also the points a person must confirm: grain, join paths (fan-out), metric formulas, history of changing attributes, access rules and names (see `pipeline-power-bi/references/model-review.md`).
 4. Tests: the change comes with tests, they cover the edge cases, and they pass.
 5. Contract: the grain, the columns and the types against the data contracts of the consumers.
 6. Portability: absolute paths and anything else that only runs on one machine.

@@ -142,6 +142,28 @@ check('bad spec: names both errors', (badOut.errors || []).length === 2, JSON.st
 check('bad spec: model untouched', fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8') === before);
 check('bad spec: no half-written folder left', !fs.existsSync(path.join(def, '..', 'definition.new')));
 
+// ---------- 2b. grounded-answer test ----------
+const py = process.env.PYTHON || 'python';
+const qFile = path.join(TMP, 'questions.json');
+fs.writeFileSync(qFile, JSON.stringify([
+  { question: 'Revenue in Nord', measure: 'Revenue', filters: { 'Customer[Customer ID]': 'K-001' }, expected: 1234.5, expected_how: 'test' },
+  { question: 'Orders as K-001', measure: 'Orders', filters: {}, expected: 3, role: 'Test role', role_user: 'a@example.com', role_expected: 3 },
+]));
+res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'grounded_answers.py'), path.join(run, 'pbip'), qFile, '--out', run], { encoding: 'utf8' });
+let ga = {};
+try { ga = JSON.parse(res.stdout); } catch { /* reported below */ }
+check('grounded: ok', res.status === 0 && ga.ok, res.stdout + res.stderr);
+check('grounded: one role check', ga.role_checks === 1, ga.role_checks);
+check('grounded: every column traced', ga.untraced_columns === 0, ga.untraced_columns);
+const gdax = fs.existsSync(path.join(run, 'grounded-answers.dax')) ? fs.readFileSync(path.join(run, 'grounded-answers.dax'), 'utf8') : '';
+check('grounded: three rows (2 questions + 1 role)', (gdax.match(/ROW \(/g) || []).length === 3);
+check('grounded: role filter inlined', gdax.includes('FILTER ( ALL ( \'Customer\' ), [Customer ID] = "K-001" )'));
+const gmd = fs.existsSync(path.join(run, 'grounded-answers.md')) ? fs.readFileSync(path.join(run, 'grounded-answers.md'), 'utf8') : '';
+check('grounded: traced to the source file', /orders\.csv › Beløb/.test(gmd), gmd.slice(0, 300));
+fs.writeFileSync(qFile, JSON.stringify([{ question: 'x', measure: 'No such measure', expected: 1 }]));
+res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'grounded_answers.py'), path.join(run, 'pbip'), qFile, '--out', TMP], { encoding: 'utf8' });
+check('grounded: unknown measure refused', res.status === 2, res.status);
+
 // ---------- 3. overview page ----------
 fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, tables: { orders: { include: true, fixes: [{ fix: 'F08', column: 'Dato', keep: true }] } } }));
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-overview.js'), run], { encoding: 'utf8' });

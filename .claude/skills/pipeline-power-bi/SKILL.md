@@ -229,6 +229,10 @@ dates and amounts per table, and the findings F21, F22, F29, M02, F28.
    the staging queries before the merges.
 4. Run the guide's checklist (§9) on the design and tell the user any point that is not met, with the
    reason (e.g. "City stays its own table because targets are set per city").
+5. **Human review** ([references/model-review.md](references/model-review.md)): grain, join paths, metric
+   formulas, history, access and names are business meaning, not something the profile can decide. Show
+   the drafted answer for each and let the user confirm, change or leave it open; write the result to
+   `choices.json` → `design.review`. Open points go into the overview page and the hand-over.
 
 ## Step 5 – The model (one or two AskUserQuestion calls)
 
@@ -352,6 +356,19 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
    headline measure, orphan checks (`ISBLANK ( RELATED (...) )` per relationship of the main fact) and
    "test rows left = 0" per F27 – each with its expected value from `expected-values.md` and a
    Difference column. Example: [references/checks.example.dax](references/checks.example.dax).
+9. **Grounded-answer test** (always): `checks.dax` proves the totals; this proves that real questions get
+   the right number, under the asker's permissions, traceable to their definition.
+   - Ask the user for 3–5 business questions (AskUserQuestion with drafted ones from the measures and
+     dimensions, e.g. "Sales in <region> in <latest complete month>", plus "Other" for their own). With an
+     RLS role, add one question as a user of that role (a user from the security sheet).
+   - Compute each expected number **from the source files** (a short Python/PowerShell script over
+     `data/`, applying the kept fixes the question depends on) – never from the model – and write how in
+     `expected_how`.
+   - Write `questions.json` (format in the script's header) and run
+     `python .claude\skills\pipeline-power-bi\scripts\grounded_answers.py runs\<run-id>\pbip runs\<run-id>\questions.json`.
+     It writes `grounded-answers.dax` (Value, Expected, Difference per question; role rows simulate the
+     role in DAX) and `grounded-answers.md` (definition, measures used, source sheet/column of every
+     column, the role rule). A column it cannot trace is a remark in the hand-over.
 
 ## Step 9 – Check the numbers
 
@@ -361,6 +378,9 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
   (it names the step, e.g. `F08 Parse order_date`), fix the step, rebuild, refresh again.
 - Without Desktop: give the user `checks.dax` (paste into Desktop → DAX query view → Run; every
   Difference should be 0) and `expected-values.md` for the cards.
+- Run `grounded-answers.dax` the same way, then confirm each role row once with Modeling → **View as** →
+  the role + *Other user*. Fill in "In Power BI" in `grounded-answers.md`. A question with a difference is
+  handled like any other difference (below).
 - Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
   explain at once: follow the **reconcile** skill (`.claude/skills/reconcile/SKILL.md`) – split it by the
   dimensions until it sits in one slice and name the rows behind it. Write the result into
@@ -370,6 +390,7 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
 
 What was built and the result of the check; links relative to the repository root to
 `runs/<run-id>/pbip/<Name>.pbip`, `overview.html` (or its published link), `checks.dax`,
+`grounded-answers.md` (with the open review points from `design.review`),
 `cleaning-log.md`, `expected-values.md`, and what the chosen skills made (`layout-mapping.md`,
 `pbip/docs/catalog.xlsx`, `lineage.html`, `model.dbml`, `governance/handover.md` and the wiki zip, the
 Obsidian note); the governance flags in one line (visible personal data, RLS roles); how to change a choice later: `/pipeline-power-bi --resume <run-id>` → "Change the cleaning of a
@@ -395,7 +416,7 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 68 checks of the profiler, the model generator and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 75 checks of the profiler, the model generator, the grounded-answer test and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass.

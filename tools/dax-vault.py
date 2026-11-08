@@ -4,6 +4,7 @@ with status and checks that Dataview can read (type: dax-measure).
 
     python tools/dax-vault.py sync   <pbip folder> --vault <vault> [--model <name>] [--folder DAX/Measures]
     python tools/dax-vault.py status <measure name> <todo|review|complete> --vault <vault> [--model <name>]
+    python tools/dax-vault.py certify <measure name> --owner <name> --vault <vault> [--model <name>] [--force]
     python tools/dax-vault.py list   --vault <vault> [--status review] [--problems]
 
 sync     writes DAX/Measures/<model>/Measure-<Name>.md for every measure and DAX/Modeller/<model>.md.
@@ -11,12 +12,15 @@ sync     writes DAX/Measures/<model>/Measure-<Name>.md for every measure and DAX
          status, own fields and everything under "## Mine noter" are kept. Measures that are gone from the
          model get status "slettet" (the note is not deleted).
 status   sets the status of one measure note.
+certify  a person confirms the definition: status complete, ejer (owner), certificeret (date) and the DAX it
+         was confirmed for. If the DAX changes later, sync flags "Ændret efter certificering" and sets review.
 list     prints the measure notes (optionally only one status, or only those with problems).
 
 Reads the model with .claude/skills/pbip-governance/scripts/parse_pbip.py (read-only on the PBIP).
 """
 import argparse
 import datetime as dt
+import hashlib
 import json
 import re
 import subprocess
@@ -31,7 +35,9 @@ START, END = '<!-- dax-vault:start – generated, do not edit -->', '<!-- dax-va
 USER_HEADING = '## Mine noter'
 # frontmatter fields written by sync; every other field (status, own fields) is kept
 GENERATED = ['type', 'navn', 'model', 'tabel', 'tabeller', 'mappe', 'format', 'beskrivelse', 'skjult', 'funktioner',
-             'afhaenger_af', 'bruges_af', 'rapportsider', 'problemer', 'problemer_antal', 'kilde', 'synkroniseret']
+             'afhaenger_af', 'bruges_af', 'rapportsider', 'problemer', 'problemer_antal', 'dax_hash', 'kilde',
+             'synkroniseret']
+# kept, written by `certify`: ejer (owner), certificeret (date), certificeret_hash (dax_hash when certified)
 
 
 # ---------------------------------------------------------------- frontmatter
@@ -106,6 +112,11 @@ def references(expr):
     return cols, bare
 
 
+def code_of(expr):
+    """The DAX as code: comments and whitespace removed, case ignored (used for duplicates and dax_hash)."""
+    return re.sub(r'\s+', '', re.sub(r'//[^\n]*|--[^\n]*|/\*.*?\*/', ' ', expr or '', flags=re.S)).upper()
+
+
 def slug(name):
     s = re.sub(r'[\\/:*?"<>|#^\[\]]', '', name).strip()
     s = s.replace('%', 'pct')
@@ -174,9 +185,7 @@ def analyse(data):
         return cnt
 
     # duplicates: same code including strings ("cancelled" vs "returned" is not a duplicate), comments ignored
-    def code(e):
-        return re.sub(r'\s+', '', re.sub(r'//[^\n]*|--[^\n]*|/\*.*?\*/', ' ', e or '', flags=re.S)).upper()
-
+    code = code_of
     norm = defaultdict(list)
     for n, m in measures.items():
         norm[code(m['expression'])].append(n)
@@ -241,8 +250,16 @@ def sync(args):
         fields, body = read_note(path) if path.exists() else ({}, '')
         if not path.exists():
             new += 1
+        dax_hash = hashlib.sha1(code_of(m['expression']).encode('utf-8')).hexdigest()[:12]
+        problems = list(a['problems'])
+        cert_hash = field_text(fields, 'certificeret_hash')
+        if cert_hash and cert_hash != dax_hash:
+            problems.insert(0, f'Ændret efter certificering ({field_text(fields, "certificeret") or "?"})')
+            fields['status'] = ['status: review']
         if 'status' not in fields:
-            fields['status'] = [f'status: {"review" if a["problems"] else "todo"}']
+            fields['status'] = [f'status: {"review" if problems else "todo"}']
+        for k in ('ejer', 'certificeret'):
+            fields.setdefault(k, [f'{k}: ""'])
         if 'tags' not in fields:
             fields['tags'] = ['tags: [dax, measure]']
         gen = {
@@ -251,7 +268,7 @@ def sync(args):
             'beskrivelse': (m.get('description') or '').strip(), 'skjult': bool(m.get('isHidden')),
             'funktioner': a['functions'], 'afhaenger_af': [link(d) for d in a['deps']],
             'bruges_af': [link(d) for d in a['used_by']], 'rapportsider': a['pages'],
-            'problemer': a['problems'], 'problemer_antal': len(a['problems']),
+            'problemer': problems, 'problemer_antal': len(problems), 'dax_hash': dax_hash,
             'kilde': str(Path(args.pbip).resolve()).replace('\\', '/'), 'synkroniseret': today,
         }
         block = [START, '', f'# {n}', '', f'Tilbage til [[DAX Measure Oversigt]] · model [[{model_name}]].', '']
@@ -264,7 +281,11 @@ def sync(args):
                   f'- Afhænger af: {", ".join(gen["afhaenger_af"]) or "–"}',
                   f'- Bruges af: {", ".join(gen["bruges_af"]) or "–"}',
                   f'- Rapportsider: {", ".join(a["pages"]) or "–"}', '']
-        block += ['## Fejlfinding'] + ([f'- [ ] {p}' for p in a['problems']] or ['- Ingen fund']) + ['', END]
+        cert = field_text(fields, 'certificeret')
+        block += ['## Certificering', (f'- Certificeret {cert} af {field_text(fields, "ejer") or "?"}'
+                                       + (' – **DAX ændret siden**' if cert_hash and cert_hash != dax_hash else ''))
+                  if cert else '- Ikke certificeret', '']
+        block += ['## Fejlfinding'] + ([f'- [ ] {p}' for p in problems] or ['- Ingen fund']) + ['', END]
         rest = body.split(END, 1)[1] if END in body else ''
         if USER_HEADING not in rest:
             rest = f'\n\n{USER_HEADING}\n\n' + rest.lstrip('\n')
@@ -319,24 +340,52 @@ def measure_notes(vault):
             yield p, fields
 
 
-def set_status(args):
-    if args.status not in STATUSES:
-        sys.exit(f'status must be one of {", ".join(STATUSES)}')
+def find_one(args):
     hits = [(p, f) for p, f in measure_notes(args.vault)
             if field_text(f, 'navn').lower() == args.name.lower() and (not args.model or field_text(f, 'model') == args.model)]
     if not hits:
         sys.exit(f'no dax-measure note named "{args.name}"' + (f' in model {args.model}' if args.model else ''))
     if len(hits) > 1:
         sys.exit('several models have this measure – add --model: ' + ', '.join(field_text(f, 'model') for _, f in hits))
-    p, _ = hits[0]
-    text = p.read_text(encoding='utf-8-sig')
-    head, sep, rest = text.partition('\n---')
-    if re.search(r'^status:.*$', head, re.M):
-        head = re.sub(r'^status:.*$', f'status: {args.status}', head, count=1, flags=re.M)
-    else:
-        head += f'\nstatus: {args.status}'
-    p.write_text(head + sep + rest, encoding='utf-8')
-    print(f'{args.name}: status {args.status} ({p})')
+    return hits[0]
+
+
+def set_fields(path, values):
+    """Set frontmatter fields in place (one line each), keeping everything else."""
+    text = path.read_text(encoding='utf-8-sig')
+    m = re.match(r'^(---\r?\n)(.*?)(\r?\n---)', text, re.S)
+    head = m.group(2)
+    for k, v in values.items():
+        line = f'{k}: {v}'
+        if re.search(rf'^{k}:.*$', head, re.M):
+            head = re.sub(rf'^{k}:.*$', lambda _m: line, head, count=1, flags=re.M)
+        else:
+            head += '\n' + line
+    path.write_text(m.group(1) + head + text[m.end(2):], encoding='utf-8')
+
+
+def set_status(args):
+    if args.status not in STATUSES:
+        sys.exit(f'status must be one of {", ".join(STATUSES)}')
+    p, f = find_one(args)
+    set_fields(p, {'status': args.status})
+    note = ''
+    if args.status == 'complete' and not field_text(f, 'certificeret'):
+        note = ' – not certified yet (use certify to record owner and date)'
+    print(f'{args.name}: status {args.status} ({p}){note}')
+
+
+def certify(args):
+    """A person confirms the definition: status complete, owner, date, and the DAX it was confirmed for."""
+    p, f = find_one(args)
+    if not field_text(f, 'dax_hash'):
+        sys.exit('run sync first – the note has no dax_hash')
+    if int(field_text(f, 'problemer_antal') or 0) and not args.force:
+        sys.exit(f'{args.name} has open findings ({field_text(f, "problemer")}) – fix them or pass --force')
+    today = dt.date.today().isoformat()
+    set_fields(p, {'status': 'complete', 'ejer': yaml_value(args.owner), 'certificeret': today,
+                   'certificeret_hash': yaml_value(field_text(f, 'dax_hash'))})
+    print(f'{args.name}: certified {today} by {args.owner} ({p})')
 
 
 def list_notes(args):
@@ -366,6 +415,13 @@ def main():
     st.add_argument('--vault', required=True)
     st.add_argument('--model')
     st.set_defaults(fn=set_status)
+    ce = sub.add_parser('certify')
+    ce.add_argument('name')
+    ce.add_argument('--owner', required=True)
+    ce.add_argument('--vault', required=True)
+    ce.add_argument('--model')
+    ce.add_argument('--force', action='store_true', help='certify although the note has findings')
+    ce.set_defaults(fn=certify)
     ls = sub.add_parser('list')
     ls.add_argument('--vault', required=True)
     ls.add_argument('--status')

@@ -182,6 +182,14 @@ Sections:
    slice (status, month, key, date status …), and name each cause with the rows behind it. Save the page as
    `runs\<run_id>\reconcile-<key>.html` and cite it. A difference with no cause left after reconcile is an
    error. Never show answer-key rows to an agent.
+   **Grounded answers:** pick 3 questions the answer key has a number for (e.g. clean revenue in one month,
+   revenue for one region, one count), write them with the answer-key values as `expected` to
+   `runs\<run_id>\questions.json`, and run
+   `python .claude\skills\pipeline-power-bi\scripts\grounded_answers.py runs\<run_id>\medallion\pbip runs\<run_id>\questions.json`
+   (the PBIP folder from `run.json`). Cite `grounded-answers.md`: every question must name its measure and
+   trace to a gold column (the catalog's lineage takes it on to the CSV). An untraced column is a remark;
+   `grounded-answers.dax` is for the user to run after a refresh. Never write answer-key rows beyond these
+   three values into the run folder.
 4. **Layout** – validation result, `layout-mapping.md`, and your own review of the screenshot (Read it).
    A unit difference between the dashboard and other pages is a remark, not an error.
 5. **Catalog** – from `catalog-report.md` and your own spot checks: `catalog.xlsx`, `lineage.md` and – when

@@ -192,7 +192,8 @@ ${(design.facts || []).map((f) => `<tr><td><b>${esc(f.name)}</b></td><td>fact</t
 ${(design.dimensions || []).map((d) => `<tr><td>${esc(d.name)}</td><td>dimension</td><td>${esc(d.key || '')}</td><td>${esc((d.sources || []).join(', '))}</td></tr>`).join('')}
 </tbody></table></div>
 <p><b>Staging only:</b> ${esc((design.staging_only || []).join(', ') || '–')}</p>
-<p><b>Left out:</b> ${(design.left_out || []).map((l) => `${esc(l.table)} <span class="muted">(${esc(l.reason)})</span>`).join(' · ') || '–'}</p>` : ''}
+<p><b>Left out:</b> ${(design.left_out || []).map((l) => `${esc(l.table)} <span class="muted">(${esc(l.reason)})</span>`).join(' · ') || '–'}</p>
+${(design.review || []).length ? `<p><b>Reviewed by a person:</b> ${design.review.map((r) => `${esc(r.point)} <span class="muted">(${esc(r.status)}${r.note ? ': ' + esc(r.note) : ''})</span>`).join(' · ')}</p>` : ''}` : ''}
 
 <h2>Cleaning steps per source</h2>
 <div class="tw"><table><thead><tr><th>Source</th><th>Findings</th><th>Steps kept</th></tr></thead><tbody>
@@ -248,6 +249,8 @@ if (vault) {
     `- Cleaning log: \`${path.join(runDir, 'cleaning-log.md').replace(/\\/g, '/')}\``, `- Expected values: \`${path.join(runDir, 'expected-values.md').replace(/\\/g, '/')}\``, '',
   ];
   if (design && design.left_out) lines.push('## Left out', '', ...design.left_out.map((l) => `- ${l.table}: ${l.reason}`), '');
+  const open = ((design && design.review) || []).filter((r) => r.status === 'open');
+  if (open.length) lines.push('## Open review points', '', ...open.map((r) => `- ${r.point}: ${r.note || ''}`), '');
   fs.writeFileSync(note, lines.join('\n'));
 }
 console.log(JSON.stringify({ overview: outFile, note, tables: model.tables.length, facts: facts.length, dimensions: dims.length, relationships: model.rels.length, staging: model.staging.length, measures: measureList.length, warnings: warn }));
