@@ -93,11 +93,12 @@ F01 is built from `kind`/`header`/`columns`; F02, F26 come from the table column
 ```json
 "date": { "name": "Date", "columns": ["Sales[Order date]", "Inventory[Month]"], "completeMonth": "Sales[Order date]" },
 "relationships": [ { "from": "Sales[Customer ID]", "to": "Customer[Customer ID]" }, { "from": "Sales[Bill-to geo key]", "to": "Geo[Geo key]", "active": false } ],
-"measures": [ { "name": "Total sales", "expr": "SUM ( Sales[Line total] )", "format": "\\$#,0.00", "folder": "Sales", "description": "…" } ],
+"measures": [ { "name": "Total sales", "expr": "SUM ( Sales[Line total] )", "format": "\\$#,0.00", "folder": "Sales", "description": "…", "term": "Revenue" } ],
 "roles": [ { "name": "Regional Access", "table": "Customer", "filter": "[Region] = LOOKUPVALUE ( security[Region], security[User email], USERPRINCIPALNAME () )" } ]
 ```
 The date table is marked (`dataCategory: Time`), spans whole years of the listed columns, and with
-`completeMonth` gets `Is complete month`. Multi-line DAX: use `\n` in `expr`. Relationships are
+`completeMonth` gets `Is complete month`. Multi-line DAX: use `\n` in `expr`. `term` names the
+glossary term (`choices.json` → `glossary[]`) and is written as `annotation Term` on the measure. Relationships are
 many-to-one, single direction.
 
 ## After a change

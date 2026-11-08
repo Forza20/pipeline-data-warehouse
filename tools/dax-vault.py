@@ -8,6 +8,9 @@ with status and checks that Dataview can read (type: dax-measure).
     python tools/dax-vault.py list   --vault <vault> [--status review] [--problems]
 
 sync     writes DAX/Measures/<model>/Measure-<Name>.md for every measure and DAX/Modeller/<model>.md.
+         Glossary: terms from choices.json (glossary[], next to the pbip folder) become DAX/Begreber/<term>.md
+         (never overwritten); a measure's term (TMDL `annotation Term`, or build.measures[].term) is linked
+         in its `begreb` field. Once DAX/Begreber has notes, a report measure without a term is a finding.
          Only the block between the dax-vault markers and the generated frontmatter fields are rewritten;
          status, own fields and everything under "## Mine noter" are kept. Measures that are gone from the
          model get status "slettet" (the note is not deleted).
@@ -110,6 +113,60 @@ def references(expr):
             re.findall(r"('(?:[^']|'')+'|[A-Za-z_][\w.]*)\s*\[([^\]]+)\]", s)]
     bare = re.findall(r"(?<!['\w\]])\[([^\]]+)\]", s)
     return cols, bare
+
+
+# ---------------------------------------------------------------- glossary (begreber)
+
+def term_link(term):
+    return f'[[DAX/Begreber/{slug(term)}|{term}]]'
+
+
+def measure_terms(pbip):
+    """Measure → term, from `annotation Term = …` in the TMDL and from choices.json build.measures[].term."""
+    out = {}
+    for p in pbip.glob('*.SemanticModel/definition/tables/*.tmdl'):
+        text = p.read_text(encoding='utf-8-sig', errors='replace')
+        for block in re.split(r'\n(?=\t(?:///|measure |column |partition |hierarchy ))', text):
+            mm = re.match(r"\s*(?:///[^\n]*\n\s*)*measure\s+('(?:[^']|'')+'|[^\s=]+)\s*=", block)
+            tm = re.search(r'^\t\tannotation Term = (.+)$', block, re.M)
+            if mm and tm:
+                out[mm.group(1).strip("'").replace("''", "'")] = tm.group(1).strip()
+    choices = pbip.parent / 'choices.json'
+    if choices.exists():
+        for m in (json.loads(choices.read_text(encoding='utf-8-sig')).get('build') or {}).get('measures', []):
+            if m.get('term'):
+                out.setdefault(m['name'], m['term'])
+    return out
+
+
+def load_glossary(pbip):
+    choices = pbip.parent / 'choices.json'
+    if not choices.exists():
+        return []
+    return json.loads(choices.read_text(encoding='utf-8-sig')).get('glossary') or []
+
+
+def write_terms(folder, glossary, model_name, today):
+    """One note per term (type: begreb). An existing note is never overwritten – the user owns it."""
+    made = 0
+    for g in glossary:
+        p = folder / f'{slug(g["term"])}.md'
+        if p.exists():
+            continue
+        folder.mkdir(parents=True, exist_ok=True)
+        fm = ['---', 'type: begreb', f'navn: {yaml_value(g["term"])}', f'definition: {yaml_value(g.get("definition", ""))}',
+              f'ejer: {yaml_value(g.get("owner", ""))}', f'modeller: {yaml_value([model_name])}', 'tags: [dax, begreb]',
+              f'oprettet: {today}', '---']
+        body = [f'# {g["term"]}', '', 'Tilbage til [[DAX Measure Oversigt]].', '', '## Definition',
+                g.get('definition', '') or '_mangler_', '']
+        if g.get('examples'):
+            body += ['## Eksempler', str(g['examples']), '']
+        body += ['## Measures', '```dataview', 'TABLE WITHOUT ID file.link AS "Measure", model AS "Model", status AS "Status"',
+                 'FROM -"Skabeloner"', 'WHERE type = "dax-measure" AND contains(string(begreb), this.file.name)', '```', '',
+                 USER_HEADING, '']
+        p.write_text('\n'.join(fm + body), encoding='utf-8')
+        made += 1
+    return made
 
 
 def code_of(expr):
@@ -243,6 +300,10 @@ def sync(args):
     info, facts = analyse(data)
     link = lambda n: f'[[{args.folder}/{model_name}/Measure-{slug(n)}|{n}]]'
     today = dt.date.today().isoformat()
+    terms, glossary = measure_terms(Path(args.pbip)), load_glossary(Path(args.pbip))
+    terms_dir = vault / 'DAX' / 'Begreber'
+    new_terms = write_terms(terms_dir, glossary, model_name, today)
+    have_terms = terms_dir.exists() and any(terms_dir.glob('*.md'))
     written, new = [], 0
     for n, a in sorted(info.items()):
         m = a['m']
@@ -252,6 +313,11 @@ def sync(args):
             new += 1
         dax_hash = hashlib.sha1(code_of(m['expression']).encode('utf-8')).hexdigest()[:12]
         problems = list(a['problems'])
+        if terms.get(n):
+            fields['begreb'] = [f'begreb: {yaml_value(term_link(terms[n]))}']
+        fields.setdefault('begreb', ['begreb: ""'])
+        if have_terms and a['pages'] and not field_text(fields, 'begreb'):
+            problems.append('Intet begreb (rapport-measure uden forretningsdefinition)')
         cert_hash = field_text(fields, 'certificeret_hash')
         if cert_hash and cert_hash != dax_hash:
             problems.insert(0, f'Ændret efter certificering ({field_text(fields, "certificeret") or "?"})')
@@ -322,6 +388,7 @@ def sync(args):
     mpath.write_text('\n'.join(mgen) + '\n' + '\n'.join(mblock) + mrest, encoding='utf-8')
 
     print(json.dumps({'model': model_name, 'measures': len(info), 'new': new, 'marked_deleted': gone,
+                      'terms_linked': sum(1 for n in info if terms.get(n)), 'term_notes_created': new_terms,
                       'with_problems': sum(1 for a in info.values() if a['problems']),
                       'problems': dict(probs.most_common()), 'folder': str(folder)}, ensure_ascii=False, indent=1))
 

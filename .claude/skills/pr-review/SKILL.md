@@ -19,7 +19,7 @@ Input: a file, the current diff, or a branch before its merge.
 5. Contract: the grain, the columns and the types against the data contracts of the consumers.
 6. Portability: absolute paths and anything else that only runs on one machine.
 7. Duplication: code that already exists in the project.
-8. Architecture and performance: how it connects to the warehouse, what it loads into memory, what it scans.
+8. Architecture and performance: how it connects to the warehouse, what it loads into memory, what it scans. For a Power BI project run `pipeline-power-bi/scripts/model_health.py <pbip>` and cite its warnings (unused fact columns, text keys, bidirectional or many-to-many relationships, auto date/time).
 9. Documentation: the runbook and the data contract for anything new.
 10. Style: the project's code style.
 11. For every finding: the risk, the file and line, the rule from the standards, and the suggested change.

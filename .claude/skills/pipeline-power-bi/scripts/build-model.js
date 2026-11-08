@@ -9,7 +9,7 @@
 //                   final column list (name, type, format, hidden, description)
 //   date            the calendar: which columns it spans, optional complete-month flag
 //   relationships[] "Table[Column] -> Table[Column]", optional active: false
-//   measures[]      name, expr (DAX), format, folder, description
+//   measures[]      name, expr (DAX), format, folder, description, term (glossary term → annotation Term)
 //   roles[]         RLS: name, table, filter (DAX)
 // Writes <out>/<Name>.SemanticModel (default out = runs/<run-id>/pbip) and prints a JSON summary.
 'use strict';
@@ -290,7 +290,7 @@ function measuresTmdl(list) {
   let s = `/// All measures. The column is a hidden placeholder required for a calculated table.\ntable _Measures\n\tlineageTag: ${g()}\n\n`;
   for (const m of list) {
     const dax = m.expr.includes('\n') ? '\n' + m.expr.split('\n').map((l) => '\t\t\t' + l).join('\n') : m.expr;
-    s += `${m.description ? `\t/// ${m.description}\n` : ''}\tmeasure ${q(m.name)} = ${dax}\n${m.format ? `\t\tformatString: ${m.format}\n` : ''}${m.folder ? `\t\tdisplayFolder: ${m.folder}\n` : ''}\t\tlineageTag: ${g()}\n\n`;
+    s += `${m.description ? `\t/// ${m.description}\n` : ''}\tmeasure ${q(m.name)} = ${dax}\n${m.format ? `\t\tformatString: ${m.format}\n` : ''}${m.folder ? `\t\tdisplayFolder: ${m.folder}\n` : ''}\t\tlineageTag: ${g()}\n${m.term ? `\n\t\tannotation Term = ${m.term}\n` : ''}\n`;
   }
   return s + `\tcolumn Placeholder\n\t\tisHidden\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tisNameInferred\n\t\tsourceColumn: [Placeholder]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition _Measures = calculated\n\t\tmode: import\n\t\tsource = ROW ( "Placeholder", BLANK () )\n`;
 }

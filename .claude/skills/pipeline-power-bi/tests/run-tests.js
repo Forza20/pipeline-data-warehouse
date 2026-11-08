@@ -98,11 +98,13 @@ const spec = {
   ],
   date: { columns: ['Sales[Order date]'], completeMonth: 'Sales[Order date]' },
   relationships: [{ from: 'Sales[Customer key]', to: 'Customer[Customer key]' }, { from: 'Sales[Order date]', to: 'Date[Date]' }],
-  measures: [{ name: 'Revenue', expr: 'CALCULATE ( SUM ( Sales[Amount] ), Sales[Amount issue] = "ok" )', format: '\\$#,0', folder: 'Sales' },
+  measures: [{ name: 'Revenue', expr: 'CALCULATE ( SUM ( Sales[Amount] ), Sales[Amount issue] = "ok" )', format: '\\$#,0', folder: 'Sales', term: 'Revenue' },
     { name: 'Orders', expr: 'VAR n = DISTINCTCOUNT ( Sales[Order ID] )\nRETURN\n\tn', format: '#,0', folder: 'Sales' }],
   roles: [{ name: 'Test role', table: 'Customer', filter: '[Customer ID] = "K-001"' }],
 };
-fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec }, null, 2));
+const glossary = [{ term: 'Revenue', definition: 'Order amounts without flagged anomalies.', owner: 'Finance' }];
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary,
+  design: { facts: [{ name: 'Sales', grain: 'one order' }], review: [{ point: 'history', status: 'open', note: 'region is current only' }] } }, null, 2));
 const gen = (r, extra = []) => spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), r, ...extra], { encoding: 'utf8' });
 let res = gen(run);
 let out = {};
@@ -142,8 +144,44 @@ check('bad spec: names both errors', (badOut.errors || []).length === 2, JSON.st
 check('bad spec: model untouched', fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8') === before);
 check('bad spec: no half-written folder left', !fs.existsSync(path.join(def, '..', 'definition.new')));
 
-// ---------- 2b. grounded-answer test ----------
+check('build: term annotation on the measure', /annotation Term = Revenue/.test(fs.readFileSync(path.join(def, 'tables', '_Measures.tmdl'), 'utf8')));
+
+// ---------- 2a. model context, model health, drift ----------
+// the bad-spec test above replaced choices.json – put the good one back
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary,
+  design: { facts: [{ name: 'Sales', grain: 'one order' }], review: [{ point: 'history', status: 'open', note: 'region is current only' }] } }, null, 2));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-context.js'), run], { encoding: 'utf8' });
+let ctx = {};
+try { ctx = JSON.parse(res.stdout); } catch { /* reported below */ }
+const ctxMd = fs.existsSync(path.join(run, 'model-context.md')) ? fs.readFileSync(path.join(run, 'model-context.md'), 'utf8') : '';
+check('context: ok, no warnings', res.status === 0 && ctx.ok && ctx.warnings.length === 0, res.stdout + res.stderr);
+check('context: glossary term with its measure', ctxMd.includes('**Revenue** – Order amounts without flagged anomalies. Measure: [Revenue].'));
+check('context: grain, role and open review point', ctxMd.includes('one row = one order') && ctxMd.includes('**Test role**') && ctxMd.includes('history: region is current only'));
 const py = process.env.PYTHON || 'python';
+res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });
+let mh = {};
+try { mh = JSON.parse(res.stdout); } catch { /* reported below */ }
+check('health: ok', res.status === 0 && mh.ok, res.stdout + res.stderr);
+const mhList = fs.existsSync(path.join(run, 'model-health.json')) ? JSON.parse(fs.readFileSync(path.join(run, 'model-health.json'), 'utf8')) : [];
+check('health: unused fact column flagged', mhList.some((f) => f.kind === 'unused column' && f.where === 'Sales[Channel]'));
+check('health: used column not flagged', !mhList.some((f) => f.where === 'Sales[Amount]'));
+check('health: visible dimension attribute not flagged', !mhList.some((f) => f.where === 'Customer[Customer name]'));
+fs.copyFileSync(profFile, path.join(run, 'profile.json'));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', FIX, '--today', '2026-11-06'], { encoding: 'utf8' });
+check('drift: unchanged files pass', res.status === 0, res.stdout + res.stderr);
+const newFix = path.join(TMP, 'newfiles');
+fs.mkdirSync(newFix);
+for (const f of fs.readdirSync(FIX)) fs.copyFileSync(path.join(FIX, f), path.join(newFix, f));
+const csv = fs.readFileSync(path.join(newFix, 'orders.csv'), 'utf8').replace('Ordrenr;Dato;KundeID;Region;Beløb', 'Ordrenr;Dato;KundeID;Region;Belob');
+fs.writeFileSync(path.join(newFix, 'orders.csv'), csv, 'utf8');
+fs.rmSync(path.join(newFix, 'customers.csv'));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', newFix, '--today', '2026-11-06'], { encoding: 'utf8' });
+const driftMd = fs.existsSync(path.join(run, 'drift.md')) ? fs.readFileSync(path.join(run, 'drift.md'), 'utf8') : '';
+check('drift: breaking changes give exit 1', res.status === 1, res.status);
+check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
+check('drift: missing file found', driftMd.includes('file customers.csv not found'));
+
+// ---------- 2b. grounded-answer test ----------
 const qFile = path.join(TMP, 'questions.json');
 fs.writeFileSync(qFile, JSON.stringify([
   { question: 'Revenue in Nord', measure: 'Revenue', filters: { 'Customer[Customer ID]': 'K-001' }, expected: 1234.5, expected_how: 'test' },

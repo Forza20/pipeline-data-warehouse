@@ -257,6 +257,13 @@ away are dropped.
    so), row count of the fact ("Orders"), distinct count of each dimension key ("Customers"), average per
    row ("Average order value"), share of a flag ("Paid share"), latest complete month and previous month
    for the main amount when there is a date table. All measures go into `_Measures` with display folders.
+5. *Business terms (glossary):* every measure that goes on the report gets a **term** – the business word
+   for it ("Revenue", "Active customer") with a one-sentence definition in the user's words. Draft the
+   definitions from the formulas and the review answers (step 4b.5), show them in one AskUserQuestion
+   (`preview` with term · definition · measure), and let the user confirm or rewrite them. Write
+   `choices.json` → `glossary[]` (`term`, `definition`, `owner` if given, `examples`) and the term on the
+   measure (`build.measures[].term`, written to the model as `annotation Term`). A term that two measures
+   claim, or a definition the formula does not match, goes back to the user.
 
 ## Step 6 – Extras (one AskUserQuestion call, multiSelect)
 
@@ -368,7 +375,27 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
      `python .claude\skills\pipeline-power-bi\scripts\grounded_answers.py runs\<run-id>\pbip runs\<run-id>\questions.json`.
      It writes `grounded-answers.dax` (Value, Expected, Difference per question; role rows simulate the
      role in DAX) and `grounded-answers.md` (definition, measures used, source sheet/column of every
-     column, the role rule). A column it cannot trace is a remark in the hand-over.
+     column, the role rule). A column it cannot trace is a remark in the hand-over. Phrase the questions
+     with the glossary terms, so they also test that the definitions hold.
+10. **Model context for AI assistants** (always): `node .claude\skills\pipeline-power-bi\scripts\build-context.js runs\<run-id>`
+    → `model-context.md`: tables with grain, relationships, measures with term and formula, the glossary,
+    access rules and known limits. Give it to Copilot, Claude or an agent that answers questions on the
+    report, so it uses the definitions instead of guessing. Its warnings (a term without a measure, a
+    measure with an unknown term) go back to step 5.
+11. **Model health** (always): `python .claude\skills\pipeline-power-bi\scripts\model_health.py runs\<run-id>\pbip --profile runs\<run-id>\profile.json`
+    → `model-health.md`: unused fact columns, hidden unused columns, near-unique text, dates with times,
+    text keys, bidirectional and many-to-many relationships, auto date/time. Offer the warnings as one
+    multiSelect ("Remove the unused fact columns: …"); a yes changes the build spec's columns and rebuilds.
+
+## New versions of the source files (`--resume <run-id>` → "New files")
+
+Before the user refreshes with new files, check them against what the model was built for:
+`node .claude\skills\pipeline-power-bi\scripts\check-drift.js runs\<run-id> [--path <new file or folder>]`
+→ `drift.md`. Exit code 1 = the refresh will fail: a file, sheet, Excel table or selected column is gone,
+or a CSV's delimiter, header row or encoding changed. For each break propose the change to the build spec
+(a renamed column: the guess it prints; a new sheet name: `item`), rebuild, and validate. Warnings (a
+column that changed kind, a new problem type) go to step 4 for that table. Then copy the files to `data/`
+when `copy_files` is true, and save the new profile as `profile.json`.
 
 ## Step 9 – Check the numbers
 
@@ -390,7 +417,8 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
 
 What was built and the result of the check; links relative to the repository root to
 `runs/<run-id>/pbip/<Name>.pbip`, `overview.html` (or its published link), `checks.dax`,
-`grounded-answers.md` (with the open review points from `design.review`),
+`grounded-answers.md` (with the open review points from `design.review`), `model-context.md`,
+`model-health.md` (and what the user chose to remove),
 `cleaning-log.md`, `expected-values.md`, and what the chosen skills made (`layout-mapping.md`,
 `pbip/docs/catalog.xlsx`, `lineage.html`, `model.dbml`, `governance/handover.md` and the wiki zip, the
 Obsidian note); the governance flags in one line (visible personal data, RLS roles); how to change a choice later: `/pipeline-power-bi --resume <run-id>` → "Change the cleaning of a
@@ -416,7 +444,7 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 75 checks of the profiler, the model generator, the grounded-answer test and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 87 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass.
