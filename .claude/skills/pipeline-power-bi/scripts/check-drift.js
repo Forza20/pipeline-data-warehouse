@@ -31,20 +31,38 @@ if (!staging.length) {
   console.error('choices.json has no build.staging – nothing to compare');
   process.exit(2);
 }
-let src = opt('--path') || choices.source_original || path.join(run, 'data');
-if (!fs.existsSync(src)) src = path.join(run, 'data');
+// A wrong --path must stop the check: falling back to the run's own copy would compare the old files with
+// themselves and report "no breaking changes".
+let src = opt('--path');
+let note = '';
+if (src && !fs.existsSync(src)) {
+  console.error(`--path not found: ${src}`);
+  process.exit(2);
+}
+if (!src) {
+  src = choices.source_original && fs.existsSync(choices.source_original) ? choices.source_original : path.join(run, 'data');
+  if (src === path.join(run, 'data')) note = 'No new files given (--path) and source_original not found – this compares the run’s own copy of the files the model was built from, so it cannot show drift.';
+}
 
 const tmp = path.join(os.tmpdir(), `drift-${process.pid}.json`);
 const ps = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'Profile-Sources.ps1'), '-Path', src, '-OutFile', tmp];
 if (opt('--today')) ps.push('-Today', opt('--today'));
-execFileSync('powershell', ps, { stdio: 'pipe' });
-const newProf = read(tmp);
-fs.rmSync(tmp, { force: true });
+let newProf;
+try {
+  execFileSync('powershell', ps, { stdio: 'pipe' });
+  newProf = read(tmp);
+} catch (e) {
+  console.error('Profile-Sources.ps1 failed on ' + src + ':\n' + String((e.stderr || e.message || '')).slice(-800));
+  process.exit(2);
+} finally {
+  fs.rmSync(tmp, { force: true });
+}
 
+const low = (s) => String(s || '').toLowerCase();
 const base = (f) => path.basename(String(f || '')).toLowerCase();
 function findTable(prof, file, kind, item) {
   return prof.tables.find((t) => base(t.file) === base(file) && (
-    kind === 'csv' ? true : kind === 'excel table' ? t.excelTable === item : (t.sheet || t.name) === item));
+    kind === 'csv' ? true : kind === 'excel table' ? low(t.excelTable) === low(item) : low(t.sheet || t.name) === low(item)));
 }
 const norm = (s) => String(s).toLowerCase().replace(/[\s_\-.]+/g, '');
 
@@ -98,6 +116,7 @@ for (const it of items) {
 }
 
 const md = [`# Drift check – ${choices.name || path.basename(run)}`, '', `New files: \`${src}\` · compared with \`profile.json\` from ${oldProf.generated || 'the build'}.`, '',
+  ...(note ? [`> ⚠ ${note}`, ''] : []),
   breaking ? `**${breaking} breaking change(s)** – the refresh will fail until the build spec is changed and the model rebuilt.`
     : '**No breaking changes** – the refresh will run.', ''];
 for (const r of out) {
@@ -109,6 +128,6 @@ for (const r of out) {
   md.push('');
 }
 fs.writeFileSync(path.join(run, 'drift.md'), md.join('\n'), 'utf8');
-fs.writeFileSync(path.join(run, 'drift.json'), JSON.stringify({ path: src, breaking, sources: out }, null, 1), 'utf8');
-console.log(JSON.stringify({ ok: breaking === 0, breaking, warnings: out.reduce((a, r) => a + r.warnings.length, 0), file: path.join(run, 'drift.md') }, null, 1));
+fs.writeFileSync(path.join(run, 'drift.json'), JSON.stringify({ path: src, note: note || undefined, breaking, sources: out }, null, 1), 'utf8');
+console.log(JSON.stringify({ ok: breaking === 0, breaking, note: note || undefined, warnings: out.reduce((a, r) => a + r.warnings.length, 0), file: path.join(run, 'drift.md') }, null, 1));
 process.exit(breaking ? 1 : 0);

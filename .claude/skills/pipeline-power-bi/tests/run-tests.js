@@ -180,6 +180,8 @@ const driftMd = fs.existsSync(path.join(run, 'drift.md')) ? fs.readFileSync(path
 check('drift: breaking changes give exit 1', res.status === 1, res.status);
 check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
 check('drift: missing file found', driftMd.includes('file customers.csv not found'));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', path.join(TMP, 'no-such-folder')], { encoding: 'utf8' });
+check('drift: wrong --path stops instead of passing', res.status === 2, res.status);
 
 // ---------- 2b. grounded-answer test ----------
 const qFile = path.join(TMP, 'questions.json');

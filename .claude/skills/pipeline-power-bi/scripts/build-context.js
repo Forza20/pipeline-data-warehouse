@@ -22,7 +22,7 @@ if (!b) {
   process.exit(2);
 }
 const design = choices.design || {};
-const glossary = choices.glossary || [];
+const glossary = (choices.glossary || []).filter((g) => g && g.term);
 const terms = new Map(glossary.map((g) => [g.term.toLowerCase(), g]));
 const warnings = [];
 const one = (s) => String(s || '').replace(/\s+/g, ' ').trim();
