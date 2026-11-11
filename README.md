@@ -19,7 +19,7 @@ agents being tested.
 | | |
 |---|---|
 | Windows 10 or 11 | Power BI Desktop and the dataset generator are Windows-only |
-| [Claude Code](https://claude.com/claude-code) | in VS Code or the terminal |
+| [Claude Code](https://claude.com/claude-code) | in the terminal, VS Code or the Claude desktop app (not the chat on claude.ai: the skills need your files, PowerShell and Power BI Desktop) |
 | A Supabase project | the free plan is enough (about 3 runs at a time); the pipeline only creates `mp_*` schemas, two roles and four helper functions |
 | A GitHub account | for a repository that holds the datasets and answer keys – private is strongly recommended (setup explains why) |
 | Programs | Git, GitHub CLI, Node.js, Python 3.12 + openpyxl, the PostgreSQL client (psql), the Power BI report CLI; Power BI Desktop is optional. The setup command checks them and installs only the ones you choose. |
@@ -30,7 +30,7 @@ agents being tested.
 ```
 git clone https://github.com/<owner>/pipeline-data-warehouse.git
 cd pipeline-data-warehouse
-code .                                   # open the folder in VS Code and start Claude Code there
+claude                                   # start Claude Code here (or open the folder in VS Code or the Claude desktop app)
 ```
 
 Then, in Claude Code:
@@ -56,7 +56,8 @@ Have CSV files or Excel workbooks and want a cleaned Power BI report, without a 
 table on it – becomes a table, and you choose which sheets to include. It needs no setup command, no Supabase and no GitHub, only Windows, Node.js,
 the Power BI report CLI and, to load the data, Power BI Desktop.
 
-**Try it in 5 minutes.** Clone the repository, open the folder in Claude Code and type
+**Try it in 5 minutes.** Clone the repository, start Claude Code in the folder (type `claude` in a terminal
+there, or open the folder in VS Code or the Claude desktop app) and type
 `/pipeline-power-bi demo --name Demo`. The `demo/` folder holds two small, made-up CSV files full of typical
 problems ([demo/README.md](demo/README.md) lists them). Choose "Accept all recommended" at each question. The
 skill checks the programs it needs first and installs only the ones you say yes to. You also need the Power BI
