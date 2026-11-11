@@ -26,6 +26,14 @@
       "PowerShell(& *New-MessyDataset.ps1*)",
       "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File *New-MessyDataset.ps1*)",
       "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File *palette.ps1*)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File *Profile-Sources.ps1*)",
+      "Bash(python .claude/skills/*)",
+      "PowerShell(python .claude\\skills\\*)",
+      "PowerShell(python .claude/skills/*)",
+      "Bash(py -3.12 .claude/skills/*)",
+      "PowerShell(py -3.12 .claude\\skills\\*)",
+      "PowerShell(py -3.12 .claude/skills/*)",
+
       "Bash(rm -rf runs/*)",
       "Bash(rm -rf datasets/runs/*)"
     ],
