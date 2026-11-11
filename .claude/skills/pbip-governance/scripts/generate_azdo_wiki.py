@@ -446,4 +446,8 @@ def main():
 
 
 if __name__ == '__main__':
+    import sys
+    # A redirected stream on Windows defaults to cp1252, which cannot write characters such as →.
+    for _stream in (sys.stdout, sys.stderr):
+        _stream.reconfigure(encoding='utf-8')
     main()

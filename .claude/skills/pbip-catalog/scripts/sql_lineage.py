@@ -564,6 +564,10 @@ def _sub_tables(select):
 
 
 if __name__ == '__main__':
+    import sys
+    # A redirected stream on Windows defaults to cp1252, which cannot write characters such as →.
+    for _stream in (sys.stdout, sys.stderr):
+        _stream.reconfigure(encoding='utf-8')
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
