@@ -13,8 +13,11 @@ Run it:
 /pipeline-power-bi demo --name Demo
 ```
 
-Choose "Accept all recommended" at each question for the quickest run. The report total after cleaning is
-lower than the `I alt` row in the file, because the duplicate, the total row and (if you remove it) the future
-order are taken out. `expected-values.md` in the run folder shows the numbers and which steps they assume.
+Choose "Accept all recommended" at each question for the quickest run (10–12 minutes without the extras,
+20–30 minutes with dashboard, catalog and governance). With the recommended steps the report should show
+Total sales 4,054.70, 11 orders, 5 customers and a paid share of 63.6 %. That is not the file's `I alt` row
+(4,147.45), which does not even match its own rows: the copy of order 1002 is removed, and the negative amount
+(order 1003) and the order dated 2030 (order 1010) are flagged and left out of Total sales.
+`expected-values.md` in the run folder shows every number and which steps it assumes.
 
 The same files are the test fixtures in `.claude/skills/pipeline-power-bi/tests/fixtures/`.

@@ -56,13 +56,26 @@ Have CSV files or Excel workbooks and want a cleaned Power BI report, without a 
 table on it – becomes a table, and you choose which sheets to include. It needs no setup command, no Supabase and no GitHub, only Windows, Node.js,
 the Power BI report CLI and, to load the data, Power BI Desktop.
 
-**Try it in 5 minutes.** Clone the repository, start Claude Code in the folder (type `claude` in a terminal
-there, or open the folder in VS Code or the Claude desktop app) and type
+**Try it in about 20 minutes.** Clone the repository, start Claude Code in the folder (type `claude` in a
+terminal there, or open the folder in VS Code or the Claude desktop app) and type
 `/pipeline-power-bi demo --name Demo`. The `demo/` folder holds two small, made-up CSV files full of typical
 problems ([demo/README.md](demo/README.md) lists them). Choose "Accept all recommended" at each question. The
 skill checks the programs it needs first and installs only the ones you say yes to. You also need the Power BI
 authoring plugin: `/plugin marketplace add microsoft/skills-for-fabric`, then
 `/plugin install powerbi-authoring@fabric-collection`, and restart Claude Code.
+
+How long it takes:
+
+| Run | Time |
+|---|---|
+| Quick: untick the dashboard, catalog and governance at the extras question | 10–12 minutes |
+| Full: every extra accepted | 20–30 minutes |
+| Refresh and `checks.dax` in Power BI Desktop | about 5 minutes more |
+| First time: installing the plugin, Node.js, the report CLI and Power BI Desktop | 10–20 minutes more |
+
+Going through the cleaning steps one by one instead of "Accept all recommended" adds 5–10 minutes. Power BI
+Desktop needs about 1.5 GB of free memory; with less, the skill skips the check in Desktop and gives you
+`checks.dax` to run yourself.
 
 1. It profiles every file: title lines, total rows, spaces, "N/A" text, case variants, mixed date, number,
    true/false and id formats, duplicates, anomalies, wide month columns, orphan keys.
