@@ -307,7 +307,10 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
    ```
    node .claude\skills\pipeline-power-bi\scripts\build-model.js runs\<run-id>
    ```
-   It refuses a spec with errors and writes nothing; fix the spec and run it again. The report itself
+   It refuses a spec with errors and writes nothing; fix the spec and run it again. Exit code 3 means the
+   model folder is locked: run `connection_operations` → `Disconnect`, close the project in Desktop, run
+   commands from the repository root (not from inside `<Name>.SemanticModel`), and run it again – the
+   previous model is kept. The report itself
    comes from `powerbi-report-author scaffold <run>\pbip --name <Name> --model-path ../<Name>.SemanticModel`
    (first build only). A later change (`--resume`) changes the spec and runs the script again. What the
    script builds, in two layers (source-model.md section 2c):
@@ -325,8 +328,9 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
    name. Not kept findings stay in the log, so the user can see what was left as it is.
 5. Validate:
    - TMDL: when `powerbi-modeling-mcp` is available, `connection_operations` → `ConnectFolder` on
-     `<Name>.SemanticModel/definition` (parses the model offline). Otherwise check tabs, quotes and unique
-     `lineageTag`s by script.
+     `<Name>.SemanticModel/definition` (parses the model offline), then **`Disconnect`** – an open
+     connection locks the folder, and the next `build-model.js` run (e.g. pbip-layout's measures) stops with
+     exit code 3. Otherwise check tabs, quotes and unique `lineageTag`s by script.
    - Every column a query returns has a TMDL column with the same `sourceColumn`, and the other way
      round (compare the last step's names with the TMDL by script).
    - Report: `powerbi-report-author validate <Name>.Report` (or section 11 of tmdl-templates.md).
@@ -444,7 +448,7 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 88 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 92 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass.

@@ -9,7 +9,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync, spawnSync } = require('child_process');
+const { execFileSync, spawn, spawnSync } = require('child_process');
 
 const SKILL = path.resolve(__dirname, '..');
 const FIX = path.join(__dirname, 'fixtures');
@@ -143,6 +143,21 @@ check('bad spec: exit code 2', res.status === 2, res.status);
 check('bad spec: names both errors', (badOut.errors || []).length === 2, JSON.stringify(badOut.errors));
 check('bad spec: model untouched', fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8') === before);
 check('bad spec: no half-written folder left', !fs.existsSync(path.join(def, '..', 'definition.new')));
+
+// a locked model folder stops with exit code 3 and keeps the previous model (Windows only: a process
+// whose working directory is inside a folder blocks renaming it, like an open MCP connection does)
+if (process.platform === 'win32') {
+  fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ build: spec }));
+  const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: def, stdio: 'ignore' });
+  res = gen(run);
+  holder.kill();
+  let lockOut = {};
+  try { lockOut = JSON.parse(res.stdout); } catch { /* reported below */ }
+  check('locked folder: exit code 3', res.status === 3, res.status + ' ' + res.stderr.slice(-300));
+  check('locked folder: says how to unlock', /locked/.test((lockOut.errors || [])[0] || '') && /Disconnect/.test((lockOut.errors || [])[0] || ''), JSON.stringify(lockOut.errors));
+  check('locked folder: model untouched', fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8') === before);
+  check('locked folder: no half-written folder left', !fs.existsSync(path.join(def, '..', 'definition.new')));
+}
 
 check('build: term annotation on the measure', /annotation Term = Revenue/.test(fs.readFileSync(path.join(def, 'tables', '_Measures.tmdl'), 'utf8')));
 

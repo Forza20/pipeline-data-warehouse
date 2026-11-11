@@ -342,9 +342,29 @@ if (roles.length) {
   fs.mkdirSync(path.join(def, 'roles'), { recursive: true });
   for (const r of roles) fs.writeFileSync(path.join(def, 'roles', `${r.name}.tmdl`), `role ${q(r.name)}\n\tmodelPermission: read\n\n${(r.filters || [{ table: r.table, filter: r.filter }]).map((f) => `\ttablePermission ${q(f.table)} = ${f.filter}`).join('\n')}\n`);
 }
+// Swap the new model in. A folder held open by Power BI Desktop, a powerbi-modeling-mcp connection
+// (ConnectFolder) or a shell whose working directory is inside it cannot be renamed on Windows.
 const bak = path.join(sm, 'definition.bak');
-if (fs.existsSync(bak)) fs.rmSync(bak, { recursive: true, force: true });
-if (fs.existsSync(finalDef)) fs.renameSync(finalDef, bak);
-fs.renameSync(def, finalDef);
-if (fs.existsSync(bak)) fs.rmSync(bak, { recursive: true, force: true });
+const locked = (e) => ['EPERM', 'EBUSY', 'EACCES'].includes(e && e.code);
+const stop = (e, restored) => {
+  fs.rmSync(def, { recursive: true, force: true });
+  const why = locked(e)
+    ? `The model folder is locked (${e.code}): ${finalDef}. Close the project in Power BI Desktop, disconnect powerbi-modeling-mcp (connection_operations → Disconnect), and make sure no terminal or editor has its working directory inside the folder. Then run the script again.`
+    : `Could not swap in the new model: ${e.message}`;
+  console.log(JSON.stringify({ ok: false, errors: [why], previousModel: restored ? 'restored' : 'untouched', warnings }, null, 1));
+  process.exit(3);
+};
+try {
+  if (fs.existsSync(bak)) fs.rmSync(bak, { recursive: true, force: true });
+  if (fs.existsSync(finalDef)) fs.renameSync(finalDef, bak);
+} catch (e) { stop(e, false); }
+try {
+  fs.renameSync(def, finalDef);
+} catch (e) {
+  if (fs.existsSync(bak) && !fs.existsSync(finalDef)) fs.renameSync(bak, finalDef);
+  stop(e, true);
+}
+try {
+  if (fs.existsSync(bak)) fs.rmSync(bak, { recursive: true, force: true });
+} catch (e) { warnings.push(`the old model is left in ${bak} (${e.code || e.message}); delete it when nothing holds it open`); }
 console.log(JSON.stringify({ ok: true, semanticModel: sm, staging: staging.length, functions: [...fnUsed], tables: allTables.length, relationships: rels.length, measures: (B.measures || []).length, roles: roles.length, warnings }, null, 1));

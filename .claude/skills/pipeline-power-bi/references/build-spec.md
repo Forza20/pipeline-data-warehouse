@@ -10,7 +10,9 @@ node .claude\skills\pipeline-power-bi\scripts\build-model.js runs\<run-id> [--ou
 ```
 It checks the spec first (unknown steps, relationship columns that no table has, duplicate columns) and
 writes nothing on an error. It writes to `definition.new` and swaps it in at the end, so a failed write
-(full disk) leaves the previous model untouched. Output: `<out>/<Name>.SemanticModel` (default
+(full disk) leaves the previous model untouched. Exit code 2 = errors in the spec; exit code 3 = the model
+folder is locked (Power BI Desktop, an open `powerbi-modeling-mcp` connection, or a shell whose working
+directory is inside it) – the previous model is kept, close what holds it and run again. Output: `<out>/<Name>.SemanticModel` (default
 `runs/<run-id>/pbip`) and a JSON summary.
 
 ## Top level
