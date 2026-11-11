@@ -444,7 +444,7 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 87 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 88 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass.

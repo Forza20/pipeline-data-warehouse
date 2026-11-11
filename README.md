@@ -56,6 +56,13 @@ Have CSV files or Excel workbooks and want a cleaned Power BI report, without a 
 table on it – becomes a table, and you choose which sheets to include. It needs no setup command, no Supabase and no GitHub, only Windows, Node.js,
 the Power BI report CLI and, to load the data, Power BI Desktop.
 
+**Try it in 5 minutes.** Clone the repository, open the folder in Claude Code and type
+`/pipeline-power-bi demo --name Demo`. The `demo/` folder holds two small, made-up CSV files full of typical
+problems ([demo/README.md](demo/README.md) lists them). Choose "Accept all recommended" at each question. The
+skill checks the programs it needs first and installs only the ones you say yes to. You also need the Power BI
+authoring plugin: `/plugin marketplace add microsoft/skills-for-fabric`, then
+`/plugin install powerbi-authoring@fabric-collection`, and restart Claude Code.
+
 1. It profiles every file: title lines, total rows, spaces, "N/A" text, case variants, mixed date, number,
    true/false and id formats, duplicates, anomalies, wide month columns, orphan keys.
 2. It proposes the cleaning steps **table by table**. For each table you accept the recommended steps with one
