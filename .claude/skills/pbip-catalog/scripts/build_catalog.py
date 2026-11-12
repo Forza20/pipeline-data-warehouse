@@ -1110,6 +1110,9 @@ def main():
                     help='do not write model.dbml (the dbdiagram.io data model is optional)')
     ap.add_argument('--html', action='store_true',
                     help='also write lineage.html: table-level lineage overview (files → layers → model → pages)')
+    ap.add_argument('--missing-only', action='store_true',
+                    help='only write missing_descriptions.json (no Excel, lineage, DBML or catalog.json) – a fast '
+                         'first run when AI descriptions and the full run follow right after')
     a = ap.parse_args()
 
     pbip = Path(a.pbip).resolve()
@@ -1141,6 +1144,13 @@ def main():
         from sql_lineage import SqlLineage
         sql = SqlLineage().load(a.sql)
     cat = build(parsed, slots, prev, ai, pii_reason, sql)
+    if a.missing_only:
+        # openpyxl (seconds to import on Windows) is only needed when there is a previous catalog.xlsx
+        (out / 'missing_descriptions.json').write_text(
+            json.dumps(cat['missing'], indent=2, ensure_ascii=False), encoding='utf-8')
+        print(json.dumps({'project': project, 'out': str(out), 'missingOnly': True,
+                          'missingDescriptions': len(cat['missing'])}, indent=2, ensure_ascii=False))
+        return
     old_json = out / 'catalog.json'
     cat['changes'], cat['changesSince'] = [], ''
     if old_json.is_file():

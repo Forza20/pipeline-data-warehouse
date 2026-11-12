@@ -2,7 +2,7 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 92 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 94 checks (25–30 s)
 //   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    77 checks (about 15 s): skips the drift checks that run the
 //                                                                        profiler again and the Python checks
 //                                                                        (model health, grounded answers)
@@ -215,6 +215,13 @@ if (!QUICK) {
   check('health: unused fact column flagged', mhList.some((f) => f.kind === 'unused column' && f.where === 'Sales[Channel]'));
   check('health: used column not flagged', !mhList.some((f) => f.where === 'Sales[Amount]'));
   check('health: visible dimension attribute not flagged', !mhList.some((f) => f.where === 'Customer[Customer name]'));
+  // pbip-catalog's fast first run: only the missing descriptions, no Excel
+  const catOut = path.join(TMP, 'catalog');
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, '..', 'pbip-catalog', 'scripts', 'build_catalog.py'), path.join(run, 'pbip'), '--out', catOut, '--missing-only'], { encoding: 'utf8' });
+  let cm = {};
+  try { cm = JSON.parse(res.stdout); } catch { /* reported below */ }
+  check('catalog --missing-only: lists missing descriptions', res.status === 0 && cm.missingOnly && cm.missingDescriptions > 0 && fs.existsSync(path.join(catOut, 'missing_descriptions.json')), res.stdout + res.stderr);
+  check('catalog --missing-only: writes no Excel or catalog.json', !fs.existsSync(path.join(catOut, 'catalog.xlsx')) && !fs.existsSync(path.join(catOut, 'catalog.json')));
 }
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', path.join(TMP, 'no-such-folder')], { encoding: 'utf8' });
 check('drift: wrong --path stops instead of passing', res.status === 2, res.status);

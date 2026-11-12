@@ -60,7 +60,8 @@ What each step does instead of asking:
 | 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
 | 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
 | 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
-| 6 | No extras (no dashboard, catalog, governance, Desktop check, publishing), unless the user named them in the same message. The overview page and `checks.dax` are always made. |
+| 6 | No extras (no dashboard, catalog, governance, Desktop check, publishing), unless the user named them in the same message. The overview page and `checks.dax` are always made. A named dashboard uses *Standard* (no colour, section or title questions). |
+| 8.6 | Governance's PII audit asks nothing: a visible column flagged as personal data stays as it is and goes into the hand-over as an open point (hide it later with `--resume`). |
 | 7 | Show the review summary as a record of the choices, then build without asking. |
 | 8.9 | Draft 3 grounded questions from the measures and dimensions yourself. |
 | 8.11 | List the model-health warnings in the hand-over; do not rebuild. |
@@ -370,18 +371,24 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
      exit code 3. Otherwise check tabs, quotes and unique `lineageTag`s by script.
    - Every column a query returns has a TMDL column with the same `sourceColumn`, and the other way
      round (compare the last step's names with the TMDL by script).
-   - Report: `powerbi-report-author validate <Name>.Report` (or section 11 of tmdl-templates.md).
+   - Report: `powerbi-report-author validate <Name>.Report` (or section 11 of tmdl-templates.md). It takes
+     about 10 seconds, so run it once: when the dashboard is chosen, pbip-layout's step 8 validates the
+     whole report after it adds its page – skip it here.
    - Fix and repeat until clean. Do not report a build as done with validation errors.
 6. **The other skills – load them, do not imitate them.** Run each chosen one by loading it with the
    Skill tool (`pbip-layout`, `pbip-catalog`, `pbip-governance`) or, when the Skill tool cannot load it,
    by reading its `SKILL.md` by path (`.claude/skills/<name>/SKILL.md`) and following it step by step.
-   Never call only their scripts – the skills hold the steps that make the output right.
+   Never call only their scripts – the skills hold the steps that make the output right. To save time,
+   load all chosen skills in one turn (parallel Skill calls), then run the scripts that do not depend on
+   each other in one command: the catalog's first run and governance's `parse_pbip.py` + wiki bundle
+   (both after pbip-layout, which changes the report they read).
    - **pbip-layout**, *pipeline mode* (its SKILL.md section "Pipeline mode"): the user's colour/section/
      title answers from step 6 as a profile, the slot table from its `layout.md`, missing measures from
      its `measures.md`, `docs/layout-config.json`, and **`layout-mapping.md` in the run folder** (slot →
      measure → expected value → fallback → open points). Do this after the model validates.
-   - **pbip-catalog**: `build_catalog.py <pbip> --html`, then AI descriptions for every missing field
-     (its step 3, with keys described from the relationships) and the second run. Report: counts,
+   - **pbip-catalog**: `build_catalog.py <pbip> --missing-only` (its fast path: only the list of missing
+     descriptions, in about a second), then AI descriptions for every missing field (its step 3, with keys
+     described from the relationships) and **one** full run with `--ai-descriptions … --html`. Report: counts,
      description status, possible PII, and how much upstream lineage it could trace. With a staging layer
      the trace stops at merges – say how many fields reach the source.
    - **pbip-governance**: `parse_pbip.py <pbip>` (capture stdout from Python, not a PowerShell `>` – that
@@ -485,11 +492,11 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 92 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 94 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 77
-  of the 92 checks in about half the time (no drift or Python checks) for use while working; a change is
+  of the 94 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

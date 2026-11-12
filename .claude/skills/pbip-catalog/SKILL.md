@@ -54,6 +54,10 @@ itself (repo layout, `.claude/skills/`, `~/.claude/skills/`, `/mnt/skills/user/`
    Use `--fence github` if lineage.md is shown on GitHub instead of an Azure DevOps wiki. Add `--html` if the
    user asked for the lineage overview as HTML (`docs/lineage.html`); otherwise it is offered in step 4. Add
    `--no-dbml` if the user does not want the dbdiagram.io model.
+   **Fast path** (pipeline runs, or whenever step 3 follows at once): add `--missing-only`. It writes only
+   `missing_descriptions.json` – no Excel, lineage, DBML or catalog.json, and no openpyxl import unless a
+   previous catalog.xlsx exists – so the full output is written once, by the run in step 3 (with `--html`
+   and the other flags there).
    The script prints a JSON summary: counts, description status, removed fields, changes since the last run
    (`changesSinceLastRun`) and model descriptions that need translating (`toTranslate`). The changes are on
    the **Changes** sheet, so a new version can be reviewed without reading the whole catalog.
