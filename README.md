@@ -114,8 +114,8 @@ not a hand edit.
 To skip the approval prompt for the profiler, add
 `"PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File *Profile-Sources.ps1*)"` to `permissions.allow` in
 `.claude/settings.json` (or your own `settings.local.json`). After changing the skill's scripts, run its tests:
-`node .claude/skills/pipeline-power-bi/tests/run-tests.js` (all 97 checks, 25–30 seconds). Add `--quick` for
-77 checks in about 15 seconds while you work: it skips the drift checks and the Python checks (model health, grounded answers, catalog). Run the full
+`node .claude/skills/pipeline-power-bi/tests/run-tests.js` (all 103 checks, 25–30 seconds). Add `--quick` for
+83 checks in about 15 seconds while you work: it skips the drift checks and the Python checks (model health, grounded answers, catalog). Run the full
 set before a commit. The first run after a change to the profiler takes about 15 seconds longer, because it
 compiles the profiler's C# code once.
 

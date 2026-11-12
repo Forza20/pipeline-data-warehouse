@@ -2,8 +2,8 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 97 checks (25–30 s)
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    77 checks (about 15 s): skips the drift checks that run the
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 103 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    83 checks (about 15 s): skips the drift checks that run the
 //                                                                        profiler again and the Python checks
 //                                                                        (model health, grounded answers)
 //
@@ -205,6 +205,22 @@ const ctxMd = fs.existsSync(path.join(run, 'model-context.md')) ? fs.readFileSyn
 check('context: ok, no warnings', res.status === 0 && ctx.ok && ctx.warnings.length === 0, res.stdout + res.stderr);
 check('context: glossary term with its measure', ctxMd.includes('**Revenue** – Order amounts without flagged anomalies. Measure: [Revenue].'));
 check('context: grain, role and open review point', ctxMd.includes('one row = one order') && ctxMd.includes('**Test role**') && ctxMd.includes('history: region is current only'));
+
+// ---------- 2a'. hand-over files from the spec (build-docs.js) ----------
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec,
+  checks: [{ name: 'Rows Sales', dax: 'COUNTROWS ( Sales )', expected: 11, assumes: 'F03, F04, F12' }, { name: 'bad', expected: 1 }],
+  expected_notes: '## Reconciliation\n\nThe I alt row does not match.' }));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-docs.js'), run], { encoding: 'utf8' });
+let bd = {};
+try { bd = JSON.parse(res.stdout); } catch { /* reported below */ }
+const rd = (f) => (fs.existsSync(path.join(run, f)) ? fs.readFileSync(path.join(run, f), 'utf8') : '');
+const clog = rd('cleaning-log.md'); const cdax = rd('checks.dax'); const cev = rd('expected-values.md');
+check('docs: ok, one bad check skipped with a warning', res.status === 0 && bd.ok && bd.checks.given === 1 && bd.warnings.length === 1, res.stdout + res.stderr);
+check('docs: cleaning log names the real step names', clog.includes('| F08 | Dato |') && clog.includes('`F08 Parse Dato`') && clog.includes('`F28 Channel names`') && clog.includes('`F23 Split CategorySub`'), clog.slice(0, 600));
+check('docs: a finding without a step is "not kept"', /\| F26 \| Email \| \d+ \| not kept \|/.test(clog) && /Not kept: F26 ContactName/.test(clog));
+check('docs: a fix built in a model table is kept there', clog.includes('in Customer: `F18 Missing KundeID values`'));
+check('docs: automatic orphan and test-row checks', cdax.includes('"Sales rows without Customer"') && cdax.includes('\'Customer\'[Customer ID] IN { "K-100" }') && cdax.includes('\'Product\'[Product code] IN { "ZZZ-000" }') && (bd.checks || {}).auto === 4, JSON.stringify(bd.checks));
+check('docs: given check in DAX and expected values', cdax.includes('( "Rows Sales", COUNTROWS ( Sales ), 11 )') && cev.includes('| Rows Sales | 11 | F03, F04, F12 | |') && cev.includes('The I alt row does not match.'));
 const py = process.env.PYTHON || 'python';
 if (!QUICK) {
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });

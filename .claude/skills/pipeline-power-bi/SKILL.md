@@ -67,8 +67,8 @@ What each step does instead of asking:
 | 8.11 | List the model-health warnings in the hand-over; do not rebuild. |
 | 9 | Give `checks.dax` and `grounded-answers.dax` to run in Desktop. |
 
-Work in few tool calls: write `choices.json` once after step 5 (not after every table); write the build spec,
-`expected-values.md`, `cleaning-log.md` and `checks.dax` in one turn; run `build-context.js`,
+Work in few tool calls: write `choices.json` once after step 5 (not after every table); write the build spec
+and `checks[]` in one turn, then run `build-model.js` and `build-docs.js` in one command; run `build-context.js`,
 `model_health.py` and `build-overview.js` in one command after the model validates. The hand-over says the
 run used fast mode and how to change a choice: `/pipeline-power-bi --resume <run-id>`.
 
@@ -115,17 +115,25 @@ runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
 
 ## Step 0 – Check the tools (show a short status line after the check)
 
-Windows 10/11 with Windows PowerShell 5.1 (Power BI Desktop needs Windows). Check without installing:
+Windows 10/11 with Windows PowerShell 5.1 (Power BI Desktop needs Windows). Check without installing, in
+one call (about 4 seconds; add `-Catalog` when the catalog may be chosen – it also checks Python + openpyxl):
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Check-Tools.ps1 [-Catalog]
+```
+It prints JSON: `node`, `reportCli`, `desktop` (installed, running, `unsavedTitle`), `python`,
+`freeMemoryGB`, and `missing[]` with the install command of each missing program:
 
-| Program | Needed for | Check | Install (only after a yes) |
-|---|---|---|---|
-| Node.js 18+ | report validation | `node --version` | `winget install --id OpenJS.NodeJS.LTS -e` |
-| Power BI report CLI | validating the report | `powerbi-report-author --version` | `npm install -g @microsoft/powerbi-report-authoring-cli` |
-| Power BI Desktop | loading the data, the first refresh, screenshots | `Get-Command PBIDesktop -ErrorAction SilentlyContinue` or `Get-AppxPackage *PowerBI*` | `winget install --id Microsoft.PowerBI -e` |
-| Python 3.12 + openpyxl | only for the data catalog (extra) | `py -3.12 -c "import openpyxl"` | `winget install --id Python.Python.3.12 -e --scope user`, then `-m pip install openpyxl` |
+| Program | Needed for |
+|---|---|
+| Node.js 18+ | report validation |
+| Power BI report CLI | validating the report |
+| Power BI Desktop | loading the data, the first refresh, screenshots |
+| Python 3.12 + openpyxl | only for the data catalog (extra) |
 
-Run all checks in **one** PowerShell call, and `Get-AppxPackage` only when `Get-Command PBIDesktop` finds
-nothing (it is slow). Check Python only when the catalog may be chosen. Also check the skills `powerbi-authoring:powerbi-report-cli` and `powerbi-authoring:semantic-model-authoring`
+Use the commands the project allows without a prompt (`.claude/settings.json`): run Python scripts as
+`python -X utf8 .claude\skills\…` or `python .claude\skills\…`, create folders and copy files with
+`New-Item -ItemType Directory -Force runs\…` / `Copy-Item <file> runs\…`, and write files only inside
+`runs/`. Also check the skills `powerbi-authoring:powerbi-report-cli` and `powerbi-authoring:semantic-model-authoring`
 are listed (else: `/plugin marketplace add microsoft/skills-for-fabric`, `/plugin install powerbi-authoring@fabric-collection`, restart).
 Missing programs: one AskUserQuestion (multiSelect) "Which of these should I install now?", install only
 the chosen ones, one command per call, then check the version. Without Node or the CLI the build still
@@ -357,13 +365,18 @@ it) · "Change the model or extras" · "Stop here (choices are saved)". Repeat u
 
 ## Step 8 – Build
 
-Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyContinue | ? MainWindowTitle`
-→ ask the user to save and close it).
+Power BI Desktop must be closed (`Check-Tools.ps1` again: `desktop.running` true → ask the user to save and
+close it).
 
 1. Copy the files to `data/` when `copy_files` is true.
-2. `expected-values.md` from the profile: rows per table after the kept row-removing fixes (F03, F04,
-   F12, F13, F15/F14 *remove*), distinct keys, min/max dates, orphans left. Mark each value with the
-   fixes it assumes.
+2. **Expected values** – the one part that needs computing: from the source files (a short script over
+   `data/`, applying the kept fixes, never from the model), rows per model table after the row-removing
+   fixes (F03, F04, F12, F13, F15/F14 *remove*), every headline measure, distinct keys, min/max dates and
+   a few splits. Write them to `choices.json` → `checks[]`, one per check: `{ "name": "Total sales",
+   "dax": "[Total sales]", "expected": 4054.7, "assumes": "F09, F14 flag, F15 flag" }` (`dax` returns
+   one number; a share as `[Paid share] * 100`). A reconciliation with the file's own total row, or other
+   prose, goes into `expected_notes` (Markdown). `build-docs.js` (step 3) writes `expected-values.md` and
+   `checks.dax` from them – do not write those two files by hand.
 3. **The model is generated, not hand-written.** Write the build spec into `choices.json` → `build`
    ([references/build-spec.md](references/build-spec.md)): staging per source with its kept steps by fix
    id, the design's tables with their ops and final columns, date, relationships, measures, roles. Then:
@@ -387,8 +400,16 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
    - `expressions.tmdl` (SourceFolder + only the functions used + the staging queries), date table
      (marked, auto date/time off), relationships, `_Measures`, RLS roles (`roles/<name>.tmdl`), model
      culture = report culture, report page.
-4. `cleaning-log.md`: per table a row per finding – fix, column, rows, kept/not kept, variant, step
-   name. Not kept findings stay in the log, so the user can see what was left as it is.
+4. **Hand-over files from the spec** – in the same command as `build-model.js`, once it succeeds:
+   ```
+   node .claude\skills\pipeline-power-bi\scripts\build-docs.js runs\<run-id>
+   ```
+   It writes `cleaning-log.md` (per source a row per profile finding – fix, column, rows, kept/not kept,
+   variant and the step names the model really has; not kept findings stay in the log, so the user sees
+   what was left as it is; then the model tables' own steps), `expected-values.md` and `checks.dax` (the
+   `checks[]` from step 2, plus automatic checks with expected 0: fact rows without a dimension row per
+   active relationship, and test rows left per kept F27). Read its `warnings` (a check without `dax` or a
+   numeric `expected` is skipped) and run it again after every rebuild.
 5. Validate:
    - TMDL: when `powerbi-modeling-mcp` is available, `connection_operations` → `ConnectFolder` on
      `<Name>.SemanticModel/definition` (parses the model offline), then **`Disconnect`** – an open
@@ -432,10 +453,8 @@ Power BI Desktop must be closed (`Get-Process PBIDesktop -ErrorAction SilentlyCo
    same page without document wrapper tags, written next to it) with the Artifact tool (icon `diagram`);
    republish the same file path on later runs so the link stays. Otherwise give the path of
    `overview.html`, which opens in any browser.
-8. **`checks.dax`** (always): one `EVALUATE` with a row per check – row counts per model table, every
-   headline measure, orphan checks (`ISBLANK ( RELATED (...) )` per relationship of the main fact) and
-   "test rows left = 0" per F27 – each with its expected value from `expected-values.md` and a
-   Difference column. Example: [references/checks.example.dax](references/checks.example.dax).
+8. **`checks.dax`** (always) is written by `build-docs.js` (step 4): one `EVALUATE` with a row per check
+   and a Difference column. Example of the result: [references/checks.example.dax](references/checks.example.dax).
 9. **Grounded-answer test** (always): `checks.dax` proves the totals; this proves that real questions get
    the right number, under the asker's permissions, traceable to their definition.
    - Ask the user for 3–5 business questions (AskUserQuestion with drafted ones from the measures and
@@ -516,14 +535,18 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
   the model generator and its spec (choices.json → `build`). Read the spec reference before step 8.
 - [scripts/pbip_sources.py](scripts/pbip_sources.py) – the CSV/Excel files behind the user's own Power BI
   project (step 1), read-only; refuses a `.pbix` with how to save it as `.pbip`.
+- [scripts/Check-Tools.ps1](scripts/Check-Tools.ps1) – step 0's checks of Node, the report CLI, Desktop and
+  Python in one call (JSON); installs nothing.
+- [scripts/build-docs.js](scripts/build-docs.js) – `cleaning-log.md`, `expected-values.md` and `checks.dax`
+  from the profile, the choices, `checks[]` and the generated model (step 8.4).
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 97 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 103 checks of the profiler, the model generator, the hand-over files (build-docs), the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
-  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 77
-  of the 97 checks in about half the time (no drift or Python checks) for use while working; a change is
+  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 83
+  of the 103 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

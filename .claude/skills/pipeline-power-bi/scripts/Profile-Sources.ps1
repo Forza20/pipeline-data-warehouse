@@ -53,21 +53,33 @@ if ($files.Count -eq 0) { throw 'No CSV files found.' }
 # ---------------------------------------------------------------------------------------------------
 # Compiling C# with Add-Type takes seconds per run, so each block is compiled once to a DLL in %TEMP%,
 # named by a hash of its source (an edited block gets a new DLL), and loaded from there on later runs.
+# If the cache cannot be used (no %TEMP%, a policy such as AppLocker that blocks DLLs there, a damaged
+# file), the block is compiled in memory as before: slower, but it always works.
 function Import-PpbiType([string]$TypeName, [string]$Source, [string[]]$Refs = @()) {
     if ($TypeName -as [type]) { return }
-    $sha = [Security.Cryptography.SHA256]::Create()
-    $bytes = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($Refs -join ',') + "`n" + $Source))
-    $hash = -join ($bytes[0..7] | ForEach-Object { $_.ToString('x2') })
-    $dll = Join-Path $env:TEMP "ppbi-profile-$hash.dll"
-    if (-not (Test-Path -LiteralPath $dll)) {
-        $tmp = Join-Path $env:TEMP "ppbi-profile-$hash-$PID.dll"
-        $a = @{ Language = 'CSharp'; TypeDefinition = $Source; OutputAssembly = $tmp; OutputType = 'Library' }
-        if ($Refs.Count) { $a.ReferencedAssemblies = $Refs }
-        Add-Type @a
-        # another process may have written the same DLL meanwhile – then use our own copy
-        try { Move-Item -LiteralPath $tmp -Destination $dll -ErrorAction Stop } catch { $dll = $tmp }
+    $a = @{ Language = 'CSharp'; TypeDefinition = $Source }
+    if ($Refs.Count) { $a.ReferencedAssemblies = $Refs }
+    try {
+        if (-not $env:TEMP -or $env:PPBI_NO_DLL_CACHE) { throw 'cache off' }
+        $sha = [Security.Cryptography.SHA256]::Create()
+        $bytes = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($Refs -join ',') + "`n" + $Source))
+        $hash = -join ($bytes[0..7] | ForEach-Object { $_.ToString('x2') })
+        $dll = Join-Path $env:TEMP "ppbi-profile-$hash.dll"
+        if (-not (Test-Path -LiteralPath $dll)) {
+            $tmp = Join-Path $env:TEMP "ppbi-profile-$hash-$PID.dll"
+            Add-Type @a -OutputAssembly $tmp -OutputType Library -ErrorAction Stop
+            # another process may have written the same DLL meanwhile – then use our own copy
+            try { Move-Item -LiteralPath $tmp -Destination $dll -ErrorAction Stop } catch { $dll = $tmp }
+        }
+        Add-Type -Path $dll -ErrorAction Stop
+    } catch {
+        # a damaged cache file (not a .NET assembly) is removed so the next run rebuilds it; a valid one that
+        # a policy blocks is kept, so a locked-down PC does not compile twice on every run
+        if ($dll -and (Test-Path -LiteralPath $dll)) {
+            try { [void][Reflection.AssemblyName]::GetAssemblyName($dll) } catch [BadImageFormatException] { Remove-Item -LiteralPath $dll -ErrorAction SilentlyContinue }
+        }
+        if (-not ($TypeName -as [type])) { Add-Type @a }
     }
-    Add-Type -Path $dll
 }
 
 $csProfiler = @'
