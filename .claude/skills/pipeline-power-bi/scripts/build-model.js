@@ -214,7 +214,7 @@ function op(q, o, t) {
     case 'merge': {
       const name = 'j';
       return q.m(o.label || `Merge ${typeof o.with === 'string' ? o.with : 'lookup'}`,
-        `Table.ExpandTableColumn(Table.NestedJoin(<prev>, ${L(o.on)}, ${other(o.with)}, ${L(o.withOn || o.on)}, "${name}", JoinKind.LeftOuter${o.ignoreCase ? ', Comparer.OrdinalIgnoreCase' : ''}), "${name}", ${L(o.columns)}${o.as ? ', ' + L(o.as) : ''})`);
+        `Table.ExpandTableColumn(Table.NestedJoin(<prev>, ${L(o.on)}, ${other(o.with)}, ${L(o.withOn || o.on)}, "${name}", JoinKind.LeftOuter${o.ignoreCase ? ', {' + o.on.map(() => 'Comparer.OrdinalIgnoreCase').join(', ') + '}' : ''}), "${name}", ${L(o.columns)}${o.as ? ', ' + L(o.as) : ''})`);
     }
     case 'addKey': return q.m(o.label || `Add ${o.name}`, `Table.AddIndexColumn(Table.Sort(<prev>, {${o.sortBy.map((c) => `{${ms(c)}, Order.Ascending}`).join(', ')}}), ${ms(o.name)}, 1, 1, Int64.Type)`);
     case 'addColumn': return q.m(o.label || `Add ${o.name}`, `Table.AddColumn(<prev>, ${ms(o.name)}, each ${o.expr}, ${mType(o.type)})`);
