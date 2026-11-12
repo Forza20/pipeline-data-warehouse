@@ -2,8 +2,8 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 123 checks (25–30 s)
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    96 checks (about 15 s): skips the drift checks that run the
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 125 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    98 checks (about 15 s): skips the drift checks that run the
 //                                                                        profiler again and the Python checks
 //                                                                        (model health, grounded answers)
 //
@@ -260,12 +260,22 @@ fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test'
   tables: { orders: { include: true, table_name: 'Sales', fixes: [{ fix: 'F08', column: 'Dato', keep: true, variant: 'day-first' }, { fix: 'F14', column: 'Beløb', keep: false },
     { fix: 'F16', column: 'a, b, c, d, e', keep: true }] }, Sheet1: { include: false } },
   design: { facts: [{ name: 'Sales', grain: 'one order', sources: ['orders'] }], dimensions: [{ name: 'Customer', sources: ['customers'] }],
-    left_out: [{ table: 'Sheet1', reason: 'copy' }], review: [{ point: 'Channel names', status: 'open' }, { point: 'Discount', status: 'confirmed', note: 'gross' }] } }));
+    left_out: [{ table: 'Sheet1', reason: 'copy' }], review: [{ point: 'Channel names', status: 'open' },
+      { point: 'Discount', status: 'confirmed', note: 'gross', evidence: { value: '−$24,857 (−4.7 %)', how: 'LineTotal vs after discount' } }] } }));
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run], { encoding: 'utf8' });
 const sum = res.stdout || '';
 check('summary: settings, schema, cleaning, model and review in one text', res.status === 0 && sum.includes('**Test** (`test`) · en-US, USD · fast mode') && sum.includes('**Star schema: 1 facts, 1 dimensions**') &&
   sum.includes('- orders → Sales: 2 steps – F08 Dato (day-first), F16 a, b … e (5 columns) · not kept: F14 Beløb') && sum.includes('(not included: Sheet1)') &&
-  sum.includes('2 relationships') && sum.includes('Extras: catalog') && sum.includes('**Review points: 1 open, 1 settled**') && sum.includes('- (confirmed) Discount → gross'), sum);
+  sum.includes('2 relationships') && sum.includes('Extras: catalog') && sum.includes('**Review points: 1 open, 1 settled**') && sum.includes('- (confirmed) Discount → gross · evidence: −$24,857 (−4.7 %)') &&
+  sum.includes('(1 point(s) without measured evidence)'), sum);
+// the same evidence on the overview page and in the model context
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-overview.js'), run], { encoding: 'utf8' });
+check('overview: review point shows its evidence', res.status === 0 && rd('overview.html').includes('evidence: −$24,857 (−4.7 %) – LineTotal vs after discount'));
+const evChoices = JSON.parse(fs.readFileSync(path.join(run, 'choices.json'), 'utf8'));
+evChoices.design.review[0].evidence = { value: '4 codes, 312 rows', how: 'distinct OrderChannel' };
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify(evChoices));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-context.js'), run], { encoding: 'utf8' });
+check('context: open point shows its evidence', res.status === 0 && rd('model-context.md').includes('- Open review point – Channel names:  (measured: 4 codes, 312 rows – distinct OrderChannel)'), rd('model-context.md').split('## Known limits')[1]);
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run, '--json'], { encoding: 'utf8' });
 let sj = {};
 try { sj = JSON.parse(res.stdout); } catch { /* reported below */ }
@@ -297,14 +307,14 @@ if (!QUICK) {
   // governance/handover.md from the model and the choices
   fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, pii_not_personal: ['Customer[Customer name]'],
     handover_notes: ['One payment after the data date is left out.'],
-    design: { facts: [{ name: 'Sales', grain: 'one order' }], review: [{ point: 'Revenue before discount', status: 'confirmed', note: 'gross' },
+    design: { facts: [{ name: 'Sales', grain: 'one order' }], review: [{ point: 'Revenue before discount', status: 'confirmed', note: 'gross', evidence: { value: '−4.7 %', how: 'after discount' } },
       { point: 'Channel names', status: 'open' }], left_out: [{ table: 'Sheet1', reason: 'copy of Products' }] } }));
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'build_handover.py'), run], { encoding: 'utf8' });
   let ho = {};
   try { ho = JSON.parse(res.stdout); } catch { /* reported below */ }
   const hmd = rd(path.join('governance', 'handover.md'));
   check('handover: ok, one role, nothing visible to review', res.status === 0 && ho.ok && ho.roles === 1 && ho.pii.visible === 0, res.stdout + res.stderr);
-  check('handover: decisions, open points and notes from the choices', hmd.includes('- Revenue before discount → gross (confirmed)') && hmd.includes('## Open points\n\n- Channel names\n- One payment after the data date'), hmd.slice(0, 400));
+  check('handover: decisions, open points and notes from the choices', hmd.includes('- Revenue before discount → gross – evidence: −4.7 % – after discount (confirmed)') && hmd.includes('## Open points\n\n- Channel names\n- One payment after the data date'), hmd.slice(0, 400));
   check('handover: PII hidden and reviewed, grain, role filter, left out', hmd.includes('| Contact[Email] | hidden |') && hmd.includes('| Customer[Customer name] | visible – reviewed, not personal data |') &&
     hmd.includes('| Sales | fact | one order |') && hmd.includes('Role **Test role**') && hmd.includes('- Sheet1: copy of Products'), hmd);
   // rebuild.js: every script in order, the optional ones skipped with a reason, and a stop at the first failure

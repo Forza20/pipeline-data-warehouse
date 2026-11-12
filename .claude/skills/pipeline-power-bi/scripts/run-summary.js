@@ -66,8 +66,11 @@ const ex = Object.entries(S.extras).filter(([, v]) => v === true).map(([k]) => k
 L.push(`Extras: ${ex.length ? ex.join(', ') : 'none'}`, '');
 if (review.length) {
   L.push(`**Review points: ${S.review.open.length} open, ${S.review.settled.length} settled**`);
-  S.review.open.forEach((r, i) => L.push(`${i + 1}. ${r.point}${r.note && r.note !== 'drafted' ? ` → ${r.note}` : ''}`));
-  for (const r of S.review.settled) L.push(`- (${r.status}) ${r.point}${r.note && r.note !== 'drafted' ? ` → ${r.note}` : ''}`);
+  const ev = (r) => { const e = r.evidence; if (!e) return ''; return ` · evidence: ${typeof e === 'object' ? e.value || '' : e}`; };
+  S.review.open.forEach((r, i) => L.push(`${i + 1}. ${r.point}${r.note && r.note !== 'drafted' ? ` → ${r.note}` : ''}${ev(r)}`));
+  for (const r of S.review.settled) L.push(`- (${r.status}) ${r.point}${r.note && r.note !== 'drafted' ? ` → ${r.note}` : ''}${ev(r)}`);
+  const missing = review.filter((r) => !r.evidence).length;
+  if (missing) L.push(`(${missing} point(s) without measured evidence)`);
   L.push('');
 }
 console.log(L.join('\n'));

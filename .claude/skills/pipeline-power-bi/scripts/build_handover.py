@@ -122,7 +122,12 @@ def main():
     review = [r for r in design.get('review', []) if isinstance(r, dict)]
     done = [r for r in review if r.get('status') != 'open']
     open_ = [r for r in review if r.get('status') == 'open']
-    note = lambda r: r['point'] + (f" → {r['note']}" if r.get('note') and r.get('note') != 'drafted' else '')
+    def evidence(r):
+        e = r.get('evidence')
+        if not e:
+            return ''
+        return ' – evidence: ' + (' – '.join(str(x) for x in (e.get('value'), e.get('how')) if x) if isinstance(e, dict) else str(e))
+    note = lambda r: r['point'] + (f" → {r['note']}" if r.get('note') and r.get('note') != 'drafted' else '') + evidence(r)
     if done:
         L += ['## Decisions', ''] + [f"- {note(r)} ({r.get('status')})" for r in done] + ['']
     extra = [str(x) for x in choices.get('handover_notes', [])]

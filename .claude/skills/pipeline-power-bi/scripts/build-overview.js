@@ -28,6 +28,8 @@ if (!fs.existsSync(path.join(runDir, 'choices.json'))) {
 const read = (p) => { try { return fs.readFileSync(p, 'utf8').replace(/^﻿/, ''); } catch { return null; } };
 const json = (p) => { const t = read(p); try { return t ? JSON.parse(t) : null; } catch { return null; } };
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// a review point's measured evidence: { value, how } (or a plain string) → "value – how"
+const evidenceText = (r) => { const e = r && r.evidence; if (!e) return ''; if (typeof e !== 'object') return String(e); return [e.value, e.how].filter(Boolean).join(' – '); };
 const warn = [];
 
 const choices = json(path.join(runDir, 'choices.json'));
@@ -366,7 +368,7 @@ ${(design.dimensions || []).map((d) => `<tr><td class="col">${esc(d.name)}</td><
 </tbody></table></div>
 <div class="kv"><div class="k">staging only</div><div>${(design.staging_only || []).map((s) => `<span class="tag">${esc(s)}</span>`).join('') || '–'}</div>
 <div class="k">left out</div><div>${(design.left_out || []).map((l) => `<div><b>${esc(l.table)}</b> <span class="dim">– ${esc(l.reason)}</span></div>`).join('') || '–'}</div>
-${(design.review || []).length ? `<div class="k">reviewed by a person</div><div>${design.review.map((r) => `<div>${esc(r.point)} <span class="dim">(${esc(r.status)}${r.note ? ': ' + esc(r.note) : ''})</span></div>`).join('')}</div>` : ''}</div>`) : ''}
+${(design.review || []).length ? `<div class="k">reviewed by a person</div><div>${design.review.map((r) => `<div>${esc(r.point)} <span class="dim">(${esc(r.status)}${r.note ? ': ' + esc(r.note) : ''})</span>${evidenceText(r) ? `<div class="dim">evidence: ${esc(evidenceText(r))}</div>` : ''}</div>`).join('')}</div>` : ''}</div>`) : ''}
 
 ${sec('cleaning', 'Cleaning steps per source', 'Findings from the profile and the steps that were kept. Hover a step for its column.', `<div class="tw"><table class="t"><thead><tr><th>Source</th><th class="num">Findings</th><th>Steps kept</th></tr></thead><tbody>
 ${srcRows.map((s) => `<tr><td class="col">${esc(s.name)}${s.include ? '' : ' <span class="out">not included</span>'}</td><td class="num">${s.findings}</td><td>${s.kept.map((f) => `<span class="tag" title="${esc(f.column || '')}"><b>${esc(f.fix)}</b>${esc(FIX[f.fix] || '')}${f.column ? ' · ' + esc(f.column) : ''}</span>`).join('') || '<span class="dim">types and names only</span>'}</td></tr>`).join('')}
@@ -419,7 +421,7 @@ if (vault) {
   ];
   if (design && design.left_out) lines.push('## Left out', '', ...design.left_out.map((l) => `- ${l.table}: ${l.reason}`), '');
   const open = ((design && design.review) || []).filter((r) => r.status === 'open');
-  if (open.length) lines.push('## Open review points', '', ...open.map((r) => `- ${r.point}: ${r.note || ''}`), '');
+  if (open.length) lines.push('## Open review points', '', ...open.map((r) => `- ${r.point}: ${r.note || ''}${evidenceText(r) ? ` (evidence: ${evidenceText(r)})` : ''}`), '');
   fs.writeFileSync(note, lines.join('\n'));
 }
 console.log(JSON.stringify({ overview: outFile, note, tables: model.tables.length, facts: facts.length, dimensions: dims.length, relationships: model.rels.length, staging: model.staging.length, measures: measureList.length, warnings: warn }));

@@ -26,6 +26,7 @@ const glossary = (choices.glossary || []).filter((g) => g && g.term);
 const terms = new Map(glossary.map((g) => [g.term.toLowerCase(), g]));
 const warnings = [];
 const one = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+const evidenceText = (r) => { const e = r && r.evidence; if (!e) return ''; if (typeof e !== 'object') return String(e); return [e.value, e.how].filter(Boolean).join(' – '); };
 
 const L = [`# ${b.name} – model context for AI assistants`, '',
   'Use this file as the definition of the model. Answer with the measures below – never re-derive a number from',
@@ -89,7 +90,7 @@ L.push('');
 const open = (design.review || []).filter((r) => r.status === 'open');
 const left = design.left_out || [];
 L.push('## Known limits', '');
-for (const r of open) L.push(`- Open review point – ${r.point}: ${one(r.note)}`);
+for (const r of open) L.push(`- Open review point – ${r.point}: ${one(r.note)}${evidenceText(r) ? ` (measured: ${one(evidenceText(r))})` : ''}`);
 for (const l of left) L.push(`- Not in the model: ${l.table} (${one(l.reason)})`);
 if (!open.length && !left.length) L.push('- None recorded.');
 L.push('', '## Source', '', `Files: ${choices.source_original || b.sourceFolder || '–'} (folder parameter \`SourceFolder\`).`,
