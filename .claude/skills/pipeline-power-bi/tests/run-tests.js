@@ -2,7 +2,7 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 94 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 97 checks (25–30 s)
 //   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    77 checks (about 15 s): skips the drift checks that run the
 //                                                                        profiler again and the Python checks
 //                                                                        (model health, grounded answers)
@@ -222,6 +222,17 @@ if (!QUICK) {
   try { cm = JSON.parse(res.stdout); } catch { /* reported below */ }
   check('catalog --missing-only: lists missing descriptions', res.status === 0 && cm.missingOnly && cm.missingDescriptions > 0 && fs.existsSync(path.join(catOut, 'missing_descriptions.json')), res.stdout + res.stderr);
   check('catalog --missing-only: writes no Excel or catalog.json', !fs.existsSync(path.join(catOut, 'catalog.xlsx')) && !fs.existsSync(path.join(catOut, 'catalog.json')));
+  // the user's own Power BI project as input: its CSV/Excel source files are found; a .pbix is refused
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'pbip_sources.py'), path.join(run, 'pbip')], { encoding: 'utf8' });
+  let ps = {};
+  try { ps = JSON.parse(res.stdout); } catch { /* reported below */ }
+  const psNames = (ps.files || []).filter((f) => f.exists).map((f) => path.basename(f.path)).sort().join(',');
+  check('own pbip: finds its three source files', res.status === 0 && psNames === 'customers.csv,orders.csv,workbook.xlsx', psNames + res.stderr);
+  check('own pbip: tables named per file', ((ps.files || []).find((f) => path.basename(f.path) === 'orders.csv') || { tables: [] }).tables.includes('Sales'));
+  const pbix = path.join(TMP, 'report.pbix');
+  fs.writeFileSync(pbix, 'x');
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'pbip_sources.py'), pbix], { encoding: 'utf8' });
+  check('own pbix: refused with "Save as .pbip" advice', res.status === 2 && /Save as/.test(res.stdout), res.status + res.stdout);
 }
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', path.join(TMP, 'no-such-folder')], { encoding: 'utf8' });
 check('drift: wrong --path stops instead of passing', res.status === 2, res.status);

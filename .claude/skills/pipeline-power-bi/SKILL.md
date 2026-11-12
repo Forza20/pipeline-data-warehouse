@@ -1,6 +1,6 @@
 ---
 name: pipeline-power-bi
-description: Turn CSV files and Excel workbooks (.xlsx/.xlsm – every sheet or Excel table becomes a table) the user attaches into a cleaned Power BI project (PBIP with TMDL) without manual Power Query work. Profiles every file and sheet, proposes the cleaning steps per table (title lines, total rows, spaces, "N/A" text, case variants, mixed date/number/boolean/id formats, duplicates, anomalies, wide month columns, orphan keys, data types, readable names) and lets the user switch each one on or off before it writes the Power Query steps, relationships, date table and measures. Optional dashboard layout and data catalog. No database, no Supabase, no GitHub. Use it when the user wants a Power BI report from CSV or Excel files, asks to clean CSV or Excel data for Power BI, wants Power Query steps written for them, or types /pipeline-power-bi.
+description: Turn CSV files and Excel workbooks (.xlsx/.xlsm – every sheet or Excel table becomes a table) the user attaches into a cleaned Power BI project (PBIP with TMDL) without manual Power Query work. Also takes the user's own Power BI project (.pbip, or a .pbix saved as .pbip) and cleans the CSV/Excel files it reads, or adds dashboard, catalog and governance to it; without own data it offers the demo files or a new messy dataset. Profiles every file and sheet, proposes the cleaning steps per table (title lines, total rows, spaces, "N/A" text, case variants, mixed date/number/boolean/id formats, duplicates, anomalies, wide month columns, orphan keys, data types, readable names) and lets the user switch each one on or off before it writes the Power Query steps, relationships, date table and measures. Optional dashboard layout and data catalog. No database, no Supabase, no GitHub. Use it when the user wants a Power BI report from CSV or Excel files, asks to clean CSV or Excel data for Power BI, wants Power Query steps written for them, or types /pipeline-power-bi.
 ---
 
 # pipeline-power-bi – from CSV and Excel files to a cleaned Power BI project
@@ -16,8 +16,8 @@ Talk to the user in their language (the language they write in), in plain words:
 "cleaning step", not "partition" or "M expression". All files the skill writes are in English unless the
 user picks another report language.
 
-Arguments: file paths or a folder (optional – otherwise ask), `--name <report name>`, `--resume <run-id>`,
-`--fast` (see Fast mode).
+Arguments: file paths or a folder – CSV, Excel, a `.pbip` project or a `.pbix` (optional – otherwise ask),
+`demo` for the demo files, `--name <report name>`, `--resume <run-id>`, `--fast` (see Fast mode).
 
 ## Principles
 
@@ -134,13 +134,38 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
 
 ## Step 1 – The files
 
-1. Paths from the arguments, or ask in chat for the **path** of the file(s) or the folder – not an
-   upload: the chat accepts only images and text as attachments and rejects `.xlsx` (and often `.csv`).
-   Tell the user how: "In File Explorer, hold Shift, right-click the file and choose *Copy as path*, then
-   paste it here (a folder works too)." Strip surrounding quotes from pasted paths. Accept `.csv`, `.txt` (with delimiters), `.xlsx` and
-   `.xlsm` – CSV and Excel can be mixed. `.xls` (Excel 97–2003): ask the user to save it as `.xlsx` in
-   Excel (File → Save As) – the profiler cannot read it. A file open in Excel can still be read; Excel's
-   lock files (`~$…`) are skipped.
+1. **Which data.** With paths (or `demo`) in the arguments, use them. Otherwise ask (AskUserQuestion,
+   single-select): "My own files – CSV, Excel or a Power BI project (Recommended)" · "The demo files (two
+   small CSV files, about 5 minutes with `--fast`)" · "A new messy dataset (retail, hotel or SaaS with a
+   known answer key)". In fast mode ask this too when no path was given – it is the one thing only the user
+   knows.
+   - **Own files:** ask in chat for the **path** of the file(s) or the folder – not an upload: the chat
+     accepts only images and text as attachments and rejects `.xlsx`, `.pbix` (and often `.csv`). Tell the
+     user how: "In File Explorer, hold Shift, right-click the file and choose *Copy as path*, then paste it
+     here (a folder works too)." Strip surrounding quotes from pasted paths. Accept `.csv`, `.txt` (with
+     delimiters), `.xlsx` and `.xlsm` – CSV and Excel can be mixed – and a Power BI project (below).
+     `.xls` (Excel 97–2003): ask the user to save it as `.xlsx` in Excel (File → Save As) – the profiler
+     cannot read it. A file open in Excel can still be read; Excel's lock files (`~$…`) are skipped.
+   - **Demo:** the `demo/` folder of this repository (two CSV files; `demo/README.md` has the expected totals).
+   - **Messy dataset:** load the `messy-dataset` skill and generate with `-Rows 2000` (about 10 seconds)
+     into `runs/<run-id>/source/`, with `-AnswersDir runs/<run-id>_answers/` – outside the run folder. Do
+     **not** read the answer folder or the skill's error catalog until the user asks to score the run after
+     step 9; then compare `expected_findings.json` with the cleaning log and `expected_values.json` with
+     `expected-values.md`.
+   - **A Power BI project** (`.pbip`, its folder, or a `.pbix`): run
+     `python .claude\skills\pipeline-power-bi\scripts\pbip_sources.py "<path>"`. It is read-only and lists
+     the CSV/Excel files the model reads (`files[]` with `exists` and the model tables built from each) and
+     other sources (`other[]`: SQL Server, SharePoint …). Exit code 2 = nothing to profile: say its
+     `message` – a `.pbix` must first be saved as a project in Power BI Desktop (File → Save as → *.pbip),
+     a database model needs CSV/Excel exports, and moved files need their new folder. With files found,
+     ask (single-select; in fast mode take the first):
+     "Clean its source files and build a new, cleaned project (Recommended)" – the files go into step 1.2
+     and the run continues as usual; the user's own project is never changed · "Keep my model, only add
+     dashboard, catalog, governance and model health" – copy the project folder into `runs/<run-id>/pbip/`
+     (the original stays untouched), skip steps 2–5, 7 and 8.1–8.4, and run step 6, step 8.5 (validate),
+     8.6 and 8.11 on the copy; there is no build spec, so no overview page, `checks.dax` or model context.
+     A model with both files and database sources: profile the files and name the other tables in the
+     hand-over as not cleaned.
 2. Show per file: name, size, and ask the report name if `--name` is missing (proposal: the folder or
    main file name, readable). Excel's sheets are listed after the profile (step 2).
 3. Ask: "Copy the files into the run folder (Recommended)" – the project keeps working if the originals
@@ -489,14 +514,16 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
   PowerShell 5.1; Excel need not be installed).
 - [scripts/build-model.js](scripts/build-model.js) + [references/build-spec.md](references/build-spec.md) –
   the model generator and its spec (choices.json → `build`). Read the spec reference before step 8.
+- [scripts/pbip_sources.py](scripts/pbip_sources.py) – the CSV/Excel files behind the user's own Power BI
+  project (step 1), read-only; refuses a `.pbix` with how to save it as `.pbip`.
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 94 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 97 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 77
-  of the 94 checks in about half the time (no drift or Python checks) for use while working; a change is
+  of the 97 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

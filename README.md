@@ -56,6 +56,19 @@ Have CSV files or Excel workbooks and want a cleaned Power BI report, without a 
 table on it – becomes a table, and you choose which sheets to include. It needs no setup command, no Supabase and no GitHub, only Windows, Node.js,
 the Power BI report CLI and, to load the data, Power BI Desktop.
 
+**Your own data, the demo or a messy dataset.** Typed without a path, the skill asks which data to use:
+
+| Choice | What you give | What happens |
+|---|---|---|
+| Your own files | the path of CSV files, Excel workbooks or their folder | profiled and cleaned into a new Power BI project |
+| Your own Power BI project | the path of a `.pbip` (a `.pbix`: first File → Save as → *.pbip in Power BI Desktop) | the CSV/Excel files it reads are found and cleaned into a new project – or your model is kept and gets dashboard, catalog, governance and model health. Your own project is never changed. |
+| The demo | nothing (`/pipeline-power-bi demo`) | two small CSV files with known totals |
+| A messy dataset | nothing | a new retail, hotel or SaaS dataset (2,000 rows) with an answer key you can score against afterwards |
+
+Give a path, not an upload: the chat does not accept `.xlsx` or `.pbix` files as attachments. In File
+Explorer, hold Shift, right-click the file, choose *Copy as path* and paste it. A project that reads from a
+database (SQL Server, SharePoint …) needs CSV or Excel exports of those tables.
+
 **Try it in about 20 minutes.** Clone the repository, start Claude Code in the folder (type `claude` in a
 terminal there, or open the folder in VS Code or the Claude desktop app) and type
 `/pipeline-power-bi demo --name Demo --fast`. The `demo/` folder holds two small, made-up CSV files full of typical
@@ -101,7 +114,7 @@ not a hand edit.
 To skip the approval prompt for the profiler, add
 `"PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File *Profile-Sources.ps1*)"` to `permissions.allow` in
 `.claude/settings.json` (or your own `settings.local.json`). After changing the skill's scripts, run its tests:
-`node .claude/skills/pipeline-power-bi/tests/run-tests.js` (all 94 checks, 25–30 seconds). Add `--quick` for
+`node .claude/skills/pipeline-power-bi/tests/run-tests.js` (all 97 checks, 25–30 seconds). Add `--quick` for
 77 checks in about 15 seconds while you work: it skips the drift checks and the Python checks (model health, grounded answers, catalog). Run the full
 set before a commit. The first run after a change to the profiler takes about 15 seconds longer, because it
 compiles the profiler's C# code once.
