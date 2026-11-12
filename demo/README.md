@@ -13,8 +13,8 @@ Run it:
 /pipeline-power-bi demo --name Demo --fast
 ```
 
-`--fast` accepts every recommended choice and asks nothing more (about 5 minutes, an estimate; no
-dashboard, catalog or governance). Without it you answer each question: 10–12 minutes with "Accept all
+`--fast` accepts every recommended choice and asks nothing more (about 8 minutes, an estimate; with
+data catalog and governance, without the dashboard). Without it you answer each question: 10–12 minutes with "Accept all
 recommended" and no extras, 20–30 minutes with dashboard, catalog and governance. With the recommended steps the report should show
 Total sales 4,054.70, 11 orders, 5 customers and a paid share of 63.6 %. That is not the file's `I alt` row
 (4,147.45), which does not even match its own rows: the copy of order 1002 is removed, and the negative amount

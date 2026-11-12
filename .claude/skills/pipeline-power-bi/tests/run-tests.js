@@ -287,6 +287,18 @@ check('overview: built', res.status === 0 && fs.existsSync(path.join(run, 'overv
 check('overview: publishable page without wrapper tags', fs.existsSync(path.join(run, 'overview.page.html')) && !/<html|<body|<!doctype/i.test(fs.readFileSync(path.join(run, 'overview.page.html'), 'utf8')));
 check('overview: counts the model', ov.facts === 1 && ov.relationships === 2 && ov.staging === 4, JSON.stringify(ov));
 check('overview: no warnings', (ov.warnings || []).length === 0, ov.warnings);
+const ovHtml = fs.readFileSync(path.join(run, 'overview.html'), 'utf8');
+check('overview: dark toolkit palette by default, no user colours, colour panel present', !ovHtml.includes('id="user-colors"') && /<style>\n:root\{--bg:#0f0a1e;/.test(ovHtml) && !/@media \(prefers-color-scheme/.test(ovHtml) && ovHtml.includes('id="cpanel"'));
+fs.writeFileSync(path.join(run, 'overview-colors.json'), JSON.stringify({ accent: '#0f7b6c', bogus: '#fff', dark: { fact: 'red;}body{x' } }));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-overview.js'), run], { encoding: 'utf8' });
+try { ov = JSON.parse(res.stdout); } catch { ov = {}; }
+const ovUser = fs.readFileSync(path.join(run, 'overview.html'), 'utf8').split('id="user-colors">')[1]?.split('</style>')[0] || '';
+check('overview: colours file sets the palette, rejects bad keys and values', ovUser.includes('--purple:#0f7b6c') && !ovUser.includes('body{x') && (ov.warnings || []).length === 2, ov.warnings);
+fs.writeFileSync(path.join(run, 'overview-colors.json'), JSON.stringify({ theme: 'light', light: { card: '#fafafa' } }));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-overview.js'), run], { encoding: 'utf8' });
+const ovLight = fs.readFileSync(path.join(run, 'overview.html'), 'utf8');
+check('overview: theme light uses the light palette and its keys', /<style>\n:root\{--bg:#f6f4fb;/.test(ovLight) && ovLight.includes(':root{--plate:#fafafa}'));
+fs.unlinkSync(path.join(run, 'overview-colors.json'));
 
 // ---------- 4. drift checks started in the background after the profiler ----------
 Promise.all([driftSame, driftNew]).then(([same, changed]) => {

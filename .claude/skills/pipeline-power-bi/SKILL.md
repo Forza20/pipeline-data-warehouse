@@ -53,14 +53,14 @@ What each step does instead of asking:
 
 | Step | Fast mode |
 |---|---|
-| 0 | Check Node, the report CLI and Desktop only; Python only when the user asked for the catalog. |
+| 0 | Run `Check-Tools.ps1 -Catalog` (Node, the report CLI, Desktop, and Python + openpyxl for the catalog and governance). Python missing and not installed: skip both and say so in the hand-over. |
 | 1 | Copy the files into the run folder. |
 | 2 | Include the recommended sheets; append F21 pairs. Show the overview table, no questions. |
 | 3 | The first (recommended) language and number format; proposed names; readable column names. |
 | 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
 | 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
 | 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
-| 6 | No extras (no dashboard, catalog, governance, Desktop check, publishing), unless the user named them in the same message. The overview page and `checks.dax` are always made. A named dashboard uses *Standard* (no colour, section or title questions). |
+| 6 | Catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. No dashboard, Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. A named dashboard uses *Standard* (no colour, section or title questions). |
 | 8.6 | Governance's PII audit asks nothing: a visible column flagged as personal data stays as it is and goes into the hand-over as an open point (hide it later with `--resume`). |
 | 7 | Show the review summary as a record of the choices, then build without asking. |
 | 8.9 | Draft 3 grounded questions from the measures and dimensions yourself. |
@@ -69,7 +69,9 @@ What each step does instead of asking:
 
 Work in few tool calls: write `choices.json` once after step 5 (not after every table); write the build spec
 and `checks[]` in one turn, then run `build-model.js` and `build-docs.js` in one command; run `build-context.js`,
-`model_health.py` and `build-overview.js` in one command after the model validates. The hand-over says the
+`model_health.py` and `build-overview.js` in one command after the model validates; load `pbip-catalog` and
+`pbip-governance` in one turn (parallel Skill calls) and run the catalog's `--missing-only` and governance's
+`parse_pbip.py` + wiki bundle in one command, before `build-overview.js`. The hand-over says the
 run used fast mode and how to change a choice: `/pipeline-power-bi --resume <run-id>`.
 
 Ask with AskUserQuestion: at most 4 questions per call, 2–4 options per question (the tool adds "Other"),
@@ -445,9 +447,15 @@ close it).
      TMDL is changed and validated again.
    - If a skill fails, finish the run without it, say what failed and how to rerun it alone.
 7. **Overview page** (always):
-   `node .claude\skills\pipeline-power-bi\scripts\build-overview.js runs\<run-id> [--vault "<vault>" --folder <folder>]`
+   `node .claude\skills\pipeline-power-bi\scripts\build-overview.js runs\<run-id> [--colors <file.json>] [--vault "<vault>" --folder <folder>]`
    – sources → staging → model → report, the star schema, cleaning steps per source, relationships,
-   measures, privacy/security and the control numbers in one `overview.html`; with `--vault` also an
+   measures, privacy/security and the control numbers in one `overview.html`. Default look is the
+   toolkit palette: dark navy page with a faint grid, gold bars on the model tables (full gold border on
+   facts), lavender keys and relationship lines, purple accent. To change it: `runs/<run-id>/overview-colors.json`
+   or `--colors`, e.g. `{ "accent": "#0f7b6c", "fact": "#d97706", "dark": { "background": "#0b1416" } }`;
+   `"theme": "light"` or `"auto"` (follow the system) instead of the default dark (keys: accent, accentText,
+   fact, dimension, date, lines, warning, alert, background, card, nav, ink). The
+   page's **Colours** button tries colours live and shows that JSON to save. With `--vault` also an
    Obsidian note (`<vault>/<folder>/Power BI/<run-id>.md`, only when the user chose it). When the user
    chose to publish it: load the `artifact-design` skill's rules and publish **`overview.page.html`** (the
    same page without document wrapper tags, written next to it) with the Artifact tool (icon `diagram`);
