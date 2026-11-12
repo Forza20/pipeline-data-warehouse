@@ -2,9 +2,12 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 92 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    77 checks (about 15 s): skips the drift checks that run the
+//                                                                        profiler again and the Python checks
+//                                                                        (model health, grounded answers)
 //
-// Windows only (the profiler needs Windows PowerShell 5.1). Writes only to a temp folder.
+// Use --quick while working; run without it before a commit. Windows only (the profiler needs Windows PowerShell 5.1). Writes only to a temp folder.
 'use strict';
 const fs = require('fs');
 const os = require('os');
@@ -14,6 +17,7 @@ const { execFileSync, spawn, spawnSync } = require('child_process');
 const SKILL = path.resolve(__dirname, '..');
 const FIX = path.join(__dirname, 'fixtures');
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'ppbi-test-'));
+const QUICK = process.argv.includes('--quick');
 let pass = 0;
 const fails = [];
 function check(name, ok, info) {
@@ -128,8 +132,8 @@ for (const f of fs.readdirSync(FIX)) fs.copyFileSync(path.join(FIX, f), path.joi
 const csv = fs.readFileSync(path.join(newFix, 'orders.csv'), 'utf8').replace('Ordrenr;Dato;KundeID;Region;Beløb', 'Ordrenr;Dato;KundeID;Region;Belob');
 fs.writeFileSync(path.join(newFix, 'orders.csv'), csv, 'utf8');
 fs.rmSync(path.join(newFix, 'customers.csv'));
-const driftSame = driftRun('drift-same', FIX);
-const driftNew = driftRun('drift-new', newFix);
+const driftSame = QUICK ? null : driftRun('drift-same', FIX);
+const driftNew = QUICK ? null : driftRun('drift-new', newFix);
 
 const glossary = [{ term: 'Revenue', definition: 'Order amounts without flagged anomalies.', owner: 'Finance' }];
 fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary,
@@ -202,37 +206,41 @@ check('context: ok, no warnings', res.status === 0 && ctx.ok && ctx.warnings.len
 check('context: glossary term with its measure', ctxMd.includes('**Revenue** – Order amounts without flagged anomalies. Measure: [Revenue].'));
 check('context: grain, role and open review point', ctxMd.includes('one row = one order') && ctxMd.includes('**Test role**') && ctxMd.includes('history: region is current only'));
 const py = process.env.PYTHON || 'python';
-res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });
-let mh = {};
-try { mh = JSON.parse(res.stdout); } catch { /* reported below */ }
-check('health: ok', res.status === 0 && mh.ok, res.stdout + res.stderr);
-const mhList = fs.existsSync(path.join(run, 'model-health.json')) ? JSON.parse(fs.readFileSync(path.join(run, 'model-health.json'), 'utf8')) : [];
-check('health: unused fact column flagged', mhList.some((f) => f.kind === 'unused column' && f.where === 'Sales[Channel]'));
-check('health: used column not flagged', !mhList.some((f) => f.where === 'Sales[Amount]'));
-check('health: visible dimension attribute not flagged', !mhList.some((f) => f.where === 'Customer[Customer name]'));
+if (!QUICK) {
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });
+  let mh = {};
+  try { mh = JSON.parse(res.stdout); } catch { /* reported below */ }
+  check('health: ok', res.status === 0 && mh.ok, res.stdout + res.stderr);
+  const mhList = fs.existsSync(path.join(run, 'model-health.json')) ? JSON.parse(fs.readFileSync(path.join(run, 'model-health.json'), 'utf8')) : [];
+  check('health: unused fact column flagged', mhList.some((f) => f.kind === 'unused column' && f.where === 'Sales[Channel]'));
+  check('health: used column not flagged', !mhList.some((f) => f.where === 'Sales[Amount]'));
+  check('health: visible dimension attribute not flagged', !mhList.some((f) => f.where === 'Customer[Customer name]'));
+}
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', path.join(TMP, 'no-such-folder')], { encoding: 'utf8' });
 check('drift: wrong --path stops instead of passing', res.status === 2, res.status);
 
 // ---------- 2b. grounded-answer test ----------
-const qFile = path.join(TMP, 'questions.json');
-fs.writeFileSync(qFile, JSON.stringify([
-  { question: 'Revenue in Nord', measure: 'Revenue', filters: { 'Customer[Customer ID]': 'K-001' }, expected: 1234.5, expected_how: 'test' },
-  { question: 'Orders as K-001', measure: 'Orders', filters: {}, expected: 3, role: 'Test role', role_user: 'a@example.com', role_expected: 3 },
-]));
-res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'grounded_answers.py'), path.join(run, 'pbip'), qFile, '--out', run], { encoding: 'utf8' });
-let ga = {};
-try { ga = JSON.parse(res.stdout); } catch { /* reported below */ }
-check('grounded: ok', res.status === 0 && ga.ok, res.stdout + res.stderr);
-check('grounded: one role check', ga.role_checks === 1, ga.role_checks);
-check('grounded: every column traced', ga.untraced_columns === 0, ga.untraced_columns);
-const gdax = fs.existsSync(path.join(run, 'grounded-answers.dax')) ? fs.readFileSync(path.join(run, 'grounded-answers.dax'), 'utf8') : '';
-check('grounded: three rows (2 questions + 1 role)', (gdax.match(/ROW \(/g) || []).length === 3);
-check('grounded: role filter inlined', gdax.includes('FILTER ( ALL ( \'Customer\' ), [Customer ID] = "K-001" )'));
-const gmd = fs.existsSync(path.join(run, 'grounded-answers.md')) ? fs.readFileSync(path.join(run, 'grounded-answers.md'), 'utf8') : '';
-check('grounded: traced to the source file', /orders\.csv › Beløb/.test(gmd), gmd.slice(0, 300));
-fs.writeFileSync(qFile, JSON.stringify([{ question: 'x', measure: 'No such measure', expected: 1 }]));
-res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'grounded_answers.py'), path.join(run, 'pbip'), qFile, '--out', TMP], { encoding: 'utf8' });
-check('grounded: unknown measure refused', res.status === 2, res.status);
+if (!QUICK) {
+  const qFile = path.join(TMP, 'questions.json');
+  fs.writeFileSync(qFile, JSON.stringify([
+    { question: 'Revenue in Nord', measure: 'Revenue', filters: { 'Customer[Customer ID]': 'K-001' }, expected: 1234.5, expected_how: 'test' },
+    { question: 'Orders as K-001', measure: 'Orders', filters: {}, expected: 3, role: 'Test role', role_user: 'a@example.com', role_expected: 3 },
+  ]));
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'grounded_answers.py'), path.join(run, 'pbip'), qFile, '--out', run], { encoding: 'utf8' });
+  let ga = {};
+  try { ga = JSON.parse(res.stdout); } catch { /* reported below */ }
+  check('grounded: ok', res.status === 0 && ga.ok, res.stdout + res.stderr);
+  check('grounded: one role check', ga.role_checks === 1, ga.role_checks);
+  check('grounded: every column traced', ga.untraced_columns === 0, ga.untraced_columns);
+  const gdax = fs.existsSync(path.join(run, 'grounded-answers.dax')) ? fs.readFileSync(path.join(run, 'grounded-answers.dax'), 'utf8') : '';
+  check('grounded: three rows (2 questions + 1 role)', (gdax.match(/ROW \(/g) || []).length === 3);
+  check('grounded: role filter inlined', gdax.includes('FILTER ( ALL ( \'Customer\' ), [Customer ID] = "K-001" )'));
+  const gmd = fs.existsSync(path.join(run, 'grounded-answers.md')) ? fs.readFileSync(path.join(run, 'grounded-answers.md'), 'utf8') : '';
+  check('grounded: traced to the source file', /orders\.csv › Beløb/.test(gmd), gmd.slice(0, 300));
+  fs.writeFileSync(qFile, JSON.stringify([{ question: 'x', measure: 'No such measure', expected: 1 }]));
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'grounded_answers.py'), path.join(run, 'pbip'), qFile, '--out', TMP], { encoding: 'utf8' });
+  check('grounded: unknown measure refused', res.status === 2, res.status);
+}
 
 // ---------- 3. overview page ----------
 fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, tables: { orders: { include: true, fixes: [{ fix: 'F08', column: 'Dato', keep: true }] } } }));
@@ -246,14 +254,16 @@ check('overview: no warnings', (ov.warnings || []).length === 0, ov.warnings);
 
 // ---------- 4. drift checks started in the background after the profiler ----------
 Promise.all([driftSame, driftNew]).then(([same, changed]) => {
-  check('drift: unchanged files pass', same.status === 0, same.stdout + same.stderr);
-  const driftMd = fs.existsSync(path.join(changed.dir, 'drift.md')) ? fs.readFileSync(path.join(changed.dir, 'drift.md'), 'utf8') : '';
-  check('drift: breaking changes give exit 1', changed.status === 1, changed.status);
-  check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
-  check('drift: missing file found', driftMd.includes('file customers.csv not found'));
+  if (!QUICK) {
+    check('drift: unchanged files pass', same.status === 0, same.stdout + same.stderr);
+    const driftMd = fs.existsSync(path.join(changed.dir, 'drift.md')) ? fs.readFileSync(path.join(changed.dir, 'drift.md'), 'utf8') : '';
+    check('drift: breaking changes give exit 1', changed.status === 1, changed.status);
+    check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
+    check('drift: missing file found', driftMd.includes('file customers.csv not found'));
+  }
 
   fs.rmSync(TMP, { recursive: true, force: true });
-  console.log(`${pass} passed, ${fails.length} failed`);
+  console.log(`${pass} passed, ${fails.length} failed` + (QUICK ? ' (quick: drift and Python checks skipped – run without --quick before a commit)' : ''));
   for (const f of fails) console.log('  FAIL ' + f);
   process.exit(fails.length ? 1 : 0);
 });

@@ -488,7 +488,9 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [tests/run-tests.js](tests/run-tests.js) – 92 checks of the profiler, the model generator, the drift check, model health, model context, the grounded-answer test and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
-  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass.
+  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 77
+  of the 92 checks in about half the time (no drift or Python checks) for use while working; a change is
+  only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load
   errors.
