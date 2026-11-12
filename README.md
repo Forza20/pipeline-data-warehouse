@@ -58,8 +58,9 @@ the Power BI report CLI and, to load the data, Power BI Desktop.
 
 **Try it in about 20 minutes.** Clone the repository, start Claude Code in the folder (type `claude` in a
 terminal there, or open the folder in VS Code or the Claude desktop app) and type
-`/pipeline-power-bi demo --name Demo`. The `demo/` folder holds two small, made-up CSV files full of typical
-problems ([demo/README.md](demo/README.md) lists them). Choose "Accept all recommended" at each question. The
+`/pipeline-power-bi demo --name Demo --fast`. The `demo/` folder holds two small, made-up CSV files full of typical
+problems ([demo/README.md](demo/README.md) lists them). `--fast` accepts every recommended choice and asks
+nothing more; leave it out to answer each question yourself. The
 skill checks the programs it needs first and installs only the ones you say yes to. You also need the Power BI
 authoring plugin: `/plugin marketplace add microsoft/skills-for-fabric`, then
 `/plugin install powerbi-authoring@fabric-collection`, and restart Claude Code.
@@ -68,7 +69,8 @@ How long it takes:
 
 | Run | Time |
 |---|---|
-| Quick: untick the dashboard, catalog and governance at the extras question | 10–12 minutes |
+| Fastest: `--fast` (no questions, no extras) | about 5 minutes (estimate) |
+| Quick: answer the questions, untick the dashboard, catalog and governance | 10–12 minutes |
 | Full: every extra accepted | 20–30 minutes |
 | Refresh and `checks.dax` in Power BI Desktop | about 5 minutes more |
 | First time: installing the plugin, Node.js, the report CLI and Power BI Desktop | 10–20 minutes more |

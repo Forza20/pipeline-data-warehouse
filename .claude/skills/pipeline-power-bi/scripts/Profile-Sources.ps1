@@ -51,8 +51,26 @@ if ($files.Count -eq 0) { throw 'No CSV files found.' }
 # ---------------------------------------------------------------------------------------------------
 # Per-cell profiling in C# (C# 5 – the compiler that ships with Windows PowerShell 5.1)
 # ---------------------------------------------------------------------------------------------------
-if (-not ('PpbiProfile.Profiler' -as [type])) {
-Add-Type -Language CSharp -TypeDefinition @'
+# Compiling C# with Add-Type takes seconds per run, so each block is compiled once to a DLL in %TEMP%,
+# named by a hash of its source (an edited block gets a new DLL), and loaded from there on later runs.
+function Import-PpbiType([string]$TypeName, [string]$Source, [string[]]$Refs = @()) {
+    if ($TypeName -as [type]) { return }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $bytes = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($Refs -join ',') + "`n" + $Source))
+    $hash = -join ($bytes[0..7] | ForEach-Object { $_.ToString('x2') })
+    $dll = Join-Path $env:TEMP "ppbi-profile-$hash.dll"
+    if (-not (Test-Path -LiteralPath $dll)) {
+        $tmp = Join-Path $env:TEMP "ppbi-profile-$hash-$PID.dll"
+        $a = @{ Language = 'CSharp'; TypeDefinition = $Source; OutputAssembly = $tmp; OutputType = 'Library' }
+        if ($Refs.Count) { $a.ReferencedAssemblies = $Refs }
+        Add-Type @a
+        # another process may have written the same DLL meanwhile – then use our own copy
+        try { Move-Item -LiteralPath $tmp -Destination $dll -ErrorAction Stop } catch { $dll = $tmp }
+    }
+    Add-Type -Path $dll
+}
+
+$csProfiler = @'
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -239,15 +257,14 @@ namespace PpbiProfile {
     }
 }
 '@
-}
+Import-PpbiType 'PpbiProfile.Profiler' $csProfiler
 
 # ---------------------------------------------------------------------------------------------------
 # xlsx reader in C#: no Excel needed. One part per Excel table (ListObject); a sheet without a table is
 # one part over its used range. Dates (by cell style) become yyyy-MM-dd text, numbers invariant text,
 # so the same profiling runs on CSV and Excel.
 # ---------------------------------------------------------------------------------------------------
-if (-not ('PpbiProfile.Xlsx' -as [type])) {
-Add-Type -Language CSharp -ReferencedAssemblies 'System.IO.Compression', 'System.IO.Compression.FileSystem', 'System.Xml' -TypeDefinition @'
+$csXlsx = @'
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -516,7 +533,7 @@ namespace PpbiProfile {
     }
 }
 '@
-}
+Import-PpbiType 'PpbiProfile.Xlsx' $csXlsx 'System.IO.Compression', 'System.IO.Compression.FileSystem', 'System.Xml'
 
 # ---------------------------------------------------------------------------------------------------
 # Patterns. Order matters: the first match wins.

@@ -102,6 +102,35 @@ const spec = {
     { name: 'Orders', expr: 'VAR n = DISTINCTCOUNT ( Sales[Order ID] )\nRETURN\n\tn', format: '#,0', folder: 'Sales' }],
   roles: [{ name: 'Test role', table: 'Customer', filter: '[Customer ID] = "K-001"' }],
 };
+// The two drift checks each start the profiler (seconds of PowerShell), so they run in the background,
+// each in its own run folder, while the tests below run. Their results are checked at the end.
+function spawnAsync(cmd, args) {
+  return new Promise((resolve) => {
+    const p = spawn(cmd, args);
+    let stdout = '';
+    let stderr = '';
+    p.stdout.on('data', (d) => { stdout += d; });
+    p.stderr.on('data', (d) => { stderr += d; });
+    p.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
+}
+function driftRun(name, srcFolder) {
+  const dir = path.join(TMP, name);
+  fs.mkdirSync(dir);
+  fs.copyFileSync(profFile, path.join(dir, 'profile.json'));
+  fs.writeFileSync(path.join(dir, 'choices.json'), JSON.stringify({ build: spec }));
+  const done = spawnAsync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), dir, '--path', srcFolder, '--today', '2026-11-06']);
+  return done.then((r) => ({ ...r, dir }));
+}
+const newFix = path.join(TMP, 'newfiles');
+fs.mkdirSync(newFix);
+for (const f of fs.readdirSync(FIX)) fs.copyFileSync(path.join(FIX, f), path.join(newFix, f));
+const csv = fs.readFileSync(path.join(newFix, 'orders.csv'), 'utf8').replace('Ordrenr;Dato;KundeID;Region;Beløb', 'Ordrenr;Dato;KundeID;Region;Belob');
+fs.writeFileSync(path.join(newFix, 'orders.csv'), csv, 'utf8');
+fs.rmSync(path.join(newFix, 'customers.csv'));
+const driftSame = driftRun('drift-same', FIX);
+const driftNew = driftRun('drift-new', newFix);
+
 const glossary = [{ term: 'Revenue', definition: 'Order amounts without flagged anomalies.', owner: 'Finance' }];
 fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary,
   design: { facts: [{ name: 'Sales', grain: 'one order' }], review: [{ point: 'history', status: 'open', note: 'region is current only' }] } }, null, 2));
@@ -181,20 +210,6 @@ const mhList = fs.existsSync(path.join(run, 'model-health.json')) ? JSON.parse(f
 check('health: unused fact column flagged', mhList.some((f) => f.kind === 'unused column' && f.where === 'Sales[Channel]'));
 check('health: used column not flagged', !mhList.some((f) => f.where === 'Sales[Amount]'));
 check('health: visible dimension attribute not flagged', !mhList.some((f) => f.where === 'Customer[Customer name]'));
-fs.copyFileSync(profFile, path.join(run, 'profile.json'));
-res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', FIX, '--today', '2026-11-06'], { encoding: 'utf8' });
-check('drift: unchanged files pass', res.status === 0, res.stdout + res.stderr);
-const newFix = path.join(TMP, 'newfiles');
-fs.mkdirSync(newFix);
-for (const f of fs.readdirSync(FIX)) fs.copyFileSync(path.join(FIX, f), path.join(newFix, f));
-const csv = fs.readFileSync(path.join(newFix, 'orders.csv'), 'utf8').replace('Ordrenr;Dato;KundeID;Region;Beløb', 'Ordrenr;Dato;KundeID;Region;Belob');
-fs.writeFileSync(path.join(newFix, 'orders.csv'), csv, 'utf8');
-fs.rmSync(path.join(newFix, 'customers.csv'));
-res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', newFix, '--today', '2026-11-06'], { encoding: 'utf8' });
-const driftMd = fs.existsSync(path.join(run, 'drift.md')) ? fs.readFileSync(path.join(run, 'drift.md'), 'utf8') : '';
-check('drift: breaking changes give exit 1', res.status === 1, res.status);
-check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
-check('drift: missing file found', driftMd.includes('file customers.csv not found'));
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), run, '--path', path.join(TMP, 'no-such-folder')], { encoding: 'utf8' });
 check('drift: wrong --path stops instead of passing', res.status === 2, res.status);
 
@@ -229,7 +244,16 @@ check('overview: publishable page without wrapper tags', fs.existsSync(path.join
 check('overview: counts the model', ov.facts === 1 && ov.relationships === 2 && ov.staging === 4, JSON.stringify(ov));
 check('overview: no warnings', (ov.warnings || []).length === 0, ov.warnings);
 
-fs.rmSync(TMP, { recursive: true, force: true });
-console.log(`${pass} passed, ${fails.length} failed`);
-for (const f of fails) console.log('  FAIL ' + f);
-process.exit(fails.length ? 1 : 0);
+// ---------- 4. drift checks started in the background after the profiler ----------
+Promise.all([driftSame, driftNew]).then(([same, changed]) => {
+  check('drift: unchanged files pass', same.status === 0, same.stdout + same.stderr);
+  const driftMd = fs.existsSync(path.join(changed.dir, 'drift.md')) ? fs.readFileSync(path.join(changed.dir, 'drift.md'), 'utf8') : '';
+  check('drift: breaking changes give exit 1', changed.status === 1, changed.status);
+  check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
+  check('drift: missing file found', driftMd.includes('file customers.csv not found'));
+
+  fs.rmSync(TMP, { recursive: true, force: true });
+  console.log(`${pass} passed, ${fails.length} failed`);
+  for (const f of fails) console.log('  FAIL ' + f);
+  process.exit(fails.length ? 1 : 0);
+});

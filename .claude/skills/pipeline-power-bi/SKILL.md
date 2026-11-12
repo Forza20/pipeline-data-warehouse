@@ -16,14 +16,16 @@ Talk to the user in their language (the language they write in), in plain words:
 "cleaning step", not "partition" or "M expression". All files the skill writes are in English unless the
 user picks another report language.
 
-Arguments: file paths or a folder (optional – otherwise ask), `--name <report name>`, `--resume <run-id>`.
+Arguments: file paths or a folder (optional – otherwise ask), `--name <report name>`, `--resume <run-id>`,
+`--fast` (see Fast mode).
 
 ## Principles
 
 1. **The user decides, every time.** Nothing is cleaned, renamed, removed or modelled without the user's
    choice. Every question has the recommended option first, marked "(Recommended)", with what it does,
    how many rows it touches and whether it changes the numbers. "Accept all recommended" is one click
-   for those who want speed; "choose one by one" and "skip" are always offered next to it.
+   for those who want speed; "choose one by one" and "skip" are always offered next to it. In fast mode
+   the user decides once, for the whole run.
 2. **Choices are kept** in `runs/<run-id>/choices.json`. Before the build the user sees all of them and
    can change any; `--resume <run-id>` reopens them later. Never ask again what is already answered,
    unless the user asks to change it.
@@ -36,6 +38,38 @@ Arguments: file paths or a folder (optional – otherwise ask), `--name <report 
    one fact per business process at its lowest grain, flat dimensions, no test rows, no lookup chains,
    one marked date table. [references/modeling-guide.md](references/modeling-guide.md) holds the rules;
    step 4b turns them into proposals the user accepts or declines.
+
+## Fast mode (`--fast`)
+
+For a demo or a first look. With `--fast` in the arguments, or when the user picks "Accept all
+recommended in every step" in step 1, the user has made one choice for the whole run: every question takes
+its recommended option, and nothing more is asked until the hand-over. Only these are still asked:
+
+- the path of the files when none was given (the report name is not asked: `--name`, else the folder name);
+- a run folder that already exists (step 1.4), and Power BI Desktop being open (step 8);
+- installing a missing program (step 0) – never install without a yes.
+
+What each step does instead of asking:
+
+| Step | Fast mode |
+|---|---|
+| 0 | Check Node, the report CLI and Desktop only; Python only when the user asked for the catalog. |
+| 1 | Copy the files into the run folder. |
+| 2 | Include the recommended sheets; append F21 pairs. Show the overview table, no questions. |
+| 3 | The first (recommended) language and number format; proposed names; readable column names. |
+| 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
+| 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
+| 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
+| 6 | No extras (no dashboard, catalog, governance, Desktop check, publishing), unless the user named them in the same message. The overview page and `checks.dax` are always made. |
+| 7 | Show the review summary as a record of the choices, then build without asking. |
+| 8.9 | Draft 3 grounded questions from the measures and dimensions yourself. |
+| 8.11 | List the model-health warnings in the hand-over; do not rebuild. |
+| 9 | Give `checks.dax` and `grounded-answers.dax` to run in Desktop. |
+
+Work in few tool calls: write `choices.json` once after step 5 (not after every table); write the build spec,
+`expected-values.md`, `cleaning-log.md` and `checks.dax` in one turn; run `build-context.js`,
+`model_health.py` and `build-overview.js` in one command after the model validates. The hand-over says the
+run used fast mode and how to change a choice: `/pipeline-power-bi --resume <run-id>`.
 
 Ask with AskUserQuestion: at most 4 questions per call, 2–4 options per question (the tool adds "Other"),
 each question understandable on its own (name the table and column in it). Use `multiSelect` where
@@ -89,7 +123,8 @@ Windows 10/11 with Windows PowerShell 5.1 (Power BI Desktop needs Windows). Chec
 | Power BI Desktop | loading the data, the first refresh, screenshots | `Get-Command PBIDesktop -ErrorAction SilentlyContinue` or `Get-AppxPackage *PowerBI*` | `winget install --id Microsoft.PowerBI -e` |
 | Python 3.12 + openpyxl | only for the data catalog (extra) | `py -3.12 -c "import openpyxl"` | `winget install --id Python.Python.3.12 -e --scope user`, then `-m pip install openpyxl` |
 
-Also check the skills `powerbi-authoring:powerbi-report-cli` and `powerbi-authoring:semantic-model-authoring`
+Run all checks in **one** PowerShell call, and `Get-AppxPackage` only when `Get-Command PBIDesktop` finds
+nothing (it is slow). Check Python only when the catalog may be chosen. Also check the skills `powerbi-authoring:powerbi-report-cli` and `powerbi-authoring:semantic-model-authoring`
 are listed (else: `/plugin marketplace add microsoft/skills-for-fabric`, `/plugin install powerbi-authoring@fabric-collection`, restart).
 Missing programs: one AskUserQuestion (multiSelect) "Which of these should I install now?", install only
 the chosen ones, one command per call, then check the version. Without Node or the CLI the build still
@@ -109,7 +144,9 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
    main file name, readable). Excel's sheets are listed after the profile (step 2).
 3. Ask: "Copy the files into the run folder (Recommended)" – the project keeps working if the originals
    move · "Read them where they are" – a refresh picks up new exports in that folder. Save as
-   `copy_files`; the folder becomes the `SourceFolder` parameter.
+   `copy_files`; the folder becomes the `SourceFolder` parameter. In the same AskUserQuestion call (without
+   `--fast`), ask the pace: "Go through each step (Recommended)" · "Accept all recommended in every step
+   (fastest – see Fast mode)". Save it as `"fast": true|false` in `choices.json`; a `--resume` keeps it.
 4. Run-id `<yyyy-MM-dd>_pbi_<name-in-lowercase-with-dashes>`. Exists already: ask "Continue that run" ·
    "Start again (the old folder is kept as …_old)" · "Stop".
 
