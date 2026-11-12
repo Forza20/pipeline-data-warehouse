@@ -2,8 +2,8 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 115 checks (25–30 s)
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    92 checks (about 15 s): skips the drift checks that run the
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 123 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    96 checks (about 15 s): skips the drift checks that run the
 //                                                                        profiler again and the Python checks
 //                                                                        (model health, grounded answers)
 //
@@ -236,8 +236,12 @@ changed.tables.find((t) => t.name === 'Customer').columns[2].hidden = true;
 const docsChoices = (b) => fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: b,
   checks: [{ name: 'Rows Sales', dax: 'COUNTROWS ( Sales )', expected: 11 }, { name: 'Revenue', dax: '[Revenue]', expected: 100 }] }));
 docsChoices(changed);
+// grounded-answer questions: one filters on Product, one only reads Sales through its measure
+fs.writeFileSync(path.join(run, 'questions.json'), JSON.stringify([{ question: 'Revenue in Web', measure: 'Revenue', filters: { 'Sales[Channel]': 'Web' }, expected: 1 },
+  { question: 'Orders of category X', measure: 'Orders', filters: { "'Product'[Category]": 'X' }, expected: 1 }]));
 let st = docs();
-check('docs: a change no check reads (Product filter, a hidden column) is not stale', (st.checks || {}).stale.length === 0 && st.warnings.length === 0, JSON.stringify(st));
+check('docs: a change no check reads (Product filter, a hidden column) is not a stale check', (st.checks || {}).stale.length === 0, JSON.stringify(st));
+check('docs: …but makes the question that filters on Product stale', JSON.stringify((st.checks || {}).staleQuestions) === '["Orders of category X"]' && /question "Orders of category X"/.test(st.warnings.join(' ')), JSON.stringify(st));
 changed.staging[0].steps.push({ fix: 'F13', columns: ['Ordrenr'] });
 docsChoices(changed);
 st = docs();
@@ -245,7 +249,27 @@ check('docs: a staging change marks the checks on its table and measures stale',
   /changed after the expected values/.test(st.warnings.join(' ')) && rd('expected-values.md').includes('| Rows Sales (stale) |') && rd('checks.dax').includes('// STALE:'), JSON.stringify(st));
 st = docs(['--checks-updated']);
 const st2 = docs();
-check('docs: --checks-updated takes the new basis', (st.checks || {}).stale.length === 0 && (st2.checks || {}).stale.length === 0 && !rd('checks.dax').includes('STALE'), JSON.stringify(st2));
+check('docs: --checks-updated takes the new basis', (st.checks || {}).stale.length === 0 && (st2.checks || {}).stale.length === 0 && (st2.checks || {}).staleQuestions.length === 0 && !rd('checks.dax').includes('STALE'), JSON.stringify(st2));
+check('docs: a staging change on Sales also makes its measure\'s question stale', JSON.stringify(((docsChoices(spec), docs()).checks || {}).staleQuestions || []).includes('Revenue in Web'));
+fs.unlinkSync(path.join(run, 'questions.json'));
+fs.unlinkSync(path.join(run, 'checks-basis.json'));
+
+// run-summary.js: the compact summary for --resume and step 7
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', report_culture: 'en-US', currency: 'USD', fast: true, build: spec,
+  status: { build: 'done' }, extras: { catalog: true, layout: false },
+  tables: { orders: { include: true, table_name: 'Sales', fixes: [{ fix: 'F08', column: 'Dato', keep: true, variant: 'day-first' }, { fix: 'F14', column: 'Beløb', keep: false },
+    { fix: 'F16', column: 'a, b, c, d, e', keep: true }] }, Sheet1: { include: false } },
+  design: { facts: [{ name: 'Sales', grain: 'one order', sources: ['orders'] }], dimensions: [{ name: 'Customer', sources: ['customers'] }],
+    left_out: [{ table: 'Sheet1', reason: 'copy' }], review: [{ point: 'Channel names', status: 'open' }, { point: 'Discount', status: 'confirmed', note: 'gross' }] } }));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run], { encoding: 'utf8' });
+const sum = res.stdout || '';
+check('summary: settings, schema, cleaning, model and review in one text', res.status === 0 && sum.includes('**Test** (`test`) · en-US, USD · fast mode') && sum.includes('**Star schema: 1 facts, 1 dimensions**') &&
+  sum.includes('- orders → Sales: 2 steps – F08 Dato (day-first), F16 a, b … e (5 columns) · not kept: F14 Beløb') && sum.includes('(not included: Sheet1)') &&
+  sum.includes('2 relationships') && sum.includes('Extras: catalog') && sum.includes('**Review points: 1 open, 1 settled**') && sum.includes('- (confirmed) Discount → gross'), sum);
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run, '--json'], { encoding: 'utf8' });
+let sj = {};
+try { sj = JSON.parse(res.stdout); } catch { /* reported below */ }
+check('summary --json: same content as data', sj.run === 'test' && sj.sources.length === 1 && sj.review.open.length === 1 && sj.measures.length === 2, res.stdout.slice(0, 300));
 const py = process.env.PYTHON || 'python';
 if (!QUICK) {
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });
@@ -283,6 +307,25 @@ if (!QUICK) {
   check('handover: decisions, open points and notes from the choices', hmd.includes('- Revenue before discount → gross (confirmed)') && hmd.includes('## Open points\n\n- Channel names\n- One payment after the data date'), hmd.slice(0, 400));
   check('handover: PII hidden and reviewed, grain, role filter, left out', hmd.includes('| Contact[Email] | hidden |') && hmd.includes('| Customer[Customer name] | visible – reviewed, not personal data |') &&
     hmd.includes('| Sales | fact | one order |') && hmd.includes('Role **Test role**') && hmd.includes('- Sheet1: copy of Products'), hmd);
+  // rebuild.js: every script in order, the optional ones skipped with a reason, and a stop at the first failure
+  res = spawnSync('node', [path.join(SKILL, 'scripts', 'rebuild.js'), run], { encoding: 'utf8', env: { ...process.env, PYTHON: py } });
+  let rb = {};
+  try { rb = JSON.parse(res.stdout); } catch { /* reported below */ }
+  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,build-docs,build-context,model-health,grounded-answers,handover,overview', res.stdout.slice(0, 800) + res.stderr);
+  check('rebuild: grounded answers skipped without questions.json, handover run (governance folder)', ((rb.steps || []).find((x) => x.step === 'grounded-answers') || {}).skipped === 'no questions.json yet (step 8.9)' &&
+    ((rb.steps || []).find((x) => x.step === 'handover') || {}).ok && !((rb.steps || []).find((x) => x.step === 'handover') || {}).skipped);
+  check('rebuild: next names the TMDL validation', (rb.next || []).some((x) => /ConnectFolder/.test(x)));
+  const goodChoices = fs.readFileSync(path.join(run, 'choices.json'), 'utf8');
+  const broken = JSON.parse(goodChoices);
+  broken.build = JSON.parse(JSON.stringify(spec));
+  broken.build.relationships.push({ from: 'Sales[No such column]', to: 'Customer[Customer key]' });
+  fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify(broken));
+  const ovBefore = fs.statSync(path.join(run, 'overview.html')).mtimeMs;
+  res = spawnSync('node', [path.join(SKILL, 'scripts', 'rebuild.js'), run], { encoding: 'utf8', env: { ...process.env, PYTHON: py } });
+  try { rb = JSON.parse(res.stdout); } catch { rb = {}; }
+  check('rebuild: a bad spec stops at build-model, later steps not run', res.status === 2 && rb.failedAt === 'build-model' && rb.steps.length === 1 &&
+    /No such column/.test(rb.steps[0].error || '') && fs.statSync(path.join(run, 'overview.html')).mtimeMs === ovBefore, res.stdout.slice(0, 600));
+  fs.writeFileSync(path.join(run, 'choices.json'), goodChoices);
   const pbix = path.join(TMP, 'report.pbix');
   fs.writeFileSync(pbix, 'x');
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'pbip_sources.py'), pbix], { encoding: 'utf8' });

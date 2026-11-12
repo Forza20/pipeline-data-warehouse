@@ -68,10 +68,10 @@ What each step does instead of asking:
 | 9 | Give `checks.dax` and `grounded-answers.dax` to run in Desktop. |
 
 Work in few tool calls: write `choices.json` once after step 5 (not after every table); write the build spec
-and `checks[]` in one turn, then run `build-model.js` and `build-docs.js` in one command; run `build-context.js`,
-`model_health.py` and `build-overview.js` in one command after the model validates; load `pbip-catalog` and
-`pbip-governance` in one turn (parallel Skill calls) and run the catalog's `--missing-only` and governance's
-`parse_pbip.py` + wiki bundle + `build_handover.py` in one command, before `build-overview.js`. The hand-over says the
+and `checks[]` in one turn, scaffold the report, then run `rebuild.js` once (it runs build-model, build-docs,
+build-context, model health, the grounded answers, the handover and the overview in order); load
+`pbip-catalog` and `pbip-governance` in one turn (parallel Skill calls) and run the catalog's
+`--missing-only` and governance's `parse_pbip.py` + wiki bundle in one command. The hand-over says the
 run used fast mode and how to change a choice: `/pipeline-power-bi --resume <run-id>`.
 
 Ask with AskUserQuestion: at most 4 questions per call, 2–4 options per question (the tool adds "Other"),
@@ -159,6 +159,10 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
      delimiters), `.xlsx` and `.xlsm` – CSV and Excel can be mixed – and a Power BI project (below).
      `.xls` (Excel 97–2003): ask the user to save it as `.xlsx` in Excel (File → Save As) – the profiler
      cannot read it. A file open in Excel can still be read; Excel's lock files (`~$…`) are skipped.
+   - **A path inside `runs/<run-id>/`** (its `data/` or `source/` folder, a file in it, or its `pbip/`)
+     belongs to an earlier run. Do not start a new one silently: show `node .claude\skills\pipeline-power-bi\scripts\run-summary.js runs\<run-id>`
+     and ask "Continue that run (Recommended)" – the same as `--resume <run-id>` · "Start a new run from
+     these files" · "Stop".
    - **Demo:** the `demo/` folder of this repository (two CSV files; `demo/README.md` has the expected totals).
    - **Messy dataset:** load the `messy-dataset` skill and generate with `-Rows 2000` (about 10 seconds)
      into `runs/<run-id>/source/`, with `-AnswersDir runs/<run-id>_answers/` – outside the run folder. Do
@@ -186,8 +190,10 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
    `copy_files`; the folder becomes the `SourceFolder` parameter. In the same AskUserQuestion call (without
    `--fast`), ask the pace: "Go through each step (Recommended)" · "Accept all recommended in every step
    (fastest – see Fast mode)". Save it as `"fast": true|false` in `choices.json`; a `--resume` keeps it.
-4. Run-id `<yyyy-MM-dd>_pbi_<name-in-lowercase-with-dashes>`. Exists already: ask "Continue that run" ·
-   "Start again (the old folder is kept as …_old)" · "Stop".
+4. Run-id `<yyyy-MM-dd>_pbi_<name-in-lowercase-with-dashes>`. Exists already: show its `run-summary.js`
+   output and ask "Continue that run" · "Start again (the old folder is kept as …_old)" · "Stop".
+   **`--resume <run-id>`** (or "Continue") always starts with `run-summary.js` – settings, design, cleaning per
+   source, model, extras, open and settled review points, status – shown as it prints, then step 7's question.
 
 ## Step 2 – Profile
 
@@ -364,9 +370,10 @@ so it opens.
 
 ## Step 7 – Review before the build
 
-Show all choices compact: the design first (facts with grain, dimensions, what was merged, staging only
-or left out), then per source one line (`Sales: 9 steps – Parse dates (day-first), Parse amount,
-… · not kept: Zero values`), then relationships, date table, measures, extras. Ask:
+Show all choices compact with `node .claude\skills\pipeline-power-bi\scripts\run-summary.js runs\<run-id>`
+(do not assemble it by hand): the design first (facts with grain, dimensions, staging only, left out), then
+per source one line (`Sales: 9 steps – F08 order_date (day-first), F09 amount … · not kept: F14 amount`),
+then relationships, measures, roles, extras and the review points. Ask:
 "Build the project (Recommended)" · "Change the cleaning of a table" (ask which, then repeat step 4 for
 it) · "Change the model or extras" · "Stop here (choices are saved)". Repeat until "Build" or "Stop".
 
@@ -395,7 +402,7 @@ close it).
    commands from the repository root (not from inside `<Name>.SemanticModel`), and run it again – the
    previous model is kept. The report itself
    comes from `powerbi-report-author scaffold <run>\pbip --name <Name> --model-path ../<Name>.SemanticModel`
-   (first build only). A later change (`--resume`) changes the spec and runs the script again. What the
+   (first build only). A later change (`--resume`) changes the spec and runs `rebuild.js` (below). What the
    script builds, in two layers (source-model.md section 2c):
    - **Staging (not loaded):** one `expression` per included source in query group `01_Stage` (CSV:
      section 2; sheet or Excel table: section 2b), with its kept cleaning steps in catalog order (step
@@ -420,8 +427,22 @@ close it).
    It also keeps `checks-basis.json`: what each model table and measure looked like when `checks[]` were
    computed. After a `--resume` that changes a table a given check reads (a new row, another filter), the
    check is marked *(stale)* in both files and `stale[]` names it: recompute those expected values from the
-   source files (step 2), update `checks[]`, and run `build-docs.js runs\<run-id> --checks-updated`. Never
-   hand over a run with stale checks.
+   source files (step 2), update `checks[]`, and run `build-docs.js runs\<run-id> --checks-updated`. The
+   grounded-answer questions (`questions.json`, step 9) are checked the same way: `staleQuestions[]` names a
+   question whose measure or filtered table changed – recompute its `expected` too. Never hand over a run
+   with stale checks or questions.
+
+   **`rebuild.js` – the one command after the first scaffold and after every later change:**
+   ```
+   node .claude\skills\pipeline-power-bi\scripts\rebuild.js runs\<run-id> [--checks-updated] [--validate-report]
+   ```
+   It runs build-model, build-docs, build-context (step 10), model health (step 11), the grounded answers
+   (step 9, once `questions.json` exists), the handover (`build_handover.py`, when governance was chosen) and
+   the overview (step 7) in this order and stops at the first that fails (`failedAt`; exit code 3 = locked
+   model folder, as above). Read its `warnings`, `stale`, `staleQuestions` and `next` – `next` lists what it
+   does not do: the TMDL validation through powerbi-modeling-mcp, and rerunning the catalog and the
+   governance wiki through their skills. On the first build, run steps 5–9 below as described; the separate
+   commands in them are what `rebuild.js` runs.
 5. Validate:
    - TMDL: when `powerbi-modeling-mcp` is available, `connection_operations` → `ConnectFolder` on
      `<Name>.SemanticModel/definition` (parses the model offline), then **`Disconnect`** – an open
@@ -567,12 +588,16 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
   choices (step 8.6), with pbip-governance's PII heuristic and role parser.
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
+- [scripts/rebuild.js](scripts/rebuild.js) – the run's scripts in order after a change (model → docs →
+  context → health → grounded answers → handover → overview), stopping at the first failure; one JSON result.
+- [scripts/run-summary.js](scripts/run-summary.js) – the compact summary of a run's choices for `--resume`,
+  step 1.4 and step 7 (Markdown, or `--json`).
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 115 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks, build_handover), the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 123 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
-  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 92
-  of the 115 checks in about half the time (no drift or Python checks) for use while working; a change is
+  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 96
+  of the 123 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

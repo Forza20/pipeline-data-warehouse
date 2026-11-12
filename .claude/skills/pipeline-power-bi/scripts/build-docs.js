@@ -9,7 +9,7 @@
 //
 // checks-basis.json (in the run folder) remembers what the model looked like when checks[] were computed. When a
 // table or measure that a given check reads has changed since, the check is marked (stale) and a warning names
-// it. After recomputing those values, --checks-updated takes the new model as the basis.
+// it; questions in questions.json (the grounded-answer test) are checked the same way (staleQuestions). After recomputing those values, --checks-updated takes the new model as the basis.
 //
 // Run it after build-model.js. Reads choices.json (build, tables, checks, expected_notes), profile.json and
 // pbip/<Name>.SemanticModel/definition. The expected values are the one thing it does not compute: they come
@@ -188,8 +188,13 @@ for (const m of B.measures || []) basis.measures[m.name] = hash(m.expr);
 const basisFile = path.join(runDir, 'checks-basis.json');
 const acceptChecks = process.argv.includes('--checks-updated');
 let stale = [];
+let staleQuestions = [];
 let changedParts = [];
-if (checks.some((c) => !c.auto)) {
+// the grounded-answer test (questions.json) has expected values computed from the source files too
+const qFile = path.join(runDir, 'questions.json');
+let questions = [];
+try { if (fs.existsSync(qFile)) { const raw = readJson(qFile); questions = Array.isArray(raw) ? raw : (raw.questions || []); } } catch (e) { warnings.push(`questions.json could not be read: ${e.message}`); }
+if (checks.some((c) => !c.auto) || questions.length) {
   const old = fs.existsSync(basisFile) ? readJson(basisFile) : null;
   if (old && !acceptChecks) {
     const changedT = Object.keys(basis.tables).filter((n) => old.tables && old.tables[n] && old.tables[n] !== basis.tables[n]);
@@ -208,14 +213,19 @@ if (checks.some((c) => !c.auto)) {
     changedParts = [...changedT, ...[...changedM].map((n) => `[${n}]`)];
     stale = checks.filter((c) => !c.auto && (changedT.some((n) => readsTable(c.dax, n)) || [...touched].some((x) => c.dax.includes(`[${x}]`))));
     for (const c of stale) c.stale = true;
-    if (stale.length) {
-      warnings.push(`the design changed after the expected values were computed (${changedParts.join(', ')}). ` +
-        `Recompute from the source files: ${stale.map((c) => c.name).join('; ')}. ` +
-        'Update checks[] in choices.json, then run build-docs.js again with --checks-updated.');
+    // a question is stale when its measure is touched, or a table it filters on (or its role's table) changed
+    const roleTable = new Map((B.roles || []).map((r) => [low(r.name), r.table]));
+    staleQuestions = questions.filter((x) => x && (touched.has(x.measure) ||
+      Object.keys(x.filters || {}).some((f) => { const r = ref(f); return r && changedT.includes(r.table.replace(/^'|'$/g, '')); }) ||
+      (x.role && changedT.includes(roleTable.get(low(x.role)))))).map((x) => x.question || x.measure);
+    if (stale.length || staleQuestions.length) {
+      warnings.push(`the design changed after the expected values were computed (${changedParts.join(', ')}). Recompute from the source files: ` +
+        [...stale.map((c) => c.name), ...staleQuestions.map((x) => `question "${x}"`)].join('; ') + '. ' +
+        'Update checks[] in choices.json and expected in questions.json (then rerun grounded_answers.py), and run build-docs.js again with --checks-updated.');
     }
   }
-  // a change no given check reads needs no new numbers, so its fingerprint is taken at once
-  if (!old || acceptChecks || !stale.length) fs.writeFileSync(basisFile, JSON.stringify({ written: new Date().toISOString().slice(0, 10), ...basis }, null, 1), 'utf8');
+  // a change no given check or question reads needs no new numbers, so its fingerprint is taken at once
+  if (!old || acceptChecks || (!stale.length && !staleQuestions.length)) fs.writeFileSync(basisFile, JSON.stringify({ written: new Date().toISOString().slice(0, 10), ...basis }, null, 1), 'utf8');
 }
 
 // ---------- expected-values.md ----------
@@ -243,5 +253,5 @@ const dax = [`// Control check for ${NAME} (${RUN}). Written by build-docs.js.`,
 fs.writeFileSync(path.join(runDir, 'checks.dax'), dax.join('\n'), 'utf8');
 
 console.log(JSON.stringify({ ok: true, cleaningLog: { sources: (B.staging || []).length, findings: nFind, kept: nKept, notKept: nFind - nKept },
-  checks: { given: checks.filter((c) => !c.auto).length, auto: checks.filter((c) => c.auto).length, stale: stale.map((c) => c.name) },
+  checks: { given: checks.filter((c) => !c.auto).length, auto: checks.filter((c) => c.auto).length, stale: stale.map((c) => c.name), staleQuestions },
   files: ['cleaning-log.md', 'expected-values.md', 'checks.dax'].map((f) => path.join(runDir, f)), warnings }, null, 1));
