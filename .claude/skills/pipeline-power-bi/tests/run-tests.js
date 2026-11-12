@@ -156,6 +156,8 @@ check('build: no tabs replaced by spaces', !/\n {2,}\S/.test(ex));
 const sales = fs.existsSync(path.join(def, 'tables', 'Sales.tmdl')) ? fs.readFileSync(path.join(def, 'tables', 'Sales.tmdl'), 'utf8') : '';
 check('build: Sales ends with final types', sales.includes('#"M99 Set final types"'));
 check('build: hidden key column', /column 'Customer key'\n\t\tdataType: int64\n\t\tisHidden/.test(sales));
+// Desktop refuses NestedJoin with key comparers ("Local evaluation … with key equality comparers is not supported")
+check('build: case-insensitive merge without join comparers', !/NestedJoin\([^\n]*Comparer\./.test(sales) && /Text\.Lower\(Text\.From\(\[#"Customer ID"\]\)\)/.test(sales) && /Table\.RemoveColumns\(Table\.ExpandTableColumn/.test(sales));
 check('build: date table marked', /dataCategory: Time/.test(fs.readFileSync(path.join(def, 'tables', 'Date.tmdl'), 'utf8')));
 check('build: role file', fs.existsSync(path.join(def, 'roles', 'Test role.tmdl')));
 check('build: model refs role', /ref role 'Test role'/.test(fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8')));

@@ -77,7 +77,7 @@ F01 is built from `kind`/`header`/`columns`; F02, F26 come from the table column
 
 | op | Keys |
 |---|---|
-| `merge` | `with` (query name, `{from, filter}` or `{group:{from, by, aggs:[{name, fn: min/max/sum/count/maxIfAll, column, type}]}}`), `on`, `withOn`, `columns`, `as`, `ignoreCase` |
+| `merge` | `with` (query name, `{from, filter}` or `{group:{from, by, aggs:[{name, fn: min/max/sum/count/maxIfAll, column, type}]}}`), `on`, `withOn`, `columns`, `as`, `ignoreCase` (joins on lower-case helper columns `__key1…`, removed after the expand – Desktop refuses join comparers) |
 | `select` | `columns` |
 | `distinct` | `columns` (optional) |
 | `filter` | `expr` (M condition on `[Column]`) |
