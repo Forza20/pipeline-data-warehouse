@@ -84,7 +84,7 @@ F01 is built from `kind`/`header`/`columns`; F02, F26 come from the table column
 | `addKey` | `name`, `sortBy` (sort first so keys stay stable) |
 | `addColumn` | `name`, `expr` (M, rows as `[Column]`), `type`, `label` |
 | `transform` | `column`, `expr` (M on `_`), `type` |
-| `inferMembers` (F18) | `key`, `fromColumns` [`query[column]`], `defaults` {column: M expression on `_`}, `flag` |
+| `inferMembers` (F18) | `key`, `fromColumns` [`query[column]`], `defaults` {column: M expression on `_`, `_` = the missing key value}, `flag`. Matches ignore case. Can be used more than once on a table with different keys (product name from the order lines, product code from the campaigns); they share the flag column. |
 | `m` | `label`, `expr` with `<prev>` |
 - `columns`: the final columns in order – `name` (in the report), `from` (column in the query, default
   `name`), `type` (`text`, `int`, `key`, `number`, `currency`, `percent`, `date`, `datetime`, `bool`),

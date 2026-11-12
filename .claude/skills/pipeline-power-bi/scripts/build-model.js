@@ -232,8 +232,11 @@ function op(q, o, t) {
       q.add(`F18 Missing ${o.key} values`, `let\n\tKnown = List.Transform(Table.Column(<prev>, ${ms(o.key)}), each Text.Lower(Text.From(_))),\n\tUsed = List.Distinct(List.RemoveNulls(List.Combine({${used}})))\nin\n\tList.Distinct(List.Select(Used, each not List.Contains(Known, Text.Lower(Text.From(_)))), Comparer.OrdinalIgnoreCase)`);
       const missing = q.prev();
       const before = q.steps[q.steps.length - 2][0];
+      const prevT = before === 'Source' ? 'Source' : mid(before);
+      const flag = ms(o.flag || 'IsInferred');
       const fields = [`${mid(o.key)} = _`, ...Object.entries(o.defaults || {}).map(([k, v]) => `${mid(k)} = ${v}`), `${mid(o.flag || 'IsInferred')} = true`].join(', ');
-      return q.add(`F18 Add missing ${o.key} values`, `Table.Combine({Table.AddColumn(${before === 'Source' ? 'Source' : mid(before)}, ${ms(o.flag || 'IsInferred')}, each false, type logical), Table.FromRecords(List.Transform(${missing}, each [${fields}]))})`);
+      // a second inferMembers on the same table (other key, e.g. product name and product code) reuses the flag column
+      return q.add(`F18 Add missing ${o.key} values`, `Table.Combine({if Table.HasColumns(${prevT}, ${flag}) then ${prevT} else Table.AddColumn(${prevT}, ${flag}, each false, type logical), Table.FromRecords(List.Transform(${missing}, each [${fields}]))})`);
     }
     case 'm': return q.m(o.label, o.expr);
     default: errors.push(`${t.name}: unknown op ${o.op}`); return q;

@@ -71,12 +71,14 @@ Work in few tool calls: write `choices.json` once after step 5 (not after every 
 and `checks[]` in one turn, then run `build-model.js` and `build-docs.js` in one command; run `build-context.js`,
 `model_health.py` and `build-overview.js` in one command after the model validates; load `pbip-catalog` and
 `pbip-governance` in one turn (parallel Skill calls) and run the catalog's `--missing-only` and governance's
-`parse_pbip.py` + wiki bundle in one command, before `build-overview.js`. The hand-over says the
+`parse_pbip.py` + wiki bundle + `build_handover.py` in one command, before `build-overview.js`. The hand-over says the
 run used fast mode and how to change a choice: `/pipeline-power-bi --resume <run-id>`.
 
 Ask with AskUserQuestion: at most 4 questions per call, 2–4 options per question (the tool adds "Other"),
 each question understandable on its own (name the table and column in it). Use `multiSelect` where
-several options can be kept; single-select for variants that exclude each other.
+several options can be kept; single-select for variants that exclude each other. **Anything the user has to
+type (code names, a threshold, a person's name) is asked as a plain chat message, never as an option** – an
+option such as "I'll type them" comes back with no text, because typing is only possible under "Other".
 
 ## Files
 
@@ -90,7 +92,8 @@ runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
     checks.dax                     # the same checks as one DAX query (Desktop → DAX query view)
     overview.html                  # project overview page (build-overview.js)
     layout-mapping.md              # from pbip-layout (when the dashboard is chosen)
-    governance/                    # from pbip-governance: model.json, handover.md, <Name>_azdo_wiki.zip
+    checks-basis.json              # what the model looked like when checks[] were computed (build-docs.js)
+    governance/                    # model.json, <Name>_azdo_wiki.zip (pbip-governance), handover.md (build_handover.py)
     pbip/<Name>.pbip, <Name>.Report/, <Name>.SemanticModel/
 ```
 
@@ -256,7 +259,9 @@ question ("Sheet Salg in salg.xlsx"). Facts first, then dimensions, then the res
     the first fields of each row), so the user sees *which* rows go. A copy from a migration often has an
     odd `source_id` or a code outside the normal range; say so when the examples show it, and offer to
     remove exactly those rows instead of "keep first".
-  - **F28 (codes):** ask in chat for the names ("10 = Web, 20 = Store …"); with no answer keep the code.
+  - **F28 (codes):** ask for the names in a chat message after the AskUserQuestion call, not as an option
+    in it ("Write the names as 10 = Web, 20 = Store …, or 'keep' to keep the codes"), and wait for the
+    reply; with no names keep the codes and record the point as open in `design.review`.
   - multiSelect, one option per finding: label = fix in plain words + column ("Parse 4 date formats in
     order_date"); description = the profile's `detail`, rows affected, "changes the totals" when the
     catalog says so, and "(Recommended)" when recommended. Tell the user once: "Tick the steps you
@@ -412,6 +417,11 @@ close it).
    `checks[]` from step 2, plus automatic checks with expected 0: fact rows without a dimension row per
    active relationship, and test rows left per kept F27). Read its `warnings` (a check without `dax` or a
    numeric `expected` is skipped) and run it again after every rebuild.
+   It also keeps `checks-basis.json`: what each model table and measure looked like when `checks[]` were
+   computed. After a `--resume` that changes a table a given check reads (a new row, another filter), the
+   check is marked *(stale)* in both files and `stale[]` names it: recompute those expected values from the
+   source files (step 2), update `checks[]`, and run `build-docs.js runs\<run-id> --checks-updated`. Never
+   hand over a run with stale checks.
 5. Validate:
    - TMDL: when `powerbi-modeling-mcp` is available, `connection_operations` → `ConnectFolder` on
      `<Name>.SemanticModel/definition` (parses the model offline), then **`Disconnect`** – an open
@@ -440,11 +450,16 @@ close it).
      description status, possible PII, and how much upstream lineage it could trace. With a staging layer
      the trace stops at merges – say how many fields reach the source.
    - **pbip-governance**: `parse_pbip.py <pbip>` (capture stdout from Python, not a PowerShell `>` – that
-     adds a BOM), then `generate_azdo_wiki.py <json> --output governance/<Name>_azdo_wiki.zip`, and a
-     handover Markdown `governance/handover.md` (its step 3, option 2). Its PII audit must agree with the
+     adds a BOM), then `generate_azdo_wiki.py <json> --output governance/<Name>_azdo_wiki.zip`. The handover
+     Markdown is **not** written by hand: `python .claude\skills\pipeline-power-bi\scripts\build_handover.py runs\<run-id>`
+     writes `governance/handover.md` from the model and `choices.json` (model, source, PII audit, RLS,
+     decisions = settled `design.review` points, open points = open ones + `handover_notes[]`, left out,
+     documentation). Rerun it after every rebuild. Its PII audit must agree with the
      model: a **visible** column flagged as personal data (a person's name such as an account manager)
      goes back to the user as a question – hide it, keep it visible, or remove it – and on hide/remove the
-     TMDL is changed and validated again.
+     TMDL is changed and validated again. A flagged column the user says is not personal data (company
+     names) goes into `choices.json` → `pii_not_personal[]` ("Customer[Customer name]"), so it is shown as
+     reviewed and not asked again.
    - If a skill fails, finish the run without it, say what failed and how to rerun it alone.
 7. **Overview page** (always):
    `node .claude\skills\pipeline-power-bi\scripts\build-overview.js runs\<run-id> [--colors <file.json>] [--vault "<vault>" --folder <folder>]`
@@ -546,15 +561,18 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/Check-Tools.ps1](scripts/Check-Tools.ps1) – step 0's checks of Node, the report CLI, Desktop and
   Python in one call (JSON); installs nothing.
 - [scripts/build-docs.js](scripts/build-docs.js) – `cleaning-log.md`, `expected-values.md` and `checks.dax`
-  from the profile, the choices, `checks[]` and the generated model (step 8.4).
+  from the profile, the choices, `checks[]` and the generated model (step 8.4); marks checks made stale by a
+  later design change (`checks-basis.json`, `--checks-updated`).
+- [scripts/build_handover.py](scripts/build_handover.py) – `governance/handover.md` from the model and the
+  choices (step 8.6), with pbip-governance's PII heuristic and role parser.
 - [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
   from the run folder.
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 103 checks of the profiler, the model generator, the hand-over files (build-docs), the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 115 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks, build_handover), the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
-  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 83
-  of the 103 checks in about half the time (no drift or Python checks) for use while working; a change is
+  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 92
+  of the 115 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

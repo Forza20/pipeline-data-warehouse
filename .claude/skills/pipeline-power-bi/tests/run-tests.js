@@ -2,8 +2,8 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 103 checks (25–30 s)
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    83 checks (about 15 s): skips the drift checks that run the
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 115 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    92 checks (about 15 s): skips the drift checks that run the
 //                                                                        profiler again and the Python checks
 //                                                                        (model health, grounded answers)
 //
@@ -88,7 +88,8 @@ const spec = {
   ],
   tables: [
     { name: 'Customer', kind: 'dimension', from: 'stg_customers',
-      ops: [{ op: 'inferMembers', key: 'KundeID', fromColumns: ['stg_orders[KundeID]'], defaults: { Navn: '"Unknown"' } }, { op: 'addKey', name: 'CustomerKey', sortBy: ['KundeID'] }],
+      ops: [{ op: 'inferMembers', key: 'KundeID', fromColumns: ['stg_orders[KundeID]'], defaults: { Navn: '"Unknown"' } },
+        { op: 'inferMembers', key: 'Navn', fromColumns: ['stg_contacts[ContactName]'], defaults: { Segment: '"Unknown"' } }, { op: 'addKey', name: 'CustomerKey', sortBy: ['KundeID'] }],
       columns: [{ name: 'Customer key', from: 'CustomerKey', type: 'key', hidden: true }, { name: 'Customer ID', from: 'KundeID', type: 'text' },
         { name: 'Customer name', from: 'Navn', type: 'text' }, { name: 'Is inferred', from: 'IsInferred', type: 'bool' }] },
     { name: 'Sales', kind: 'fact', from: 'stg_orders',
@@ -158,6 +159,9 @@ check('build: Sales ends with final types', sales.includes('#"M99 Set final type
 check('build: hidden key column', /column 'Customer key'\n\t\tdataType: int64\n\t\tisHidden/.test(sales));
 // Desktop refuses NestedJoin with key comparers ("Local evaluation … with key equality comparers is not supported")
 check('build: case-insensitive merge without join comparers', !/NestedJoin\([^\n]*Comparer\./.test(sales) && /Text\.Lower\(Text\.From\(\[#"Customer ID"\]\)\)/.test(sales) && /Table\.RemoveColumns\(Table\.ExpandTableColumn/.test(sales));
+const cust = fs.existsSync(path.join(def, 'tables', 'Customer.tmdl')) ? fs.readFileSync(path.join(def, 'tables', 'Customer.tmdl'), 'utf8') : '';
+check('build: two inferMembers on one table share the flag column', cust.includes('#"F18 Add missing KundeID values"') && cust.includes('#"F18 Add missing Navn values"') &&
+  (cust.match(/if Table\.HasColumns\([^,]+, "IsInferred"\) then/g) || []).length === 2 && (cust.match(/column 'Is inferred'/g) || []).length === 1);
 check('build: date table marked', /dataCategory: Time/.test(fs.readFileSync(path.join(def, 'tables', 'Date.tmdl'), 'utf8')));
 check('build: role file', fs.existsSync(path.join(def, 'roles', 'Test role.tmdl')));
 check('build: model refs role', /ref role 'Test role'/.test(fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8')));
@@ -223,6 +227,25 @@ check('docs: a finding without a step is "not kept"', /\| F26 \| Email \| \d+ \|
 check('docs: a fix built in a model table is kept there', clog.includes('in Customer: `F18 Missing KundeID values`'));
 check('docs: automatic orphan and test-row checks', cdax.includes('"Sales rows without Customer"') && cdax.includes('\'Customer\'[Customer ID] IN { "K-100" }') && cdax.includes('\'Product\'[Product code] IN { "ZZZ-000" }') && (bd.checks || {}).auto === 4, JSON.stringify(bd.checks));
 check('docs: given check in DAX and expected values', cdax.includes('( "Rows Sales", COUNTROWS ( Sales ), 11 )') && cev.includes('| Rows Sales | 11 | F03, F04, F12 | |') && cev.includes('The I alt row does not match.'));
+// stale checks: a design change after the expected values were computed marks the checks that read it
+const docs = (extra = []) => { const r = spawnSync('node', [path.join(SKILL, 'scripts', 'build-docs.js'), run, ...extra], { encoding: 'utf8' }); try { return JSON.parse(r.stdout); } catch { return { raw: r.stdout + r.stderr }; } };
+check('docs: checks-basis.json written on the first run', fs.existsSync(path.join(run, 'checks-basis.json')) && (bd.checks || {}).stale.length === 0);
+const changed = JSON.parse(JSON.stringify(spec));
+changed.tables.find((t) => t.name === 'Product').ops = [{ op: 'filter', expr: '[ProductCode] <> null' }];
+changed.tables.find((t) => t.name === 'Customer').columns[2].hidden = true;
+const docsChoices = (b) => fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: b,
+  checks: [{ name: 'Rows Sales', dax: 'COUNTROWS ( Sales )', expected: 11 }, { name: 'Revenue', dax: '[Revenue]', expected: 100 }] }));
+docsChoices(changed);
+let st = docs();
+check('docs: a change no check reads (Product filter, a hidden column) is not stale', (st.checks || {}).stale.length === 0 && st.warnings.length === 0, JSON.stringify(st));
+changed.staging[0].steps.push({ fix: 'F13', columns: ['Ordrenr'] });
+docsChoices(changed);
+st = docs();
+check('docs: a staging change marks the checks on its table and measures stale', JSON.stringify((st.checks || {}).stale) === '["Rows Sales","Revenue"]' &&
+  /changed after the expected values/.test(st.warnings.join(' ')) && rd('expected-values.md').includes('| Rows Sales (stale) |') && rd('checks.dax').includes('// STALE:'), JSON.stringify(st));
+st = docs(['--checks-updated']);
+const st2 = docs();
+check('docs: --checks-updated takes the new basis', (st.checks || {}).stale.length === 0 && (st2.checks || {}).stale.length === 0 && !rd('checks.dax').includes('STALE'), JSON.stringify(st2));
 const py = process.env.PYTHON || 'python';
 if (!QUICK) {
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });
@@ -247,6 +270,19 @@ if (!QUICK) {
   const psNames = (ps.files || []).filter((f) => f.exists).map((f) => path.basename(f.path)).sort().join(',');
   check('own pbip: finds its three source files', res.status === 0 && psNames === 'customers.csv,orders.csv,workbook.xlsx', psNames + res.stderr);
   check('own pbip: tables named per file', ((ps.files || []).find((f) => path.basename(f.path) === 'orders.csv') || { tables: [] }).tables.includes('Sales'));
+  // governance/handover.md from the model and the choices
+  fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, pii_not_personal: ['Customer[Customer name]'],
+    handover_notes: ['One payment after the data date is left out.'],
+    design: { facts: [{ name: 'Sales', grain: 'one order' }], review: [{ point: 'Revenue before discount', status: 'confirmed', note: 'gross' },
+      { point: 'Channel names', status: 'open' }], left_out: [{ table: 'Sheet1', reason: 'copy of Products' }] } }));
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'build_handover.py'), run], { encoding: 'utf8' });
+  let ho = {};
+  try { ho = JSON.parse(res.stdout); } catch { /* reported below */ }
+  const hmd = rd(path.join('governance', 'handover.md'));
+  check('handover: ok, one role, nothing visible to review', res.status === 0 && ho.ok && ho.roles === 1 && ho.pii.visible === 0, res.stdout + res.stderr);
+  check('handover: decisions, open points and notes from the choices', hmd.includes('- Revenue before discount → gross (confirmed)') && hmd.includes('## Open points\n\n- Channel names\n- One payment after the data date'), hmd.slice(0, 400));
+  check('handover: PII hidden and reviewed, grain, role filter, left out', hmd.includes('| Contact[Email] | hidden |') && hmd.includes('| Customer[Customer name] | visible – reviewed, not personal data |') &&
+    hmd.includes('| Sales | fact | one order |') && hmd.includes('Role **Test role**') && hmd.includes('- Sheet1: copy of Products'), hmd);
   const pbix = path.join(TMP, 'report.pbix');
   fs.writeFileSync(pbix, 'x');
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'pbip_sources.py'), pbix], { encoding: 'utf8' });

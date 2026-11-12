@@ -5,7 +5,11 @@
 //   expected-values.md  the checks with their expected values and the fixes they assume, + choices.expected_notes
 //   checks.dax          one EVALUATE with a row per check (In Power BI, Expected, Difference)
 //
-//   node build-docs.js runs/<run-id>
+//   node build-docs.js runs/<run-id> [--checks-updated]
+//
+// checks-basis.json (in the run folder) remembers what the model looked like when checks[] were computed. When a
+// table or measure that a given check reads has changed since, the check is marked (stale) and a warning names
+// it. After recomputing those values, --checks-updated takes the new model as the basis.
 //
 // Run it after build-model.js. Reads choices.json (build, tables, checks, expected_notes), profile.json and
 // pbip/<Name>.SemanticModel/definition. The expected values are the one thing it does not compute: they come
@@ -158,13 +162,71 @@ for (const st of B.staging || []) {
   }
 }
 
+// ---------- are the given checks older than the design? ----------
+// checks-basis.json keeps a fingerprint per model table and per measure from the time the expected values
+// were computed. A table whose spec (or a staging query or table it is built from) changed since then, or a
+// measure whose formula changed, makes the given checks that read it stale. Recompute those from the source
+// files, update checks[], then run with --checks-updated to take the new fingerprints.
+const crypto = require('crypto');
+const hash = (o) => crypto.createHash('sha1').update(JSON.stringify(o)).digest('hex').slice(0, 12);
+const stagingByName = new Map((B.staging || []).map((s) => [s.name, s]));
+const tableByName = new Map((B.tables || []).map((t) => [t.name, t]));
+const tableHash = new Map();
+function fpTable(t, seen = new Set()) {
+  if (tableHash.has(t.name)) return tableHash.get(t.name);
+  seen.add(t.name);
+  const deps = [];
+  for (const [n, s] of stagingByName) if (usesQuery(t, n)) deps.push(['staging', n, s]);
+  for (const [n, o] of tableByName) if (n !== t.name && !seen.has(n) && usesQuery(t, n)) deps.push(['table', n, fpTable(o, seen)]);
+  const h = hash({ from: t.from, ops: t.ops || [], columns: (t.columns || []).map((c) => [c.name, c.from || c.name, c.type]), deps });
+  tableHash.set(t.name, h);
+  return h;
+}
+const basis = { tables: {}, measures: {} };
+for (const t of B.tables || []) basis.tables[t.name] = fpTable(t);
+for (const m of B.measures || []) basis.measures[m.name] = hash(m.expr);
+const basisFile = path.join(runDir, 'checks-basis.json');
+const acceptChecks = process.argv.includes('--checks-updated');
+let stale = [];
+let changedParts = [];
+if (checks.some((c) => !c.auto)) {
+  const old = fs.existsSync(basisFile) ? readJson(basisFile) : null;
+  if (old && !acceptChecks) {
+    const changedT = Object.keys(basis.tables).filter((n) => old.tables && old.tables[n] && old.tables[n] !== basis.tables[n]);
+    const changedM = new Set(Object.keys(basis.measures).filter((n) => old.measures && old.measures[n] && old.measures[n] !== basis.measures[n]));
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const readsTable = (text, n) => new RegExp(`'${esc(n.replace(/'/g, "''"))}'|(^|[^\\w'\\[])${esc(n)}\\s*[\\[),]`).test(text);
+    // a measure is touched when its formula changed, or it reads a changed table or a touched measure
+    const touched = new Set(changedM);
+    for (let more = true; more;) {
+      more = false;
+      for (const m of B.measures || []) {
+        if (touched.has(m.name)) continue;
+        if (changedT.some((n) => readsTable(m.expr, n)) || [...touched].some((x) => m.expr.includes(`[${x}]`))) { touched.add(m.name); more = true; }
+      }
+    }
+    changedParts = [...changedT, ...[...changedM].map((n) => `[${n}]`)];
+    stale = checks.filter((c) => !c.auto && (changedT.some((n) => readsTable(c.dax, n)) || [...touched].some((x) => c.dax.includes(`[${x}]`))));
+    for (const c of stale) c.stale = true;
+    if (stale.length) {
+      warnings.push(`the design changed after the expected values were computed (${changedParts.join(', ')}). ` +
+        `Recompute from the source files: ${stale.map((c) => c.name).join('; ')}. ` +
+        'Update checks[] in choices.json, then run build-docs.js again with --checks-updated.');
+    }
+  }
+  // a change no given check reads needs no new numbers, so its fingerprint is taken at once
+  if (!old || acceptChecks || !stale.length) fs.writeFileSync(basisFile, JSON.stringify({ written: new Date().toISOString().slice(0, 10), ...basis }, null, 1), 'utf8');
+}
+
 // ---------- expected-values.md ----------
 const fmt = (n) => (Number.isInteger(n) ? n.toLocaleString('en-US') : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const ev = [`# Expected values – ${NAME} (${RUN})`, '',
   'Computed from the source files with the kept cleaning steps, not from the model. Fill in "In Power BI" after a',
   'refresh (run `checks.dax` in DAX query view). Rows marked (auto) are model checks added by `build-docs.js`.', '',
+  ...(stale.length ? [`> **Stale:** the design changed after these values were computed (${changedParts.join(', ')}). Rows marked`,
+    '> (stale) must be recomputed from the source files before the check means anything.', ''] : []),
   '| Check | Expected | Assumes | In Power BI |', '|---|---|---|---|',
-  ...checks.map((c) => `| ${cell(c.name)}${c.auto ? ' (auto)' : ''} | ${fmt(c.expected)} | ${cell(c.assumes)} | |`), ''];
+  ...checks.map((c) => `| ${cell(c.name)}${c.auto ? ' (auto)' : ''}${c.stale ? ' (stale)' : ''} | ${fmt(c.expected)} | ${cell(c.assumes)} | |`), ''];
 if (choices.expected_notes) ev.push(String(choices.expected_notes).trim(), '');
 fs.writeFileSync(path.join(runDir, 'expected-values.md'), ev.join('\n'), 'utf8');
 
@@ -172,7 +234,8 @@ fs.writeFileSync(path.join(runDir, 'expected-values.md'), ev.join('\n'), 'utf8')
 const daxStr = (s) => `"${String(s).replace(/"/g, '""')}"`;
 const dax = [`// Control check for ${NAME} (${RUN}). Written by build-docs.js.`,
   '// Power BI Desktop → Refresh → DAX query view (left bar) → paste this → Run.',
-  '// Every Difference should be 0. Expected values: expected-values.md (computed from the source files).', '',
+  '// Every Difference should be 0. Expected values: expected-values.md (computed from the source files).',
+  ...(stale.length ? [`// STALE: the design changed after the expected values were computed – recompute: ${stale.map((c) => c.name).join('; ')}`] : []), '',
   'EVALUATE', 'VAR Checks =', '    {',
   checks.map((c) => `        ( ${daxStr(c.name)}, ${c.dax}, ${c.expected} )`).join(',\n'),
   '    }', 'RETURN', '    SELECTCOLUMNS (', '        Checks,', '        "Check", [Value1],', '        "In Power BI", [Value2],',
@@ -180,5 +243,5 @@ const dax = [`// Control check for ${NAME} (${RUN}). Written by build-docs.js.`,
 fs.writeFileSync(path.join(runDir, 'checks.dax'), dax.join('\n'), 'utf8');
 
 console.log(JSON.stringify({ ok: true, cleaningLog: { sources: (B.staging || []).length, findings: nFind, kept: nKept, notKept: nFind - nKept },
-  checks: { given: checks.filter((c) => !c.auto).length, auto: checks.filter((c) => c.auto).length },
+  checks: { given: checks.filter((c) => !c.auto).length, auto: checks.filter((c) => c.auto).length, stale: stale.map((c) => c.name) },
   files: ['cleaning-log.md', 'expected-values.md', 'checks.dax'].map((f) => path.join(runDir, f)), warnings }, null, 1));
