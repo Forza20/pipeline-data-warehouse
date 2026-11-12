@@ -566,7 +566,7 @@ function parseTableTMDL(text) {
     // Column / Measure / Partition blocks (indented ~1 tab from table)
     if (/^column\s+/.test(trimmed)) {
       const nameMatch = trimmed.match(/^column\s+(.+?)\s*(=.*)?$/);
-      const col = { name: unquoteTMDL(nameMatch ? nameMatch[1] : ''), dataType: '', isHidden: false, isKey: false, isCalculated: /=/.test(trimmed) };
+      const col = { name: unquoteTMDL(nameMatch ? nameMatch[1] : ''), dataType: '', isHidden: false, isKey: false, isCalculated: /=/.test(trimmed), annotations: {} };
       const base = indent;
       i++;
       while (i < lines.length) {
@@ -576,6 +576,8 @@ function parseTableTMDL(text) {
         if (dt) col.dataType = dt[1];
         if (/^isHidden\s*:?\s*true/i.test(t)) col.isHidden = true;
         if (/^isKey\s*:?\s*true/i.test(t)) col.isKey = true;
+        const an = t.match(/^annotation\s+('[^']+'|\S+)\s*=\s*(.*)$/);
+        if (an) col.annotations[unquoteTMDL(an[1])] = an[2].trim();
         i++;
       }
       table.columns.push(col);
@@ -739,7 +741,8 @@ function parseTMSL(obj, model) {
     for (const t of m.tables) {
       const table = { name: t.name, isHidden: !!t.isHidden, dataCategory: t.dataCategory || '', description: t.description || '', columns: [], measures: [], partitions: [] };
       (t.columns || []).forEach(c => table.columns.push({
-        name: c.name, dataType: c.dataType || '', isHidden: !!c.isHidden, isKey: !!c.isKey, isCalculated: c.type === 'calculated'
+        name: c.name, dataType: c.dataType || '', isHidden: !!c.isHidden, isKey: !!c.isKey, isCalculated: c.type === 'calculated',
+        annotations: Object.fromEntries((c.annotations || []).filter(a => a && a.name).map(a => [a.name, a.value]))
       }));
       (t.measures || []).forEach(me => table.measures.push({
         name: me.name, expression: Array.isArray(me.expression) ? me.expression.join('\n') : (me.expression || ''),
@@ -999,12 +1002,26 @@ function renderOverview() {
 
 function countPII() {
   let n = 0;
-  for (const t of state.model.tables) for (const c of t.columns) if (isPII(c.name, t.name)) n++;
+  for (const t of state.model.tables) for (const c of t.columns) if (isPII(c.name, t.name, c)) n++;
   return n;
 }
 
-function isPII(colName, tableName) {
+// A column a person reviewed as not personal data carries `annotation PII = not personal` in its TMDL;
+// it is not flagged again (same rule as column_pii_reason in parse_pbip.py).
+function piiReviewed(col) {
+  const v = String(((col && col.annotations) || {}).PII || '').trim().replace(/^"|"$/g, '').toLowerCase();
+  return v === 'not personal';
+}
+
+function isPII(colName, tableName, col) {
+  if (col && piiReviewed(col)) return false;
   return piiReason(colName, tableName) !== '';
+}
+
+function reviewedNotPersonal(m) {
+  const out = [];
+  for (const t of m.tables) for (const c of t.columns) if (piiReviewed(c) && piiReason(c.name, t.name)) out.push(`${t.name}[${c.name}]`);
+  return out;
 }
 
 function renderGovernance() {
@@ -1013,7 +1030,7 @@ function renderGovernance() {
   const piiRows = [];
   for (const t of m.tables) {
     for (const c of t.columns) {
-      if (isPII(c.name, t.name)) {
+      if (isPII(c.name, t.name, c)) {
         const matched = piiReason(c.name, t.name);
         piiRows.push(`<tr>
           <td class="mono">${escapeHtml(t.name)}</td>
@@ -1027,6 +1044,9 @@ function renderGovernance() {
   document.getElementById('pii-body').innerHTML = piiRows.length ?
     `<table><thead><tr><th>Table</th><th>Column</th><th>Type</th><th>Visibility</th></tr></thead><tbody>${piiRows.join('')}</tbody></table>` :
     '<div class="empty">No potential PII columns matched. ✓</div>';
+  const reviewedCols = reviewedNotPersonal(m);
+  if (reviewedCols.length) document.getElementById('pii-body').innerHTML +=
+    `<div class="empty">✓ Reviewed as not personal data (annotation PII = not personal): ${reviewedCols.map(escapeHtml).join(', ')}</div>`;
 
   // RLS
   const rlsBody = document.getElementById('rls-body');
@@ -1368,7 +1388,7 @@ function buildGovernancePage() {
   const m = state.model;
   let md = `# :shield: Governance\n\n[[_TOC_]]\n\n`;
   const piis = [];
-  for (const t of m.tables) for (const c of t.columns) if (isPII(c.name, t.name)) {
+  for (const t of m.tables) for (const c of t.columns) if (isPII(c.name, t.name, c)) {
     const matched = piiReason(c.name, t.name);
     piis.push({ table: t.name, col: c.name, type: c.dataType, hidden: c.isHidden, matched });
   }
@@ -1384,6 +1404,8 @@ function buildGovernancePage() {
     }
     md += `\n`;
   }
+  const reviewedCols = reviewedNotPersonal(m);
+  if (reviewedCols.length) md += `:white_check_mark: Reviewed as not personal data (\`annotation PII = not personal\`): ${reviewedCols.map(x => '`' + x + '`').join(', ')}\n\n`;
 
   md += `## :key: Row-Level Security roles\n\n`;
   if (m.roles.length === 0) md += `No RLS roles defined in this model.\n\n`;
@@ -1473,7 +1495,8 @@ function buildTablePage(t) {
       if (c.isKey) flags.push(':key: key');
       if (c.isHidden) flags.push(':lock: hidden');
       if (c.isCalculated) flags.push(':abacus: calculated');
-      if (isPII(c.name, t.name)) flags.push(':warning: **PII?**');
+      if (isPII(c.name, t.name, c)) flags.push(':warning: **PII?**');
+      else if (piiReviewed(c) && piiReason(c.name, t.name)) flags.push(':white_check_mark: not personal (reviewed)');
       md += `| \`${c.name}\` | ${c.dataType || '-'} | ${flags.join(' · ') || '-'} |\n`;
     }
     md += `\n`;
@@ -1617,7 +1640,7 @@ function buildMarkdown() {
   md += `## Governance\n\n`;
   md += `### Potential PII columns\n\n`;
   const piis = [];
-  for (const t of m.tables) for (const c of t.columns) if (isPII(c.name, t.name)) piis.push({table:t.name,col:c.name,type:c.dataType,hidden:c.isHidden});
+  for (const t of m.tables) for (const c of t.columns) if (isPII(c.name, t.name, c)) piis.push({table:t.name,col:c.name,type:c.dataType,hidden:c.isHidden});
   if (piis.length === 0) md += `_None matched._\n\n`;
   else {
     md += `| Table | Column | Type | Visibility |\n|---|---|---|---|\n`;
