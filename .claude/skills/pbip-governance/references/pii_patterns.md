@@ -2,7 +2,9 @@
 
 `parse_pbip.py` (and the browser fallback `assets/pbip-inspector.html`, which uses the same rules) flags column names as **potential** personal data with `pii_reason(column, table)`
 (and `is_pii(column, table)`). Matches are heuristic: always review manually and say
-"potential PII" or "PII candidate", never that a column IS PII.
+"potential PII" or "PII candidate", never that a column IS PII. A column annotated
+`annotation PII = not personal` in TMDL has been reviewed by a person: `column_pii_reason(column, table)`
+returns '' for it, and the wiki and pbip-catalog show it as reviewed instead of flagging it.
 
 ## How matching works
 1. The column name is split into words: snake_case, camelCase, spaces and hyphens

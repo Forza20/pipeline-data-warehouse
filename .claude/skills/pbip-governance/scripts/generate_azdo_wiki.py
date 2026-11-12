@@ -18,7 +18,7 @@ from pathlib import Path
 
 # Share PII patterns with the parser
 sys.path.insert(0, str(Path(__file__).parent))
-from parse_pbip import identify_m_source, is_pii, pii_reason  # noqa: E402
+from parse_pbip import identify_m_source, column_pii_reason, pii_reason  # noqa: E402
 
 
 def wiki_filename(name):
@@ -35,12 +35,19 @@ def mermaid_label(label):
 
 
 def count_pii(model):
+    """Columns that look like personal data, leaving out those annotated `PII = not personal`."""
     n = 0
     for t in model['tables']:
         for c in t['columns']:
-            if is_pii(c['name'], t['name']):
+            if column_pii_reason(c, t['name']):
                 n += 1
     return n
+
+
+def reviewed_not_personal(model):
+    """Columns the heuristic would flag but a person annotated `PII = not personal`."""
+    return [(t['name'], c['name']) for t in model['tables'] for c in t['columns']
+            if pii_reason(c['name'], t['name']) and not column_pii_reason(c, t['name'])]
 
 
 def build_mermaid_relationships(model):
@@ -214,8 +221,8 @@ def build_governance_page(model):
     piis = []
     for t in model['tables']:
         for c in t['columns']:
-            if is_pii(c['name'], t['name']):
-                matched = pii_reason(c['name'], t['name'])
+            matched = column_pii_reason(c, t['name'])
+            if matched:
                 piis.append({'table': t['name'], 'col': c['name'],
                              'type': c.get('dataType', ''), 'hidden': c['isHidden'],
                              'matched': matched})
@@ -230,6 +237,10 @@ def build_governance_page(model):
             vis = ':lock: hidden' if p['hidden'] else ':eye: **visible**'
             md += f"| `{p['table']}` | `{p['col']}` | `{p['matched']}` | {p['type'] or '-'} | {vis} |\n"
         md += "\n"
+    reviewed = reviewed_not_personal(model)
+    if reviewed:
+        md += (f":white_check_mark: Reviewed as not personal data (`annotation PII = not personal`): "
+               + ', '.join(f"`{t}[{c}]`" for t, c in reviewed) + "\n\n")
 
     md += "## :key: Row-Level Security roles\n\n"
     if not model['roles']:
@@ -314,8 +325,10 @@ def build_table_page(t):
                 flags.append(':lock: hidden')
             if c.get('isCalculated'):
                 flags.append(':abacus: calculated')
-            if is_pii(c['name'], t['name']):
+            if column_pii_reason(c, t['name']):
                 flags.append(':warning: **PII?**')
+            elif pii_reason(c['name'], t['name']):
+                flags.append(':white_check_mark: not personal (reviewed)')
             md += f"| `{c['name']}` | {c.get('dataType', '-') or '-'} | {' · '.join(flags) or '-'} |\n"
         md += "\n"
 

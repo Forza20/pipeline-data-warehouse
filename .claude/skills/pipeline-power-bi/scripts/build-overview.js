@@ -194,7 +194,7 @@ ${dark ? `@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){${d
 const name = choices.name || path.basename(runDir);
 const kept = srcRows.reduce((n, s) => n + s.kept.length, 0);
 const included = srcRows.filter((s) => s.include).length;
-const piiHidden = model.tables.flatMap((t) => t.cols.filter((c) => c.hidden && catalog && (catalog.columns || []).some((x) => x.Table === t.name && x.Column === c.name && x['Possible PII']))).length;
+const piiHidden = model.tables.flatMap((t) => t.cols.filter((c) => c.hidden && catalog && (catalog.columns || []).some((x) => x.Table === t.name && x.Column === c.name && /^(Yes|Ja)\b/.test(x['Possible PII'] || '')))).length;
 const runId = choices.run_id || path.basename(runDir);
 const status = choices.status || {};
 const built = new Date().toISOString().slice(0, 16).replace('T', ' ');

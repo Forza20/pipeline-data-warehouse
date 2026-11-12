@@ -16,7 +16,7 @@ disappear silently.
 |---|---|
 | Description | Business description. Written back as `///` when Status = Approved. |
 | Owner | Data owner / responsible person. |
-| Sensitivity | E.g. Public, Internal, Confidential, PII. Pre-filled "Possible PII - assess" from the column name. |
+| Sensitivity | E.g. Public, Internal, Confidential, PII. Pre-filled "Possible PII - assess" from the column name – not for a column with `annotation PII = not personal` in TMDL (reviewed; "Possible PII" then says "No (reviewed: not personal)"). |
 | Upstream source | Where the data comes from before Power BI. Filled automatically (see below); your own text is kept. |
 | Status | `Missing` · `Translate` · `AI suggestion` · `From model` · `Edited` · `Approved` |
 

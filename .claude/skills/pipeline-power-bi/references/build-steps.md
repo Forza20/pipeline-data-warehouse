@@ -97,8 +97,8 @@ close it).
      described from the relationships) and **one** full run with `--ai-descriptions … --html`. Report: counts,
      description status, possible PII, and how much upstream lineage it could trace. With a staging layer
      the trace stops at merges – say how many fields reach the source.
-   - **pbip-governance**: `parse_pbip.py <pbip>` (capture stdout from Python, not a PowerShell `>` – that
-     adds a BOM), then `generate_azdo_wiki.py <json> --output governance/<Name>_azdo_wiki.zip`. The handover
+   - **pbip-governance**: `parse_pbip.py <pbip> --output runs\<run-id>\governance\model.json` (it writes
+     UTF-8 itself – no shell redirect), then `generate_azdo_wiki.py <json> --output governance/<Name>_azdo_wiki.zip`. The handover
      Markdown is **not** written by hand: `python .claude\skills\pipeline-power-bi\scripts\build_handover.py runs\<run-id>`
      writes `governance/handover.md` from the model and `choices.json` (model, source, PII audit, RLS,
      decisions = settled `design.review` points, open points = open ones + `handover_notes[]`, left out,
@@ -106,8 +106,9 @@ close it).
      model: a **visible** column flagged as personal data (a person's name such as an account manager)
      goes back to the user as a question – hide it, keep it visible, or remove it – and on hide/remove the
      TMDL is changed and validated again. A flagged column the user says is not personal data (company
-     names) goes into `choices.json` → `pii_not_personal[]` ("Customer[Customer name]"), so it is shown as
-     reviewed and not asked again.
+     names) goes into `choices.json` → `pii_not_personal[]` ("Customer[Customer name]"). `build-model.js`
+     writes it to the model as `annotation PII = not personal` on that column, so the wiki, the catalog and
+     the handover all show it as reviewed and nobody asks again – rebuild before rerunning them.
    - If a skill fails, finish the run without it, say what failed and how to rerun it alone.
 7. **Overview page** (always):
    `node .claude\skills\pipeline-power-bi\scripts\build-overview.js runs\<run-id> [--colors <file.json>] [--vault "<vault>" --folder <folder>]`

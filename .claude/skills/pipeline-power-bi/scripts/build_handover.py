@@ -86,11 +86,12 @@ def main():
                 continue
             n_cand += 1
             ref = f"{t['name']}[{c['name']}]"
+            annotated = hasattr(pp, 'pii_reviewed') and pp.pii_reviewed(c)   # annotation PII = not personal
             if t.get('isHidden'):
                 status = 'table hidden'
             elif c.get('isHidden'):
                 status = 'hidden'
-            elif ref.lower() in reviewed:
+            elif annotated or ref.lower() in reviewed:
                 status = 'visible – reviewed, not personal data'
             else:
                 status = f'**visible** – review: hide, keep or remove (matched "{reason}")'

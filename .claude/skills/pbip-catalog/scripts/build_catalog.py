@@ -565,6 +565,10 @@ def build(parsed, slots, prev, ai, pii_reason, sql=None):
                 continue
             key = fkey(t['name'], c['name'])
             pii = pii_reason(c['name'], t['name'])
+            # `annotation PII = not personal` on the column: a person reviewed it – not flagged again
+            reviewed = bool(pii) and str((c.get('annotations') or {}).get('PII', '')).strip().strip('"').lower() == 'not personal'
+            if reviewed:
+                pii = ''
             origin = c.get('origin') or {}
             row = {
                 'Key': key, 'Table': t['name'], 'Column': c['name'],
@@ -572,7 +576,7 @@ def build(parsed, slots, prev, ai, pii_reason, sql=None):
                 'Hidden': 'Yes' if c['isHidden'] else '',
                 'Key field': 'Yes' if (c.get('isKey') or c['name'] in pk_cols) else '',
                 'Calculated': 'DAX' if c.get('isCalculated') else '',
-                'Possible PII': f'Ja ({pii})' if pii else '',
+                'Possible PII': f'Yes ({pii})' if pii else ('No (reviewed: not personal)' if reviewed else ''),
                 'Origin': origin_text(origin) if not c.get('isCalculated') else 'Calculated column (DAX)',
                 'Source': source_text(origin.get('source')),
                 'Power Query steps': lineage_text(c.get('lineage')),
@@ -1036,7 +1040,7 @@ def write_dbml(parsed, cat, path, project):
                 note.append('Calculated (DAX): ' + short(c.get('expression', ''), 200))
             elif row['Origin']:
                 note.append('Origin: ' + row['Origin'])
-            if row['Possible PII']:
+            if row['Possible PII'].startswith('Yes'):
                 note.append('Possible PII')
             if row['Dashboard slot']:
                 note.append('Dashboard: ' + row['Dashboard slot'])

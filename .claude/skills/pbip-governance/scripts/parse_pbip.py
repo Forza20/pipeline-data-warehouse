@@ -140,6 +140,24 @@ def is_pii(col_name, table_name=None):
     return bool(pii_reason(col_name, table_name))
 
 
+# A column a person has reviewed as not personal data (company names, cities of shops) carries
+#   annotation PII = not personal
+# in its TMDL, so the heuristic does not flag it again in the wiki, the catalog or a handover.
+PII_ANNOTATION = 'PII'
+PII_NOT_PERSONAL = 'not personal'
+
+
+def pii_reviewed(col):
+    """True when the parsed column carries `annotation PII = not personal`."""
+    v = str((col.get('annotations') or {}).get(PII_ANNOTATION, '')).strip().strip('"').lower()
+    return v == PII_NOT_PERSONAL
+
+
+def column_pii_reason(col, table_name=None):
+    """pii_reason for a parsed column dict, '' when the column is annotated as reviewed (not personal)."""
+    return '' if pii_reviewed(col) else pii_reason(col['name'], table_name)
+
+
 def identify_m_source(m_expr):
     """Extract source kind and details from Power Query M expression."""
     if not m_expr:
@@ -358,6 +376,7 @@ def _table_from_node(tn):
                 'displayFolder': cp.get('displayFolder', ''),
                 'dataCategory': cp.get('dataCategory', ''),
                 'description': c['description'],
+                'annotations': {a['name']: a['value'] for a in c['children'] if a['kind'] == 'annotation'},
             })
         elif c['kind'] == 'measure':
             table['measures'].append({
@@ -1025,6 +1044,7 @@ def parse_tmsl(obj, model):
                 'isHidden': bool(c.get('isHidden')),
                 'isKey': bool(c.get('isKey')),
                 'isCalculated': c.get('type') == 'calculated',
+                'annotations': {a.get('name'): a.get('value') for a in c.get('annotations', []) if a.get('name')},
             })
         for me in t.get('measures', []):
             expr = me.get('expression', '')

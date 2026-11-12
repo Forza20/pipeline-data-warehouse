@@ -254,6 +254,8 @@ const tables = (B.tables || []).map((t) => {
 });
 
 // ---------- TMDL ----------
+// choices.json → pii_not_personal: ["Customer[Customer name]", …] – columns the user reviewed as not personal data
+const notPersonal = new Set((choices.pii_not_personal || []).map((x) => String(x).replace(/^'([^']+)'\[/, '$1[').toLowerCase()));
 function tableTmdl(t) {
   let s = `${t.description ? `/// ${t.description}\n` : ''}table ${q(t.name)}\n${t.hidden ? '\tisHidden\n' : ''}\tlineageTag: ${g()}\n\n`;
   for (const c of t.columns) {
@@ -266,6 +268,8 @@ function tableTmdl(t) {
     if (f) s += `\t\tformatString: ${f}\n`;
     s += `\t\tlineageTag: ${g()}\n\t\tsummarizeBy: ${c.summarize || sum}\n\t\tsourceColumn: ${c.name}\n\n\t\tannotation SummarizationSetBy = Automatic\n\n`;
     if (c.type === 'date') s += '\t\tannotation UnderlyingDateTimeDataType = Date\n\n';
+    // reviewed by the user as not personal data: pbip-governance and pbip-catalog stop flagging it
+    if (notPersonal.has(`${t.name}[${c.name}]`.toLowerCase())) s += '\t\tannotation PII = not personal\n\n';
   }
   s += `\tpartition ${q(t.name)} = m\n\t\tmode: import\n\t\tqueryGroup: ${t.kind === 'fact' ? '03_Facts' : t.kind === 'support' ? '04_Support' : '02_Dimensions'}\n\t\tsource =\n\t\t\t\t${t.q.text('\t\t\t\t')}\n\n\tannotation PBI_ResultType = Table\n`;
   return s;

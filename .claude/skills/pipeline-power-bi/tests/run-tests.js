@@ -2,8 +2,8 @@
 // Tests for pipeline-power-bi: the profiler (Profile-Sources.ps1), the model generator (build-model.js) and
 // the overview page (build-overview.js), on the fixtures in tests/fixtures (made by make-fixtures.py).
 //
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 125 checks (25–30 s)
-//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    98 checks (about 15 s): skips the drift checks that run the
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js            all 129 checks (25–30 s)
+//   node .claude/skills/pipeline-power-bi/tests/run-tests.js --quick    99 checks (about 15 s): skips the drift checks that run the
 //                                                                        profiler again and the Python checks
 //                                                                        (model health, grounded answers)
 //
@@ -137,9 +137,9 @@ const driftSame = QUICK ? null : driftRun('drift-same', FIX);
 const driftNew = QUICK ? null : driftRun('drift-new', newFix);
 
 const glossary = [{ term: 'Revenue', definition: 'Order amounts without flagged anomalies.', owner: 'Finance' }];
-fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary,
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary, pii_not_personal: ['Customer[Customer name]'],
   design: { facts: [{ name: 'Sales', grain: 'one order' }], review: [{ point: 'history', status: 'open', note: 'region is current only' }] } }, null, 2));
-const gen = (r, extra = []) => spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), r, ...extra], { encoding: 'utf8' });
+const gen =(r, extra = []) => spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), r, ...extra], { encoding: 'utf8' });
 let res = gen(run);
 let out = {};
 try { out = JSON.parse(res.stdout); } catch { /* reported below */ }
@@ -198,7 +198,10 @@ if (process.platform === 'win32') {
   check('locked folder: no half-written folder left', !fs.existsSync(path.join(def, '..', 'definition.new')));
 }
 
-check('build: term annotation on the measure', /annotation Term = Revenue/.test(fs.readFileSync(path.join(def, 'tables', '_Measures.tmdl'), 'utf8')));
+const custTmdl = fs.readFileSync(path.join(def, 'tables', 'Customer.tmdl'), 'utf8');
+check('build: pii_not_personal becomes annotation PII = not personal on that column only',
+  /column 'Customer name'[\s\S]*?annotation PII = not personal/.test(custTmdl.split("column 'Is inferred'")[0]) && (custTmdl.match(/annotation PII = /g) || []).length === 1);
+check('build: term annotation on the measure',/annotation Term = Revenue/.test(fs.readFileSync(path.join(def, 'tables', '_Measures.tmdl'), 'utf8')));
 
 // ---------- 2a. model context, model health, drift ----------
 // the bad-spec test above replaced choices.json – put the good one back
@@ -297,6 +300,23 @@ if (!QUICK) {
   try { cm = JSON.parse(res.stdout); } catch { /* reported below */ }
   check('catalog --missing-only: lists missing descriptions', res.status === 0 && cm.missingOnly && cm.missingDescriptions > 0 && fs.existsSync(path.join(catOut, 'missing_descriptions.json')), res.stdout + res.stderr);
   check('catalog --missing-only: writes no Excel or catalog.json', !fs.existsSync(path.join(catOut, 'catalog.xlsx')) && !fs.existsSync(path.join(catOut, 'catalog.json')));
+  // annotation PII = not personal: the parser reads it, the wiki and the catalog stop flagging the column
+  const gov = path.join(SKILL, '..', 'pbip-governance', 'scripts');
+  const modelJson = path.join(TMP, 'model.json');
+  res = spawnSync(py, ['-X', 'utf8', path.join(gov, 'parse_pbip.py'), path.join(run, 'pbip'), '--output', modelJson], { encoding: 'utf8' });
+  const pm = fs.existsSync(modelJson) ? JSON.parse(fs.readFileSync(modelJson, 'utf8')) : { model: { tables: [] } };
+  const pmCust = (pm.model.tables.find((t) => t.name === 'Customer') || { columns: [] }).columns;
+  check('parser --output: writes UTF-8 JSON with column annotations', res.status === 0 && ((pmCust.find((c) => c.name === 'Customer name') || {}).annotations || {}).PII === 'not personal', res.stdout + res.stderr);
+  const wikiZip = path.join(TMP, 'wiki.zip');
+  res = spawnSync(py, ['-X', 'utf8', path.join(gov, 'generate_azdo_wiki.py'), modelJson, '--output', wikiZip], { encoding: 'utf8' });
+  const govMd = spawnSync(py, ['-X', 'utf8', '-c', 'import sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);n=[x for x in z.namelist() if x.endswith("Governance.md")][0];sys.stdout.write(z.read(n).decode("utf-8"))', wikiZip], { encoding: 'utf8' }).stdout || '';
+  check('wiki: reviewed column listed as reviewed, not as potential PII', res.status === 0 && govMd.includes('Reviewed as not personal data (`annotation PII = not personal`): `Customer[Customer name]`') &&
+    !/\| `Customer` \| `Customer name` \|/.test(govMd), govMd.slice(0, 900) + res.stderr);
+  res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, '..', 'pbip-catalog', 'scripts', 'build_catalog.py'), path.join(run, 'pbip'), '--out', catOut, '--no-dbml'], { encoding: 'utf8' });
+  const catJ = fs.existsSync(path.join(catOut, 'catalog.json')) ? JSON.parse(fs.readFileSync(path.join(catOut, 'catalog.json'), 'utf8')) : { columns: [] };
+  const catRow = (n) => (catJ.columns || []).find((r) => r.Table === 'Customer' && r.Column === n) || {};
+  check('catalog: reviewed column not flagged, a real one still is', res.status === 0 && catRow('Customer name')['Possible PII'] === 'No (reviewed: not personal)' && !catRow('Customer name').Sensitivity &&
+    String(((catJ.columns || []).find((r) => r.Table === 'Contact' && r.Column === 'Email') || {})['Possible PII']).startsWith('Yes'), res.stderr.slice(-500) + JSON.stringify(catRow('Customer name')));
   // the user's own Power BI project as input: its CSV/Excel source files are found; a .pbix is refused
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'pbip_sources.py'), path.join(run, 'pbip')], { encoding: 'utf8' });
   let ps = {};

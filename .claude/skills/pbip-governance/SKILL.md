@@ -47,8 +47,12 @@ Execute `scripts/parse_pbip.py` with the PBIP folder as argument. It emits a JSO
 The parser is shared with the `pbip-catalog` skill (`.claude/skills/pbip-catalog/`), which also needs these fields: `///` descriptions, Power Query `steps`/`references` per partition and shared query, `column.lineage`/`column.origin`, DAX `dependencies`, relationship cardinality and `visual.fieldRefs`. Keep them backwards compatible when changing the parser.
 
 ```bash
-python3 scripts/parse_pbip.py "/path/to/pbip/project"
+python3 scripts/parse_pbip.py "/path/to/pbip/project" --output model.json
 ```
+
+Use `--output` to save the JSON: the script writes it as UTF-8 itself. A shell redirect (`> model.json`)
+works too, but PowerShell's `>` and `Out-File` change the encoding (BOM or ANSI) and break characters
+such as `→` and `æ`.
 
 ### Step 3 — Ask what output the user wants
 
@@ -129,6 +133,12 @@ See `scripts/parse_pbip.py` — supports SQL Server, Snowflake, ADLS, Databricks
 ## PII heuristic
 
 Simple substring match (case-insensitive) against column names. Full pattern list in `references/pii_patterns.md`. Flag false positives are expected — always remind the user to review manually. Do NOT claim a column IS PII; say "potential PII" or "PII candidate".
+
+A column the user has reviewed as **not** personal data (company names, shop cities) gets
+`annotation PII = not personal` in its TMDL (indented under the column, like the other annotations). The
+parser exposes column annotations (`column.annotations`), `column_pii_reason(column, table)` returns ''
+for such a column, and the wiki lists it once as "reviewed" instead of flagging it on every run. The
+pbip-catalog skill honours the same annotation. Add it only after the user has said so.
 
 ## Fallback: standalone HTML tool
 
