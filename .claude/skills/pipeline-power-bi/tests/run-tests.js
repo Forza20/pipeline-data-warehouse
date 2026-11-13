@@ -398,6 +398,30 @@ if (!QUICK) {
         bp.status === 0 && /GENERATESERIES\(-1, 1, 0\.1\)/.test(rd('price_adjustment_pct.tmdl')) && /measure price_adjustment_pct_value/.test(rd('price_adjustment_pct.tmdl')) &&
         new RegExp(`NAMEOF\\(_measures\\[${m0}\\]\\)`).test(rd('metric_selection.tmdl')) && /column metric_selection_fields\s+isHidden/.test(rd('metric_selection.tmdl')) &&
         /column week_start/.test(rd('dim_date.tmdl')) && /Date\.StartOfWeek/.test(rd('dim_date.tmdl')), bp.stdout.slice(0, 500) + bp.stderr);
+      // integration: pbip-layout's template on this model – suggested mapping → all pages → every field exists
+      {
+        const LAYOUT = path.join(SKILL, '..', 'pbip-layout', 'scripts');
+        const smDir = path.join(pr, 'pbip', `${cp.build.name || 'Test'}.SemanticModel`);
+        const rep = path.join(pr, 'pbip', 'Test.Report');
+        fs.mkdirSync(path.join(rep, 'definition', 'pages'), { recursive: true });
+        fs.writeFileSync(path.join(rep, 'definition', 'pages', 'pages.json'), JSON.stringify({ pageOrder: [] }));
+        fs.writeFileSync(path.join(rep, 'definition', 'report.json'), JSON.stringify({ themeCollection: { baseTheme: { name: 'CY24SU10', type: 'SharedResources' } } }));
+        const cfgFile = path.join(pr, 'layout-config.json');
+        fs.writeFileSync(cfgFile, JSON.stringify({ template: 'adventureworks', pages: ['exec', 'map', 'product', 'customer', 'tooltip', 'qna', 'decomp', 'influencers'] }));
+        const sg = spawnSync('node', [path.join(LAYOUT, 'suggest-fields.js'), smDir, '--config', cfgFile], { encoding: 'utf8' });
+        let sj = {};
+        try { sj = JSON.parse(sg.stdout); } catch { /* reported below */ }
+        const gr = spawnSync('node', [path.join(LAYOUT, 'gen-report.js'), rep, cfgFile], { encoding: 'utf8' });
+        let gj = {};
+        try { gj = JSON.parse(gr.stdout); } catch { /* reported below */ }
+        const cf = spawnSync('node', [path.join(LAYOUT, 'check-fields.js'), rep, smDir], { encoding: 'utf8' });
+        let cj = {};
+        try { cj = JSON.parse(cf.stdout); } catch { /* reported below */ }
+        check('pbip-layout template: suggest-fields maps the date table and the parameters, gen-report builds the pages, check-fields finds every field in the model',
+          sg.status === 0 && /\[date\]$/.test(sj.fields && sj.fields['Calendar Lookup[Date]'] || '') && sj.fields['Price Adjustment (%)[Price Adjustment (%)]'] === 'price_adjustment_pct[price_adjustment_pct]' &&
+          gr.status === 0 && gj.ok && (gj.pages || []).length > 0 && cf.status === 0 && cj.ok && cj.checked > 0,
+          (sg.stdout + sg.stderr).slice(0, 300) + ' | ' + (gr.stdout + gr.stderr).slice(0, 300) + ' | ' + cf.stdout.slice(0, 300));
+      }
       cp.build.parameters = [{ kind: 'fields', name: 'bad_selection', items: [{ label: 'X', measure: 'no_such_measure' }] }];
       fs.writeFileSync(path.join(pr, 'choices.json'), JSON.stringify(cp));
       const bb = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), pr], { encoding: 'utf8' });

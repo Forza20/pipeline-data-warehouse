@@ -284,11 +284,29 @@ for (const key of chosen) {
   // 7. reversed colour scales (before the fields are renamed), then fields, strings, colours, page ids
   for (const v of visuals) { const r = reverseScales(v.json); if (r) notes.push(`${key}/${v.name}: colour scale reversed (${r})`); }
   page.name = idMap[meta.id];
+  // page filters and the drillthrough binding on a field the model does not have go too
+  if (page.filterConfig && Array.isArray(page.filterConfig.filters)) {
+    const gone = page.filterConfig.filters.filter((f) => isNull(f)).map((f) => f.name);
+    page.filterConfig.filters = page.filterConfig.filters.filter((f) => !isNull(f));
+    if (page.pageBinding && Array.isArray(page.pageBinding.parameters)) {
+      page.pageBinding.parameters = page.pageBinding.parameters.filter((x) => !gone.includes(x.boundFilter) && !isNull(x.fieldExpr));
+      if (!page.pageBinding.parameters.length) { delete page.pageBinding; if (page.type === 'Drillthrough') delete page.type; notes.push(`${key}: no drillthrough – its field is not in the model`); }
+    }
+  }
   clearDataValues(page);
   withAliases(page, {});
   const newPage = rewrite(page);
   const newVisuals = visuals.map((v) => { clearDataValues(v.json); withAliases(v.json, {}); return { name: v.name, json: rewrite(v.json), logoFile: v.logoFile }; });
   pages.push({ key, id: idMap[meta.id], page: newPage, visuals: newVisuals });
+}
+
+// filter names unique across the report: the source report reuses a filter's name on copied visuals
+{
+  const seen = new Map();
+  for (const p of pages) for (const v of p.visuals) for (const f of ((v.json.filterConfig || {}).filters || [])) if (f.name) seen.set(f.name, (seen.get(f.name) || 0) + 1);
+  for (const p of pages) for (const v of p.visuals) for (const f of ((v.json.filterConfig || {}).filters || [])) {
+    if (f.name && seen.get(f.name) > 1) f.name = 'Filter' + crypto.createHash('md5').update(`${p.key}/${v.name}/${f.name}`).digest('hex').slice(0, 20);
+  }
 }
 
 // texts: titles and text boxes

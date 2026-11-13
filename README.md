@@ -147,7 +147,7 @@ pipeline.config.example.json            the shape of your pipeline.config.json
 |---|---|
 | `messy-dataset` | seeded, deterministic messy datasets with an answer key (13 error types, any currency) |
 | `supabase-medallion-powerbi` | CSV → Supabase bronze/silver/gold → star schema → PBIP/TMDL, with a logged decision interview |
-| `pbip-layout` | the "Sales overview" dashboard page, mapped to the model's own measures, colours from a profile or a screenshot |
+| `pbip-layout` | the AdventureWorks report template (8 pages – the user chooses which), mapped to the model's own measures and columns; colours from hex codes or a screenshot change colours only |
 | `pbip-catalog` | data catalog (Excel), lineage (Mermaid/HTML), dbdiagram.io model (optional) |
 | `pbip-governance` | the PBIP parser `pbip-catalog` builds on, PII heuristics |
 | `reconcile` | finds where two numbers that should agree diverge (used when scoring) |

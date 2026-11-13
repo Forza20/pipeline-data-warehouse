@@ -52,8 +52,11 @@ Work with the user in their language (English by default).
    - At most 2 variants (e.g. *Standard* and *Brand*); they differ in colours only.
    *In pipeline mode:* the profile's colours, otherwise *Standard*.
 
-5. **Map the template fields.** For every field the chosen pages use (template.json → `fields`, each with
-   its pages), find the model's best match with layout.md's tables: the expected content first, then the
+5. **Map the template fields.** Start with the suggestion:
+   `node "<skill folder>/scripts/suggest-fields.js" "<.SemanticModel folder>" --config "<config.json>"`
+   (config.json with `template` and `pages`; it fills `fields` by name from `templates/<key>/field-hints.json`
+   and prints `how` per field – name, fallback, `make: <recipe>` or none – and the `decisions` a fallback
+   raised). Then check it field by field with layout.md's tables: the expected content first, then the
    fallback, `null` when nothing fits. Run DAX to know the values (totals, categories, latest month).
    Check meanings: is a "line total" before or after discount; is a rate "high = bad" (template: return
    rate). When a fallback changes the meaning, set `labels` and `texts` (template.json → `pages[].texts`
@@ -98,16 +101,18 @@ Work with the user in their language (English by default).
    ```
    node "<skill folder>/scripts/gen-report.js" "<.Report folder>" "<config.json>"
    node "<skill folder>/scripts/check-fields.js" "<.Report folder>" "<.SemanticModel folder>"
-   powerbi-report-author validate "<.Report folder>"
+   node "<skill folder>/scripts/validate-report.js" "<.Report folder>"
    ```
+   `validate-report.js` runs `powerbi-report-author validate` and lists the template's known findings apart
+   (`known`) from new ones (`new`); `ok: true` = no new error.
    `gen-report.js` prints the pages (with their ids), the bookmarks, `dropped` (visuals left out and why)
    and `notes` (fields left out of a visual, base theme changed). `check-fields.js` must say `ok: true`:
-   every field the report uses exists in the model. Validation findings that come from the template's
-   source report itself (Desktop wrote them) and are expected: `PBIR_FORMATTING_PROP_NESTED` on
-   `anomalyDetection` (the revenue trend), `PBIR_FILTER_NAME_DUPLICATE_GLOBAL`, `PBIR_VISUAL_TYPE_DEPRECATED`
-   (`map`, `qnaVisual`), `PBIR_DRILLTHROUGH_BACK_BUTTON_MISSING`, `PBIR_JSON_FILE_NO_SCHEMA` on
-   `.pbip`/`definition.pbir`, `PBIR_SCHEMA_UNREACHABLE` offline. Fix every other error. A rerun replaces
-   the pages of the earlier run (same ids) and leaves the report's own pages alone.
+   every field the report uses exists in the model. The known findings come from the template's source
+   report itself (Desktop wrote them): `PBIR_FORMATTING_PROP_NESTED` on `anomalyDetection` (the revenue
+   trend), `PBIR_VISUAL_TYPE_DEPRECATED` (`map`, `qnaVisual`), `PBIR_DRILLTHROUGH_BACK_BUTTON_MISSING`,
+   `PBIR_JSON_FILE_NO_SCHEMA` on `.pbip`/`definition.pbir`, `PBIR_SCHEMA_UNREACHABLE` offline – do not
+   "fix" them. Fix every finding in `new`. A rerun replaces the pages of the earlier run (same ids) and
+   leaves the report's own pages alone.
 
 10. **Show it in Desktop and take a screenshot** following powerbi-report-cli's preview rules (`--status` →
     open/reload → `--screenshot`), one per page. With `hasUnsavedChanges: true`: ask the user to save

@@ -48,7 +48,7 @@ Rules for every step:
 | 17 | F16 | Unpivot period columns (wide → long) | yes | – | shape |
 | 18 | F18 | Keys missing in the dimension | yes | add members · one "Unknown" row · leave | distinct counts, blanks in visuals |
 | 19 | F17 | Data types on every column | yes (always offered) | – | required for sums and dates |
-| 20 | F02 | Readable column names | yes | readable · keep raw | no |
+| 20 | F02 | Clean column names (snake_case) | yes | clean · keep raw | no |
 | – | M01 | Incomplete last month | yes | flag complete months · show all · drop the partial month | month-over-month cards |
 
 F17 also turns empty text (`""`) into `null` first – `Csv.Document` returns `""` for empty fields, and
@@ -227,7 +227,7 @@ Only columns that no earlier step already typed. Kinds from the profile: `intege
 `type date`, `bool` → `type logical`, everything else → `type text`. The culture argument is the
 **source** culture (how the file writes numbers), not the report culture.
 
-## F02 Readable column names
+## F02 Clean column names (snake_case)
 ```m
 #"F02 Rename columns" = Table.RenameColumns(<prev>, {{"order_id", "Order ID"}, {"order_date", "Order date"}}),
 ```

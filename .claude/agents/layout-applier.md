@@ -56,9 +56,9 @@ Your task, in the skill's words: **pipeline mode** – apply `pbip-layout` to `p
       Otherwise take the control values from read-only SQL on `<schema_prefix>gold` or
       `runs\<id>\medallion\docs\expected-values.md`, and write "DAX not run (no Desktop)" in
       `layout-mapping.md`.
-6. **Validation:** `powerbi-report-author validate "<.Report folder>"` and the skill's
-   `scripts\check-fields.js` (must be `ok: true`). Fix every error except the findings the skill's step 9
-   lists as coming from the template's source report.
+6. **Validation:** the skill's `scripts\check-fields.js` and `scripts\validate-report.js` (both must say
+   `ok: true`). Fix only what `validate-report.js` lists under `new`; `known` comes from the template's
+   source report. Start the mapping (step 3) with the skill's `scripts\suggest-fields.js`.
 7. **Desktop:** if `steps.layout.skip_desktop` is `true` in `run.json` (the orchestrator sets it when free
    memory is low or Power BI Desktop is not installed), do **not** open Desktop and do **not** stop for a
    screenshot: finish with status `done` and `"screenshot": "skipped (<reason>)"`. Otherwise: check that

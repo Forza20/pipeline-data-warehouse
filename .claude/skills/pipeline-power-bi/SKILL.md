@@ -1,6 +1,6 @@
 ---
 name: pipeline-power-bi
-description: Turn CSV files and Excel workbooks (.xlsx/.xlsm – every sheet or Excel table becomes a table) the user attaches into a cleaned Power BI project (PBIP with TMDL) without manual Power Query work. Also takes the user's own Power BI project (.pbip, or a .pbix saved as .pbip) and cleans the CSV/Excel files it reads, or adds dashboard, catalog and governance to it; without own data it offers the demo files or a new messy dataset. Profiles every file and sheet, proposes the cleaning steps per table (title lines, total rows, spaces, "N/A" text, case variants, mixed date/number/boolean/id formats, duplicates, anomalies, wide month columns, orphan keys, data types, readable names) and lets the user switch each one on or off before it writes the Power Query steps, relationships, date table and measures. Optional dashboard layout and data catalog. No database, no Supabase, no GitHub. Use it when the user wants a Power BI report from CSV or Excel files, asks to clean CSV or Excel data for Power BI, wants Power Query steps written for them, or types /pipeline-power-bi.
+description: Turn CSV files and Excel workbooks (.xlsx/.xlsm – every sheet or Excel table becomes a table) the user attaches into a cleaned Power BI project (PBIP with TMDL) without manual Power Query work. Also takes the user's own Power BI project (.pbip, or a .pbix saved as .pbip) and cleans the CSV/Excel files it reads, or adds dashboard, catalog and governance to it; without own data it offers the demo files or a new messy dataset. Profiles every file and sheet, proposes the cleaning steps per table (title lines, total rows, spaces, "N/A" text, case variants, mixed date/number/boolean/id formats, duplicates, anomalies, wide month columns, orphan keys, data types, clean snake_case names) and lets the user switch each one on or off before it writes the Power Query steps, relationships, date table and measures. Optional dashboard layout and data catalog. No database, no Supabase, no GitHub. Use it when the user wants a Power BI report from CSV or Excel files, asks to clean CSV or Excel data for Power BI, wants Power Query steps written for them, or types /pipeline-power-bi.
 ---
 
 # pipeline-power-bi – from CSV and Excel files to a cleaned Power BI project
@@ -60,7 +60,7 @@ What each step does instead of asking:
 | 0 | Run `Check-Tools.ps1 -Catalog` (Node, the report CLI, Desktop, and Python + openpyxl for the catalog and governance). Python missing and not installed: skip both and say so in the hand-over. |
 | 1 | Copy the files into the run folder. |
 | 2 | Include the recommended sheets; append F21 pairs. Show the overview table, no questions. |
-| 3 | The first (recommended) language and number format; proposed names; readable column names. |
+| 3 | The first (recommended) language and number format; proposed names; clean snake_case column names. |
 | 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
 | 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
 | 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
@@ -243,10 +243,13 @@ One line after it: "Next I go through the tables (sheets) one by one; you decide
    "English, en-GB, GBP" · Other. The **source** format of each file is measured by the profile; this is
    only how the report shows numbers and dates.
 2. *Table names and roles* (multiSelect is wrong here – single-select): "Use the proposed names (Recommended)"
-   with the list in the description (`fact_orders` → Sales (fact), `dim_customers` → Customer …) ·
-   "Keep the file names" · "I'll type the names" (then ask in chat).
-3. *Readable column names (F02) for all tables:* "Yes – order_date becomes Order date (Recommended)" ·
-   "Keep the names from the files". This sets F02 for every table; it can still be changed per table.
+   with the list in the description – the model names are snake_case with `dim_`/`fact_` (`orders.csv` →
+   `fact_sales` (fact), `CUST_MASTER` → `dim_customer` …) · "Keep the file names (as snake_case)" ·
+   "I'll type the names" (then ask in chat; they are converted to snake_case).
+3. *Column names (F02) for all tables:* "Clean snake_case names – `OrderDate` becomes `order_date`, `Cust ID`
+   becomes `customer_id` (Recommended)" · "Keep the names from the files (only converted to snake_case)".
+   This sets F02 for every table; it can still be changed per table. Every name in the model ends up in
+   snake_case either way (`snake-names.js`).
 
 ## Step 4 – Cleaning, table by table ("faneblad for faneblad")
 
@@ -499,11 +502,11 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/run-summary.js](scripts/run-summary.js) – the compact summary of a run's choices for `--resume`,
   step 1.4 and step 7 (Markdown, or `--json`).
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 135 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 136 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 99
-  of the 135 checks in about half the time (no drift or Python checks) for use while working; a change is
+  of the 136 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

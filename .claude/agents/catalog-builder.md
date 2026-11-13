@@ -51,9 +51,9 @@ Read `pipeline.config.json` first (`tools.python`, `supabase.project_ref`, `cata
      Overview, Tables, Columns, Measures, Dashboard, Relationships, Sources.
    - Counts in `catalog.json` equal the TMDL: tables (`tables\*.tmdl`), measures (`measure ` lines),
      relationships (`relationships.tmdl`).
-   - Every slot present in `docs\layout-config.json` (KPI 1–4, Trend, Monthly card 1–3, Bars per category, Top 10 table,
-     Highlight 1–2 – a profile may switch some off) is tagged on at least one field in the Dashboard sheet,
-     and `lineage.md` has one graph per slot.
+   - Every page in `docs\layout-config.json` → `pages` (the template pages the user chose: Exec Dashboard,
+     Map, Product Detail …) is tagged on at least one field in the Dashboard sheet (column `Slot` = the
+     page name), and `lineage.md` has one graph per page. Every non-null `fields` value appears in the sheet.
    - Every model table appears as a `Table` in `model.dbml`, and every relationship as a `Ref`.
    - At least the fact table's amount/revenue columns trace back to a bronze/CSV column in "Upstream
      source" (name the chain for `Revenue`).
