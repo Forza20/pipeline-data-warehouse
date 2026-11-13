@@ -12,7 +12,8 @@
 // Rewrites, consistently: choices.json → build (tables, columns – a renamed column keeps its query column
 // in `from` –, merges with loaded tables, inferMembers, date, relationships, measures + their DAX, roles),
 // build.naming = "snake_case", pii_not_personal, model.relationships, glossary examples, checks[].dax;
-// questions.json (measure, filters, dax); pbip/docs/ai_descriptions.json keys; checks-basis.json keys.
+// questions.json (measure, filters, dax); pbip/docs/ai_descriptions.json keys; checks-basis.json keys;
+// the report's field references (Entity, Property, queryRef, nativeQueryRef in pbip/*.Report/definition).
 // M code is not touched: it works on the query's own column names, which do not change.
 // Idempotent: running it on a snake_case spec changes nothing. Without --apply it only prints the map.
 // Prints JSON { ok, applied, tables: {old: new}, measures: {old: new}, columns: n, files: [...], warnings }.
@@ -182,6 +183,34 @@ if (fs.existsSync(basisFile)) {
   save(basisFile, bs);
 }
 
+// ---------- report visuals (PBIR) ----------
+// Entity / Property / queryRef / nativeQueryRef in pbip/<Name>.Report/definition/**/*.json
+const pbipDir = path.join(runDir, 'pbip');
+const reports = fs.existsSync(pbipDir) ? fs.readdirSync(pbipDir).filter((d) => d.endsWith('.Report')).map((d) => path.join(pbipDir, d, 'definition')) : [];
+const field = (n) => measureMap[n] || (knownCols.has(n) ? snake(n) : n);
+const jstr = (s) => JSON.stringify(s).slice(1, -1);
+const unj = (s) => JSON.parse(`"${s}"`);
+let visuals = 0;
+function walk(dir) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const f = path.join(dir, e.name);
+    if (e.isDirectory()) { walk(f); continue; }
+    if (!e.name.endsWith('.json')) continue;
+    const old = fs.readFileSync(f, 'utf8');
+    const neu = old
+      .replace(/("Entity"\s*:\s*")((?:[^"\\]|\\.)*)"/g, (all, k, v) => `${k}${jstr(tbl(unj(v)))}"`)
+      .replace(/("Property"\s*:\s*")((?:[^"\\]|\\.)*)"/g, (all, k, v) => `${k}${jstr(field(unj(v)))}"`)
+      .replace(/("queryRef"\s*:\s*")((?:[^"\\]|\\.)*)"/g, (all, k, v) => {
+        const s = unj(v); const i = s.indexOf('.');
+        return i < 0 ? all : `${k}${jstr(`${tbl(s.slice(0, i))}.${field(s.slice(i + 1))}`)}"`;
+      })
+      .replace(/("nativeQueryRef"\s*:\s*")((?:[^"\\]|\\.)*)"/g, (all, k, v) => `${k}${jstr(field(unj(v)))}"`);
+    if (neu !== old) { visuals++; files.push(path.relative(runDir, f)); if (APPLY) fs.writeFileSync(f, neu, 'utf8'); }
+  }
+}
+for (const r of reports) if (fs.existsSync(r)) walk(r);
+
 const changed = (o) => Object.fromEntries(Object.entries(o).filter(([k, v]) => k !== v));
 console.log(JSON.stringify({ ok: true, applied: APPLY, tables: changed(tableMap), measures: changed(measureMap), columns, files, warnings,
-  next: APPLY ? ['node rebuild.js <run> --checks-updated   (values are unchanged, only names)', 'Rerun pbip-layout if the run has a dashboard: its visuals use the old names.'] : ['Run again with --apply.'] }, null, 1));
+  reportFiles: visuals,
+  next: APPLY ? ['node rebuild.js <run> --checks-updated   (values are unchanged, only names)', 'powerbi-report-author validate <Name>.Report – the visuals were renamed in place; rerun the catalog and governance skills.'] : ['Run again with --apply.'] }, null, 1));
