@@ -58,7 +58,7 @@ source `AI (translated from TMDL)`). Only the write-back of an approved row chan
 - **Tables** – type (Fact/Dimension/Date/Bridge/Measures/Helper), source, source objects, upstream queries, storage.
 - **Columns** – data type, key field, calculated, possible PII, origin (source object.column), Power Query steps, DAX.
 - **Measures** – DAX, direct dependencies, all source columns (transitively), used by.
-- **Dashboard** – one row per field per slot on the pbip-layout page (KPI 1–4, Trend, Monthly card 1–3, Bars
+- **Dashboard** – one row per field per page of the pbip-layout template (Exec Dashboard, Product Detail …), or per slot of the older single-page layout (KPI 1–4, Trend, Monthly card 1–3, Bars
   per category, Top 10 table, Highlight 1–2).
 - **Relationships** – cardinality, cross filter, active/inactive.
 - **Sources** – data sources, parameters and shared Power Query queries.

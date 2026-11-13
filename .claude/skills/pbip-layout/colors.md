@@ -1,75 +1,67 @@
-# Colours on the dashboard page
+# Colours
 
-All colours are set in `colors` in config.json (hex, `#RRGGBB`). Missing keys get the default value, so an
-older config without `colors` gives exactly the same page as before.
+Every colour on the template's pages is a colour key (template.json → `colors`). `colors` in config.json
+sets them (hex, `#RRGGBB`); a key that is left out keeps the template's colour, so without `colors` the
+pages look exactly like the source report (*Standard*). `colors` changes colour values only: pages,
+visuals, positions, sizes, fields, fonts, number formats, texts and bookmarks are the same for every
+variant (`tests/colors-only.test.js`). An unknown key or a value that is not `#RRGGBB` stops the generator.
 
-| Key | Used for | Default |
+| Key | Used for | Template |
 |---|---|---|
-| `page` | page background | `#FFFFFF` |
-| `panel` | background of chart, card and table boxes | `#FFFFFF` |
-| `border` | border around the boxes | `#C8C6C4` |
-| `ink` | titles, numbers in tables, trend and bar colour | `#252423` |
-| `sub` | subtitle, axes, data labels | `#605E5C` |
-| `dark` | navigation bar and KPI/highlight tiles | `#333333` |
+| `dark` | navigation rail, KPI and highlight tiles, shapes, chart series, tooltip background | `#333333` |
+| `teal` | accent: KPI values, data labels, active navigation icons, highlights | `#20E2D7` |
 | `onDark` | text and icons on `dark` | `#FFFFFF` |
-| `teal` | the numbers on the KPI and highlight tiles (accent) | `#1FC8C0` |
-| `navBtn` / `navHover` | buttons in the navigation bar / on hover | `#4A4A4A` / `#5C5C5C` |
-| `spark` | the area of the monthly cards' sparkline | `#E1DFDD` |
-| `bar` | data bars in the table | `#C8C6C4` |
-| `grid` | grid lines in the trend chart | `#E1DFDD` |
-| `trendLine` | dashed trend line | `#A19F9D` |
-| `band` | the forecast band | `#C8C6C4` |
-| `gradLow` / `gradHigh` | colour scale in the table's last column (low → high) | `#E36C78` / `#FDEDEF` |
-| `negative` / `axis` | negative data bars / the data bar axis | `#D64550` / `#999999` |
-| `white` | older key: default for `page`, `panel` and `onDark` | `#FFFFFF` |
+| `panel` | light backgrounds, the low end of colour scales | `#FFFFFF` |
+| `muted` | secondary titles | `#666666` |
+| `soft` | slicer item background | `#E6E6E6` |
+| `bar` | data bars in tables | `#CCCCCC` |
+| `axis` | data bar axis; the theme's text colour | `#252423` |
+| `bad` | decrease, high return rate (red = worse) | `#DE6A73` |
+| `badDark` | the returns series | `#A1343C` |
+| `gold` | second series colour (donuts) | `#E1C233` |
 
-Not controlled by `colors`: the green/red of the monthly cards comes from `_cm_color` measures (measures.md).
+The navigation icons are recoloured with the keys too (white ones = `onDark`, accent ones = `teal`). The
+theme `pbip-layout-theme.json` holds colours only: its series colours start with `dark`, `gold`, `teal`,
+`bad`, so charts without their own colour follow the choice. `"theme": false` leaves the theme out.
 
-**The rest of the report:** with `colors`, the generator also registers a Power BI theme
-(`pbip-layout-theme.json`) with the same colours: page background (`page`), box background and border
-(`panel`, `border`), text (`ink`, `sub`) and data series (`teal`, `dark`, `gradLow` …). The other report pages
-then look like the dashboard. `"theme": false` switches it off; without `colors` an earlier theme is removed.
+## Variants (colours only)
 
-## Variants
-
-The variants change colours only. The placement is the same (layout.md).
-
-**1. Standard** – light page, dark tiles. No `colors` (or an empty object).
+**1. Standard** – the template as it is. No `colors`.
 
 **2. Dark**
 ```json
-"colors": { "page": "#1E1E24", "panel": "#2A2A33", "border": "#3A3A45", "ink": "#F2F2F5", "sub": "#A8A8B3",
-  "dark": "#111116", "onDark": "#FFFFFF", "teal": "#1FC8C0", "navBtn": "#2A2A33", "navHover": "#3A3A45",
-  "spark": "#3A3A45", "bar": "#4A4A57", "grid": "#3A3A45", "trendLine": "#8A8A96", "band": "#4A4A57",
-  "gradLow": "#E36C78", "gradHigh": "#2A2A33", "axis": "#77777F" }
+"colors": { "dark": "#111116", "muted": "#A8A8B3", "teal": "#1FC8C0", "onDark": "#F2F2F5", "panel": "#2A2A33",
+  "soft": "#3A3A45", "bar": "#4A4A57", "axis": "#F2F2F5" }
 ```
 
-**3. Brand** – standard, but with the user's colours: `dark` = primary colour, `teal` = accent colour,
-`navBtn` = a lighter shade of the primary colour, `bar`/`spark` = a light shade of the accent colour.
+**3. Brand** – the user's colours: `dark` = primary colour, `teal` = accent colour, `gold` = a second
+brand colour. Keep `bad` red unless the brand says otherwise: it means "worse".
+
+## From hex codes
+
+Map the user's codes to the keys: the darkest brand colour → `dark`, the most visible brand colour →
+`teal`, a second one → `gold`; text and background only when the user asks for a dark or tinted page.
 
 ## From a screenshot
 
-`scripts/palette.ps1 -Path <image>` (Windows PowerShell, no extra modules) scales the image down, counts the
-colours and proposes the keys:
+`scripts/palette.ps1 -Path <image>` (Windows PowerShell, no extra modules) scales the image down, counts
+the colours and suggests every key (`suggestion`):
 
 | Key | Taken from |
 |---|---|
-| `page` | the largest area in the image (the background) |
-| `panel` | light site: white; dark site: the second largest dark, neutral area |
-| `ink` | the neutral colour with the most contrast to `panel`, made darker/lighter to contrast ≥ 7 |
-| `teal` (accent) | the most used saturated colour (buttons, links); none → Standard's teal |
-| `dark` | a dark brand colour (header, footer); none → `#333333` (light site) or a darker `page` |
-| others (`sub`, `border`, `navBtn`, `spark`, `bar` …) | mixed from the four above |
+| `panel` | light image: white; dark image: the second largest dark, neutral area |
+| `axis` | the neutral colour with the most contrast to `panel`, made darker/lighter to contrast ≥ 7 |
+| `teal` | the most used saturated colour (buttons, links); none → `#1FC8C0` |
+| `dark` | a dark brand colour (header, footer); none → `#333333` |
+| `gold` | a second saturated colour of another hue (not red); none → the template's |
+| `muted`, `soft`, `bar` | mixed from the above; `bad`, `badDark` stay red |
 
-The accent colour must be readable as numbers on the dark tiles (contrast ≥ 4.5). If it is too dark, it is
-made lighter – `accentFromImage` shows the original, `accentAdjusted` whether it was changed. `contrastOk` is
-`true` when every text pair passes. A screenshot with large photos can give a skewed background (the script
-then reports `siteIsDark: true` for a light site): use a crop with the site's header, buttons and text, or
-build an adjusted palette – a light `page`/`panel`, a dark `ink`, the brand's dark colour as `dark` and its
-button colour as `teal` – and check the contrast.
+The accent colour must be readable as numbers on the dark tiles (contrast ≥ 4.5); if it is too dark it is
+made lighter – `accentFromImage` shows the original, `accentAdjusted` whether it changed. `contrastOk` is
+`true` when every text pair passes. A screenshot with large photos can skew the background
+(`siteIsDark: true` for a light site): use a crop with the header, buttons and text.
 
 ## Contrast
 
-Check before you build that text is readable: contrast ratio at least 4.5 for `ink` and `sub` on
-`panel`/`page`, and for `teal` and `onDark` on `dark`. If a brand colour is too light for `dark`, use it as
-`teal` (accent) instead and keep a dark `dark`.
+Check before you build: `onDark` and `teal` on `dark` at least 4.5; `axis` and `muted` on `panel` at least
+4.5. If a brand colour is too light for `dark`, use it as `teal` and keep a dark `dark`.

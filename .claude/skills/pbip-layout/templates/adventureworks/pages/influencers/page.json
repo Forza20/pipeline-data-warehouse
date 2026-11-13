@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "ReportSectionb7156bb3d54b073bc247",
+  "displayName": "Key Influencers",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280
+}

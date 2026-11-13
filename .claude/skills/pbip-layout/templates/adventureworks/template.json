@@ -1,0 +1,968 @@
+{
+ "source": "Downloads\\adventureworks_report.Report",
+ "extracted": "2026-11-13",
+ "baseTheme": "CY23SU04",
+ "width": 1280,
+ "height": 720,
+ "colors": {
+  "dark": "#333333",
+  "muted": "#666666",
+  "teal": "#20E2D7",
+  "onDark": "#FFFFFF",
+  "panel": "#FFFFFF",
+  "soft": "#E6E6E6",
+  "bar": "#CCCCCC",
+  "axis": "#252423",
+  "bad": "#DE6A73",
+  "badDark": "#A1343C",
+  "gold": "#E1C233"
+ },
+ "colorUse": {
+  "dark": 48,
+  "bar": 2,
+  "panel": 4,
+  "axis": 2,
+  "bad": 4,
+  "teal": 30,
+  "onDark": 30,
+  "gold": 1,
+  "soft": 1,
+  "badDark": 2,
+  "muted": 1
+ },
+ "logo": {
+  "page": "exec",
+  "visual": "85c831ec0c5403eec4c1",
+  "position": {
+   "x": 45.55556496393767,
+   "y": 26.555548969688072,
+   "z": 0,
+   "height": 141.25,
+   "width": 256.25,
+   "tabOrder": 0
+  }
+ },
+ "pages": [
+  {
+   "key": "exec",
+   "id": "ReportSection",
+   "displayName": "Exec Dashboard",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "06933e2165296d283840",
+     "type": "pivotTable"
+    },
+    {
+     "name": "0bfdf045a5062072de83",
+     "type": "kpi"
+    },
+    {
+     "name": "0ec7b856a04ee1ecedad",
+     "type": "actionButton",
+     "navigatesTo": "customer",
+     "group": "db78cf8d854ce5113420"
+    },
+    {
+     "name": "1692ce97e2a4d95b1e50",
+     "type": "textbox"
+    },
+    {
+     "name": "1e9ca56669ab04ab50e7",
+     "type": "group"
+    },
+    {
+     "name": "37b4fb9b6574d348ad13",
+     "type": "textbox"
+    },
+    {
+     "name": "3f84788109d104e5eb34",
+     "type": "shape",
+     "group": "814b6ddea0e60d08d955"
+    },
+    {
+     "name": "4cb44f9514b08440ae8e",
+     "type": "shape",
+     "group": "814b6ddea0e60d08d955"
+    },
+    {
+     "name": "4d4c3148856c6b9a8a98",
+     "type": "card",
+     "group": "1e9ca56669ab04ab50e7"
+    },
+    {
+     "name": "584d7dccab5788c42958",
+     "type": "actionButton",
+     "navigatesTo": "exec",
+     "group": "db78cf8d854ce5113420"
+    },
+    {
+     "name": "64eee47205634c27a497",
+     "type": "lineChart"
+    },
+    {
+     "name": "67a09e92ada0823e47cb",
+     "type": "actionButton",
+     "bookmark": "Bookmark061fac595175424cea92"
+    },
+    {
+     "name": "69cfb3f898eaa83c1c54",
+     "type": "group"
+    },
+    {
+     "name": "6d4019f4433394190ed4",
+     "type": "slicer",
+     "group": "69cfb3f898eaa83c1c54"
+    },
+    {
+     "name": "73ad3be05ee10c88b30b",
+     "type": "actionButton",
+     "bookmark": "Bookmark9e58c6d580b941dd30bd"
+    },
+    {
+     "name": "79f7ea7e2407749ec57e",
+     "type": "card",
+     "group": "1e9ca56669ab04ab50e7"
+    },
+    {
+     "name": "7c5cdf6712ba0e61a2b1",
+     "type": "actionButton",
+     "navigatesTo": "product",
+     "group": "db78cf8d854ce5113420"
+    },
+    {
+     "name": "7e1e3eb487776d74e4e4",
+     "type": "actionButton",
+     "bookmark": "Bookmark9b3066e190be436e6a5e",
+     "group": "69cfb3f898eaa83c1c54"
+    },
+    {
+     "name": "814b6ddea0e60d08d955",
+     "type": "group"
+    },
+    {
+     "name": "85c831ec0c5403eec4c1",
+     "type": "image"
+    },
+    {
+     "name": "8b4d191b63e91927eb14",
+     "type": "kpi"
+    },
+    {
+     "name": "92e8f4b6c491ab77b045",
+     "type": "shape",
+     "group": "814b6ddea0e60d08d955"
+    },
+    {
+     "name": "a709855c41090b858580",
+     "type": "shape",
+     "group": "69cfb3f898eaa83c1c54"
+    },
+    {
+     "name": "a77ed1f707db23d0a712",
+     "type": "card"
+    },
+    {
+     "name": "ab53c22f59b0203eb4a7",
+     "type": "slicer",
+     "group": "69cfb3f898eaa83c1c54"
+    },
+    {
+     "name": "bc45e1e88406385920e4",
+     "type": "clusteredBarChart"
+    },
+    {
+     "name": "c1b470890501b7708adb",
+     "type": "shape"
+    },
+    {
+     "name": "c67a28fc2500d07a7d08",
+     "type": "shape",
+     "group": "814b6ddea0e60d08d955"
+    },
+    {
+     "name": "cae3a2a5b30d80218290",
+     "type": "card",
+     "group": "1e9ca56669ab04ab50e7"
+    },
+    {
+     "name": "caf75cfed917296a818e",
+     "type": "card"
+    },
+    {
+     "name": "d44689a4b6b0bc04054b",
+     "type": "kpi"
+    },
+    {
+     "name": "db78cf8d854ce5113420",
+     "type": "group"
+    },
+    {
+     "name": "f8ebc8c1ec09aee8ec44",
+     "type": "actionButton",
+     "navigatesTo": "map",
+     "group": "db78cf8d854ce5113420"
+    },
+    {
+     "name": "ffe251ff8739a0ae290d",
+     "type": "card",
+     "group": "1e9ca56669ab04ab50e7"
+    }
+   ],
+   "texts": [
+    "AW Logo",
+    "Click to clear all filters",
+    "Find anomalies 1",
+    "Left Nav Background",
+    "Monthly Orders",
+    "Monthly Returns",
+    "Monthly Revenue",
+    "Most Ordered Product Type:",
+    "Most Returned Product Type:",
+    "Orders by Category",
+    "Prev Month",
+    "Revenue Trending",
+    "Trend line 1"
+   ]
+  },
+  {
+   "key": "map",
+   "id": "ReportSection28fc774ae9054691e9b4",
+   "displayName": "Map",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "24cacd13e6bb41a46100",
+     "type": "shape"
+    },
+    {
+     "name": "322740ca5e8522e76077",
+     "type": "map"
+    },
+    {
+     "name": "4c61eeffa900887e50a3",
+     "type": "actionButton",
+     "navigatesTo": "customer",
+     "group": "9847ecb362e345a82898"
+    },
+    {
+     "name": "72303e3ba7e5444d4a31",
+     "type": "actionButton",
+     "navigatesTo": "map",
+     "group": "9847ecb362e345a82898"
+    },
+    {
+     "name": "79de78796cb6c0103bd1",
+     "type": "slicer"
+    },
+    {
+     "name": "9847ecb362e345a82898",
+     "type": "group"
+    },
+    {
+     "name": "dbebd08001ec65a31b4b",
+     "type": "actionButton",
+     "navigatesTo": "exec",
+     "group": "9847ecb362e345a82898"
+    },
+    {
+     "name": "fdbf42605d0432e030ed",
+     "type": "actionButton",
+     "navigatesTo": "product",
+     "group": "9847ecb362e345a82898"
+    }
+   ],
+   "texts": []
+  },
+  {
+   "key": "product",
+   "id": "ReportSection0286cbd1a500275010a7",
+   "displayName": "Product Detail",
+   "type": "Drillthrough",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "04ff68754b2b0e342e36",
+     "type": "card"
+    },
+    {
+     "name": "1446a8c31584da04c80c",
+     "type": "actionButton",
+     "navigatesTo": "product",
+     "group": "ac8b933d7d13baba8444"
+    },
+    {
+     "name": "1a6630b239d495565550",
+     "type": "areaChart"
+    },
+    {
+     "name": "1c1bc81772a08c327252",
+     "type": "actionButton",
+     "navigatesTo": "map",
+     "group": "ac8b933d7d13baba8444"
+    },
+    {
+     "name": "41a74d80c521ea9a1ed3",
+     "type": "lineChart"
+    },
+    {
+     "name": "4f3d901f27e3bbc249eb",
+     "type": "actionButton",
+     "navigatesTo": "exec",
+     "group": "ac8b933d7d13baba8444"
+    },
+    {
+     "name": "53f34ef70113c720a034",
+     "type": "textbox"
+    },
+    {
+     "name": "6d15947570bc0c801716",
+     "type": "slicer"
+    },
+    {
+     "name": "8dc8304b6a73108066e2",
+     "type": "gauge"
+    },
+    {
+     "name": "a5220ae10d93d2127603",
+     "type": "slicer"
+    },
+    {
+     "name": "a64f74dc7cd85505aa50",
+     "type": "shape"
+    },
+    {
+     "name": "ac8b933d7d13baba8444",
+     "type": "group"
+    },
+    {
+     "name": "cf266180e74805499ead",
+     "type": "textbox"
+    },
+    {
+     "name": "d7dff7e0681a247a7ae0",
+     "type": "gauge"
+    },
+    {
+     "name": "e2593de8259b324b0b81",
+     "type": "gauge"
+    },
+    {
+     "name": "f15fb6afd549aa764b05",
+     "type": "actionButton",
+     "navigatesTo": "customer",
+     "group": "ac8b933d7d13baba8444"
+    }
+   ],
+   "texts": [
+    " were ",
+    "Monthly Orders vs. Target",
+    "Monthly Profit vs. Target",
+    "Monthly Revenue vs. Target",
+    "Profit Trending",
+    "Report Summary",
+    "Return Trending",
+    "Selected Product:",
+    "Total orders for "
+   ]
+  },
+  {
+   "key": "customer",
+   "id": "ReportSection8c2bc5508834bc010b60",
+   "displayName": "Customer Detail",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "00f50d7f011e02116b83",
+     "type": "donutChart"
+    },
+    {
+     "name": "058745c82c1acd612167",
+     "type": "actionButton",
+     "navigatesTo": "product",
+     "group": "4f3dc7e8408c43d11130"
+    },
+    {
+     "name": "06f4bcff511080119023",
+     "type": "actionButton",
+     "navigatesTo": "exec",
+     "group": "4f3dc7e8408c43d11130"
+    },
+    {
+     "name": "129ef3006e74a775e7a2",
+     "type": "card"
+    },
+    {
+     "name": "1839c80ec820ece77a01",
+     "type": "card"
+    },
+    {
+     "name": "1cec4c55d116e86e00a3",
+     "type": "card"
+    },
+    {
+     "name": "1d36166509acdd82418c",
+     "type": "shape"
+    },
+    {
+     "name": "1d3e026849603e19bc06",
+     "type": "shape"
+    },
+    {
+     "name": "2358794b5058eec03c01",
+     "type": "actionButton",
+     "bookmark": "Bookmark5caee8b158e1e4199028"
+    },
+    {
+     "name": "296b576ae0b889320095",
+     "type": "actionButton",
+     "navigatesTo": "customer",
+     "group": "4f3dc7e8408c43d11130"
+    },
+    {
+     "name": "3c71ca27b7345391701e",
+     "type": "textbox"
+    },
+    {
+     "name": "4163a2ee9860e48601ca",
+     "type": "textbox"
+    },
+    {
+     "name": "4f3dc7e8408c43d11130",
+     "type": "group"
+    },
+    {
+     "name": "5339934b82a9d6e0059b",
+     "type": "actionButton",
+     "bookmark": "Bookmarkd03d17222735e25c1a41"
+    },
+    {
+     "name": "58f9cbde5b30b057750a",
+     "type": "card"
+    },
+    {
+     "name": "5a9c3ea50dbad6b2b236",
+     "type": "actionButton",
+     "navigatesTo": "map",
+     "group": "4f3dc7e8408c43d11130"
+    },
+    {
+     "name": "7635aee9cd833200ad23",
+     "type": "shape"
+    },
+    {
+     "name": "89fbefd0067a3b22955c",
+     "type": "textbox"
+    },
+    {
+     "name": "97e590d80399238a0934",
+     "type": "slicer"
+    },
+    {
+     "name": "bdb8683a20a7b9b45377",
+     "type": "card"
+    },
+    {
+     "name": "bed26036ac8b0a0e0ea1",
+     "type": "tableEx"
+    },
+    {
+     "name": "c026911a502831e158c7",
+     "type": "slicer"
+    },
+    {
+     "name": "c5c9bf82e74b6de4d7ab",
+     "type": "lineChart"
+    },
+    {
+     "name": "f1e70f4e0eed0eb10210",
+     "type": "donutChart"
+    }
+   ],
+   "texts": [
+    "Click to clear all filters",
+    "Orders by Income Level",
+    "Orders by Occupation",
+    "Orders:",
+    "Revenue:",
+    "Show the top customer in the selected group",
+    "Top 100 Customers",
+    "Top Customer (by Revenue):",
+    "Trend line 1",
+    "Very High"
+   ]
+  },
+  {
+   "key": "tooltip",
+   "id": "ReportSection3776d125ce75a945057b",
+   "displayName": "Category Tooltip",
+   "type": "Tooltip",
+   "hidden": true,
+   "width": 425,
+   "height": 225,
+   "visuals": [
+    {
+     "name": "77b9e33f9c62c0250c24",
+     "type": "areaChart"
+    },
+    {
+     "name": "f4308d3a9a49d810ada4",
+     "type": "multiRowCard"
+    }
+   ],
+   "texts": [
+    "Weekly Orders"
+   ]
+  },
+  {
+   "key": "qna",
+   "id": "ReportSection0b810c404515611548b3",
+   "displayName": "Q&A",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "605f5d8d94277707bb8d",
+     "type": "qnaVisual"
+    },
+    {
+     "name": "63eeb65741466d0ad0d6",
+     "type": "pivotTable"
+    }
+   ],
+   "texts": [
+    "Orders by month"
+   ]
+  },
+  {
+   "key": "decomp",
+   "id": "ReportSectionf7a915f63a2894564038",
+   "displayName": "Decomposition Tree",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "482fb87d121118934e2e",
+     "type": "decompositionTreeVisual"
+    },
+    {
+     "name": "bb03757c81350d661229",
+     "type": "card"
+    }
+   ],
+   "texts": []
+  },
+  {
+   "key": "influencers",
+   "id": "ReportSectionb7156bb3d54b073bc247",
+   "displayName": "Key Influencers",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "4c6082bf0333e3ebd300",
+     "type": "keyDriversVisual"
+    },
+    {
+     "name": "86800080581971ba7000",
+     "type": "keyDriversVisual"
+    }
+   ],
+   "texts": []
+  }
+ ],
+ "bookmarks": [
+  {
+   "name": "Bookmark061fac595175424cea92",
+   "displayName": "Show Slicer Panel",
+   "file": "Bookmark061fac595175424cea92.bookmark.json",
+   "page": "exec"
+  },
+  {
+   "name": "Bookmark5caee8b158e1e4199028",
+   "displayName": "Clear Customer Filters",
+   "file": "Bookmark5caee8b158e1e4199028.bookmark.json",
+   "page": "customer"
+  },
+  {
+   "name": "Bookmark9b3066e190be436e6a5e",
+   "displayName": "Hide Slicer Panel",
+   "file": "Bookmark9b3066e190be436e6a5e.bookmark.json",
+   "page": "exec"
+  },
+  {
+   "name": "Bookmark9e58c6d580b941dd30bd",
+   "displayName": "Clear Exec Filters",
+   "file": "Bookmark9e58c6d580b941dd30bd.bookmark.json",
+   "page": "exec"
+  },
+  {
+   "name": "Bookmarkd03d17222735e25c1a41",
+   "displayName": "Customer Insight",
+   "file": "Bookmarkd03d17222735e25c1a41.bookmark.json",
+   "page": "customer"
+  }
+ ],
+ "icons": {
+  "Customer_Icon9337494298607227.png": "onDark",
+  "Customer_Icon_Blue604278327866097.png": "teal",
+  "Customer_Icon_Blue6321908760840802.png": "teal",
+  "Dashboard_Icon494503694588428.png": "onDark",
+  "Dashboard_Icon_Blue6535393111924697.png": "teal",
+  "Dashboard_Icon_Blue6642878257107951.png": "teal",
+  "Filter_Icon517732633849616.png": "onDark",
+  "Filter_Icon_Blue03222444489954901.png": "teal",
+  "Filter_Icon_Blue9157875542216054.png": "teal",
+  "Map_Icon17036742426904938.png": "onDark",
+  "Map_Icon_Blue03198620748549197.png": "teal",
+  "Map_Icon_Blue22789165854524263.png": "teal",
+  "Product_Icon1737526266271372.png": "onDark",
+  "Product_Icon_Blue3915456179848238.png": "teal",
+  "Product_Icon_Blue526840144526213.png": "teal"
+ },
+ "fields": {
+  "Calendar Lookup[Date Hierarchy.Date]": {
+   "kind": "Column",
+   "hierarchyLevel": true,
+   "pages": [
+    "customer",
+    "product"
+   ]
+  },
+  "Calendar Lookup[Date Hierarchy.Start of Month]": {
+   "kind": "Column",
+   "hierarchyLevel": true,
+   "pages": [
+    "customer",
+    "product"
+   ]
+  },
+  "Calendar Lookup[Date Hierarchy.Start of Week]": {
+   "kind": "Column",
+   "hierarchyLevel": true,
+   "pages": [
+    "customer",
+    "product"
+   ]
+  },
+  "Calendar Lookup[Date Hierarchy.Year]": {
+   "kind": "Column",
+   "hierarchyLevel": true,
+   "pages": [
+    "customer",
+    "product"
+   ]
+  },
+  "Calendar Lookup[Date]": {
+   "kind": "Column",
+   "pages": [
+    "product"
+   ]
+  },
+  "Calendar Lookup[Month]": {
+   "kind": "Column",
+   "pages": [
+    "product"
+   ]
+  },
+  "Calendar Lookup[Start of Month]": {
+   "kind": "Column",
+   "pages": [
+    "exec",
+    "product"
+   ]
+  },
+  "Calendar Lookup[Start of Quarter]": {
+   "kind": "Column",
+   "pages": [
+    "exec"
+   ]
+  },
+  "Calendar Lookup[Start of Week]": {
+   "kind": "Column",
+   "pages": [
+    "tooltip"
+   ]
+  },
+  "Calendar Lookup[Year]": {
+   "kind": "Column",
+   "pages": [
+    "customer",
+    "exec"
+   ]
+  },
+  "Customer Lookup[AnnualIncome]": {
+   "kind": "Column",
+   "pages": [
+    "influencers"
+   ]
+  },
+  "Customer Lookup[CustomerKey]": {
+   "kind": "Column",
+   "pages": [
+    "customer"
+   ]
+  },
+  "Customer Lookup[EducationLevel]": {
+   "kind": "Column",
+   "pages": [
+    "influencers"
+   ]
+  },
+  "Customer Lookup[Full Name]": {
+   "kind": "Column",
+   "pages": [
+    "customer"
+   ]
+  },
+  "Customer Lookup[HomeOwner]": {
+   "kind": "Column",
+   "pages": [
+    "influencers"
+   ]
+  },
+  "Customer Lookup[Income Level]": {
+   "kind": "Column",
+   "pages": [
+    "customer"
+   ]
+  },
+  "Customer Lookup[Is Parent?]": {
+   "kind": "Column",
+   "pages": [
+    "influencers"
+   ]
+  },
+  "Customer Lookup[MaritalStatus]": {
+   "kind": "Column",
+   "pages": [
+    "influencers"
+   ]
+  },
+  "Customer Lookup[Occupation]": {
+   "kind": "Column",
+   "pages": [
+    "customer",
+    "influencers"
+   ]
+  },
+  "Customer Metric Selection[Customer Metric Selection Fields]": {
+   "kind": "Column",
+   "pages": [
+    "customer"
+   ]
+  },
+  "Customer Metric Selection[Customer Metric Selection]": {
+   "kind": "Column",
+   "pages": [
+    "customer"
+   ]
+  },
+  "Measure Table[Adjusted Profit]": {
+   "kind": "Measure",
+   "pages": [
+    "product"
+   ]
+  },
+  "Measure Table[Average Retail Price]": {
+   "kind": "Measure",
+   "pages": [
+    "influencers"
+   ]
+  },
+  "Measure Table[Average Revenue per Customer]": {
+   "kind": "Measure",
+   "pages": [
+    "customer"
+   ]
+  },
+  "Measure Table[Order Target Gap]": {
+   "kind": "Measure",
+   "pages": [
+    "product"
+   ]
+  },
+  "Measure Table[Order Target]": {
+   "kind": "Measure",
+   "pages": [
+    "product"
+   ]
+  },
+  "Measure Table[Previous Month Orders]": {
+   "kind": "Measure",
+   "pages": [
+    "exec"
+   ]
+  },
+  "Measure Table[Previous Month Returns]": {
+   "kind": "Measure",
+   "pages": [
+    "exec"
+   ]
+  },
+  "Measure Table[Previous Month Revenue]": {
+   "kind": "Measure",
+   "pages": [
+    "exec"
+   ]
+  },
+  "Measure Table[Profit Target Gap]": {
+   "kind": "Measure",
+   "pages": [
+    "product"
+   ]
+  },
+  "Measure Table[Profit Target]": {
+   "kind": "Measure",
+   "pages": [
+    "product"
+   ]
+  },
+  "Measure Table[Return Rate]": {
+   "kind": "Measure",
+   "pages": [
+    "exec",
+    "tooltip"
+   ]
+  },
+  "Measure Table[Revenue Target Gap]": {
+   "kind": "Measure",
+   "pages": [
+    "product"
+   ]
+  },
+  "Measure Table[Revenue Target]": {
+   "kind": "Measure",
+   "pages": [
+    "product"
+   ]
+  },
+  "Measure Table[Total Customers]": {
+   "kind": "Measure",
+   "pages": [
+    "customer"
+   ]
+  },
+  "Measure Table[Total Orders]": {
+   "kind": "Measure",
+   "pages": [
+    "customer",
+    "decomp",
+    "exec",
+    "map",
+    "product",
+    "qna",
+    "tooltip"
+   ]
+  },
+  "Measure Table[Total Profit]": {
+   "kind": "Measure",
+   "pages": [
+    "exec",
+    "product",
+    "tooltip"
+   ]
+  },
+  "Measure Table[Total Returns]": {
+   "kind": "Measure",
+   "pages": [
+    "exec",
+    "tooltip"
+   ]
+  },
+  "Measure Table[Total Revenue]": {
+   "kind": "Measure",
+   "pages": [
+    "customer",
+    "exec",
+    "product",
+    "tooltip"
+   ]
+  },
+  "Price Adjustment (%)[Price Adjustment (%)]": {
+   "kind": "Column",
+   "pages": [
+    "product"
+   ]
+  },
+  "Product Categories Lookup[CategoryName]": {
+   "kind": "Column",
+   "pages": [
+    "decomp",
+    "exec",
+    "qna"
+   ]
+  },
+  "Product Lookup[ProductColor]": {
+   "kind": "Column",
+   "pages": [
+    "qna"
+   ]
+  },
+  "Product Lookup[ProductCost]": {
+   "kind": "Column",
+   "pages": [
+    "influencers"
+   ]
+  },
+  "Product Lookup[ProductName]": {
+   "kind": "Column",
+   "pages": [
+    "decomp",
+    "exec",
+    "product"
+   ]
+  },
+  "Product Metric Selection[Product Metric Selection Fields]": {
+   "kind": "Column",
+   "pages": [
+    "product"
+   ]
+  },
+  "Product Metric Selection[Product Metric Selection]": {
+   "kind": "Column",
+   "pages": [
+    "product"
+   ]
+  },
+  "Product Subcategories Lookup[SubcategoryName]": {
+   "kind": "Column",
+   "pages": [
+    "decomp",
+    "exec",
+    "influencers"
+   ]
+  },
+  "Territory Lookup[Continent]": {
+   "kind": "Column",
+   "pages": [
+    "exec",
+    "map"
+   ]
+  },
+  "Territory Lookup[Country]": {
+   "kind": "Column",
+   "pages": [
+    "exec",
+    "map"
+   ]
+  }
+ }
+}

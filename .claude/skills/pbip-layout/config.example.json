@@ -1,48 +1,80 @@
 {
-  "pageName": "Dashboard",
-  "title": "Sales overview",
-  "subtitle": "Data Modeling PBIP",
-  "navLabels": { "Net sales over tid": "Trend", "Page 1": "Side 1" },
-  "kpis": [
-    { "measure": "_measures[net_sales]", "label": "Net Sales" },
-    { "measure": "_measures[total_orders]", "label": "Orders" },
-    { "measure": "_measures[gross_margin]", "label": "Gross Margin" },
-    { "measure": "_measures[gross_margin_pct]", "label": "Margin %" }
-  ],
-  "trend": {
-    "monthColumn": "dim_date[MonthStart]",
-    "measure": "_measures[net_sales]",
-    "label": "Net Sales",
-    "title": "Net Sales Trending"
-  },
-  "monthly": [
-    { "title": "Monthly Net Sales", "sparkMeasure": "_measures[net_sales]", "currentMeasure": "_measures[net_sales_cm]", "labelMeasure": "_measures[net_sales_label]", "colorMeasure": "_measures[net_sales_cm_color]" },
-    { "title": "Monthly Orders", "sparkMeasure": "_measures[total_orders]", "currentMeasure": "_measures[orders_cm]", "labelMeasure": "_measures[orders_label]", "colorMeasure": "_measures[orders_cm_color]" },
-    { "title": "Monthly Active Customers", "sparkMeasure": "_measures[total_active_customers]", "currentMeasure": "_measures[customers_cm]", "labelMeasure": "_measures[customers_label]", "colorMeasure": "_measures[customers_cm_color]" }
-  ],
-  "bar": {
-    "title": "Orders by Category",
-    "categoryColumn": "dim_products[category]",
-    "categoryLabel": "Category",
-    "measure": "_measures[total_orders]",
-    "measureLabel": "Orders"
-  },
-  "table": {
-    "title": "Top Ten Products",
-    "rowColumn": "dim_products[product_name]",
-    "columns": [
-      { "measure": "_measures[total_orders]", "label": "Orders" },
-      { "measure": "_measures[net_sales]", "label": "Net Sales" },
-      { "measure": "_measures[gross_margin_pct]", "label": "Margin %" }
-    ],
-    "sortMeasure": "_measures[total_orders]",
-    "dataBarMeasure": "_measures[total_orders]",
-    "gradientMeasure": "_measures[gross_margin_pct]",
-    "gradientHigherIsWorse": false,
-    "topN": { "count": 10, "orderByColumn": "fact_sales[order_id]", "function": 2 }
-  },
-  "highlights": [
-    { "header": "Most Ordered Category", "measure": "_measures[top_category]" },
-    { "header": "Top Sales Channel", "measure": "_measures[top_channel]" }
-  ]
+ "template": "adventureworks",
+ "pages": [
+  "exec",
+  "map",
+  "product",
+  "customer",
+  "tooltip",
+  "qna",
+  "decomp",
+  "influencers"
+ ],
+ "title": "Sales overview",
+ "subtitle": "Dataset",
+ "fields": {
+  "Calendar Lookup[Date Hierarchy.Date]": "dim_date[date]",
+  "Calendar Lookup[Date Hierarchy.Start of Month]": "dim_date[month_start]",
+  "Calendar Lookup[Date Hierarchy.Start of Week]": "dim_date[week_start]",
+  "Calendar Lookup[Date Hierarchy.Year]": "dim_date[year]",
+  "Calendar Lookup[Date]": "dim_date[date]",
+  "Calendar Lookup[Month]": "dim_date[month]",
+  "Calendar Lookup[Start of Month]": "dim_date[month_start]",
+  "Calendar Lookup[Start of Quarter]": null,
+  "Calendar Lookup[Start of Week]": "dim_date[week_start]",
+  "Calendar Lookup[Year]": "dim_date[year]",
+  "Customer Lookup[AnnualIncome]": "dim_customer[credit_limit]",
+  "Customer Lookup[CustomerKey]": "dim_customer[customer_id]",
+  "Customer Lookup[EducationLevel]": null,
+  "Customer Lookup[Full Name]": "dim_customer[customer_name]",
+  "Customer Lookup[HomeOwner]": "dim_customer[payment_terms]",
+  "Customer Lookup[Income Level]": "dim_customer[segment]",
+  "Customer Lookup[Is Parent?]": null,
+  "Customer Lookup[MaritalStatus]": null,
+  "Customer Lookup[Occupation]": "dim_customer[region]",
+  "Customer Metric Selection[Customer Metric Selection Fields]": "customer_metric_selection[customer_metric_selection_fields]",
+  "Customer Metric Selection[Customer Metric Selection]": "customer_metric_selection[customer_metric_selection]",
+  "Measure Table[Adjusted Profit]": "_measures[adjusted_gross_margin]",
+  "Measure Table[Average Retail Price]": "_measures[average_order_value]",
+  "Measure Table[Average Revenue per Customer]": "_measures[sales_per_customer]",
+  "Measure Table[Order Target Gap]": "_measures[order_target_gap]",
+  "Measure Table[Order Target]": "_measures[order_target]",
+  "Measure Table[Previous Month Orders]": "_measures[previous_month_orders]",
+  "Measure Table[Previous Month Returns]": "_measures[previous_month_customers]",
+  "Measure Table[Previous Month Revenue]": "_measures[previous_month_sales]",
+  "Measure Table[Profit Target Gap]": "_measures[profit_target_gap]",
+  "Measure Table[Profit Target]": "_measures[profit_target]",
+  "Measure Table[Return Rate]": "_measures[gross_margin_pct]",
+  "Measure Table[Revenue Target Gap]": "_measures[sales_target_gap]",
+  "Measure Table[Revenue Target]": "_measures[target_revenue]",
+  "Measure Table[Total Customers]": "_measures[customers]",
+  "Measure Table[Total Orders]": "_measures[orders]",
+  "Measure Table[Total Profit]": "_measures[gross_margin]",
+  "Measure Table[Total Returns]": "_measures[customers]",
+  "Measure Table[Total Revenue]": "_measures[total_sales]",
+  "Price Adjustment (%)[Price Adjustment (%)]": "price_adjustment_pct[price_adjustment_pct]",
+  "Product Categories Lookup[CategoryName]": "dim_product[category]",
+  "Product Lookup[ProductColor]": "dim_product[brand]",
+  "Product Lookup[ProductCost]": "dim_product[list_price]",
+  "Product Lookup[ProductName]": "dim_product[product_name]",
+  "Product Metric Selection[Product Metric Selection Fields]": "product_metric_selection[product_metric_selection_fields]",
+  "Product Metric Selection[Product Metric Selection]": "product_metric_selection[product_metric_selection]",
+  "Product Subcategories Lookup[SubcategoryName]": "dim_product[subcategory]",
+  "Territory Lookup[Continent]": "dim_city[region]",
+  "Territory Lookup[Country]": "dim_city[city]"
+ },
+ "labels": {
+  "Measure Table[Total Revenue]": "Revenue",
+  "Measure Table[Total Orders]": "Orders",
+  "Measure Table[Total Profit]": "Gross margin",
+  "Measure Table[Return Rate]": "Margin %",
+  "Measure Table[Total Returns]": "Customers"
+ },
+ "texts": {
+  "Monthly Returns": "Monthly Customers",
+  "Most Returned Product Type:": "Highest Margin Product Type:",
+  "Return Trending": "Margin Trending",
+  "Orders by Income Level": "Orders by Segment",
+  "Orders by Occupation": "Orders by Region"
+ }
 }

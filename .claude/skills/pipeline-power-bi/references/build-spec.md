@@ -25,7 +25,7 @@ directory is inside it) – the previous model is kept, close what holds it and 
 | `culture` / `sourceCulture` | report culture; culture used to read text in F17 (`en-US`) |
 | `cutoffDate` | `yyyy-MM-dd` for F15 "future" (the profile's `today`) |
 | `sourceFolder` | absolute folder with the source files, ending with `\` (becomes the `SourceFolder` parameter) |
-| `staging[]`, `tables[]`, `date`, `relationships[]`, `measures[]`, `roles[]` | below |
+| `staging[]`, `tables[]`, `date`, `relationships[]`, `measures[]`, `roles[]`, `parameters[]` | below |
 
 ## `staging[]` – one per source, query group 01_Stage, not loaded
 
@@ -102,13 +102,28 @@ F01 is built from `kind`/`header`/`columns`; F02, F26 come from the table column
 "measures": [ { "name": "Total sales", "expr": "SUM ( Sales[Line total] )", "format": "\\$#,0.00", "folder": "Sales", "description": "…", "term": "Revenue" } ],
 "roles": [ { "name": "Regional Access", "table": "Customer", "filter": "[Region] = LOOKUPVALUE ( security[Region], security[User email], USERPRINCIPALNAME () )" } ]
 ```
-The date table is marked (`dataCategory: Time`), spans whole years of the listed columns, and with
-`completeMonth` gets `Is complete month`. Multi-line DAX: use `\n` in `expr`. `term` names the
-glossary term (`choices.json` → `glossary[]`) and is written as `annotation Term` on the measure. Relationships are
-many-to-one, single direction.
+The date table is marked (`dataCategory: Time`), spans whole years of the listed columns, has `Date`,
+`Year`, `Quarter`, `Month no` (hidden), `Month`, `Month start` and `Week start` (Monday), and with
+`completeMonth` gets `Is complete month` (snake_case: `date`, `year`, … `week_start`). Multi-line DAX: use
+`\n` in `expr`. `term` names the glossary term (`choices.json` → `glossary[]`) and is written as
+`annotation Term` on the measure. Relationships are many-to-one, single direction.
+
+## `parameters[]` – calculated tables the report uses (pbip-layout's template)
+
+```json
+"parameters": [
+  { "kind": "whatIf", "name": "price_adjustment_pct", "min": -1, "max": 1, "step": 0.1, "default": 0, "format": "0%" },
+  { "kind": "fields", "name": "product_metric_selection", "items": [ { "label": "Orders", "measure": "orders" }, { "label": "Revenue", "measure": "total_sales" } ] }
+]
+```
+- `whatIf`: a table `<name>` with one column `<name>` (GENERATESERIES(min, max, step)) and the measure
+  `<name>_value` (`<name> Value` without snake_case) = the selected value, or `default`.
+- `fields`: a field parameter – `<name>` (the slicer), `<name>_fields` and `<name>_order` (hidden;
+  `<name> Fields` / `<name> Order` without snake_case); every `items[].measure` must be in `measures[]`.
+- Both are written to `tables/<name>.tmdl` with descriptions; `snake-names.js` renames them (no prefix).
 
 ## After a change
 
 Change the spec, run the script again, validate (`ConnectFolder`, `powerbi-report-author validate`).
-The report (`<Name>.Report`) is not touched; if a column or measure the dashboard uses was renamed, run
-pbip-layout again.
+The report (`<Name>.Report`) is not touched; if a column or measure the template pages use was renamed,
+run pbip-layout again (its `check-fields.js` lists every field the report uses that the model lacks).

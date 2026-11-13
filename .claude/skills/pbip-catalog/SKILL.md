@@ -29,9 +29,11 @@ itself (repo layout, `.claude/skills/`, `~/.claude/skills/`, `/mnt/skills/user/`
   the command that works for the whole run.
 - PBIP in TMDL format (`<Name>.SemanticModel/definition/`). `model.bim` can be catalogued, but write-back
   needs TMDL. If it is a .pbix: ask for File → Save as → *.pbip, and stop.
-- Dashboard tagging: `docs/layout-config.json` from pbip-layout. If it is missing but the pbip-layout page
-  (id `8d1e4c7a2b5f9e3d6c10`) exists, the slots are derived from the visual positions (layout.md). Otherwise
-  the catalog is built without dashboard tags – tell the user.
+- Dashboard tagging: `docs/layout-config.json` from pbip-layout. With its report template (`template`,
+  `pages`, `fields`) every mapped field is tagged with the pages that use it (Exec Dashboard, Product
+  Detail …; template.json says which). Without the file, fields on the template's pages (their fixed ids)
+  are tagged with the page; an older single-page layout (`8d1e4c7a2b5f9e3d6c10`, config with `kpis`) still
+  gives its slots (KPI 1 …). Otherwise the catalog is built without dashboard tags – tell the user.
 
 ## Workflow
 

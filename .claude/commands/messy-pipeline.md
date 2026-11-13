@@ -85,13 +85,19 @@ questions whatever the dataset holds. When done, set `"questions_asked": "<times
    and show the palette it finds (colors.md → "From a screenshot"). A screenshot dominated by a large photo
    can skew the background colour: then offer an adjusted palette built from the header, buttons and text,
    next to the script's suggestion, with a preview of both.
-2. *Sections* (multiSelect): monthly cards, highlight tiles, bar chart, top-10 table – all selected is the
-   default.
-3. *Title:* "Sales overview (Recommended)" or the user's own text (Other).
-4. *Save as default:* "Only this run (Recommended)" · "Save as `profiles\default.json`".
-Write the answers as a profile (`pbip-layout\profile.md`) to `runs\<run_id>\profile.json` and set `run.json`
-→ `"profile": "runs/<run_id>/profile.json"`; also copy it to `profiles\default.json` when asked. Answer
-"Standard" with no other change: write no profile (saved profile: set `profile` to `profiles/default.json`).
+2. *Dashboard pages* (multiSelect, **always asked** – the report template's pages, `pbip-layout\layout.md`):
+   Exec Dashboard · Map · Product Detail · Customer Detail; each description says what the page shows.
+   A saved profile's `pages` are marked "(usually chosen)".
+3. *Analysis pages* (multiSelect, always asked): Category Tooltip · Q&A · Decomposition Tree · Key Influencers.
+4. *Title:* "Sales overview (Recommended)" or the user's own text (Other).
+Then, in the first medallion call (one more question): *Save as default:* "Only this run (Recommended)" ·
+"Save as `profiles\default.json`".
+Write the chosen page keys (`exec`, `map`, `product`, `customer`, `tooltip`, `qna`, `decomp`,
+`influencers`) to `run.json` → `"layout_pages": [...]`; at least one page – with none, ask again. Write
+colours and title as a profile (`pbip-layout\profile.md`, with `pages` = the chosen pages) to
+`runs\<run_id>\profile.json` and set `run.json` → `"profile": "runs/<run_id>/profile.json"`; also copy it to
+`profiles\default.json` when asked. The layout step never chooses pages itself: without `layout_pages` it
+stops with `waiting_for_user`.
 
 **Medallion:**
 1. First call, one question: "Use the skill's recommendation for every decision (Recommended)" · "I want to
@@ -126,7 +132,7 @@ Retention is part of the start, like the questions; it is not counted as a stop 
 
 ## 2d. Show the choices
 
-Show the user in 3–5 lines: profile (or Standard), sections, title, the medallion answers that differ from
+Show the user in 3–5 lines: profile (or Standard), the chosen pages, title, the medallion answers that differ from
 the recommendation, and the retention result. Then start step 3 without waiting.
 
 ## 3. Run the agents, one at a time

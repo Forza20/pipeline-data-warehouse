@@ -90,10 +90,12 @@ close it).
    load all chosen skills in one turn (parallel Skill calls), then run the scripts that do not depend on
    each other in one command: the catalog's first run and governance's `parse_pbip.py` + wiki bundle
    (both after pbip-layout, which changes the report they read).
-   - **pbip-layout**, *pipeline mode* (its SKILL.md section "Pipeline mode"): the user's colour/section/
-     title answers from step 6 as a profile, the slot table from its `layout.md`, missing measures from
-     its `measures.md`, `docs/layout-config.json`, and **`layout-mapping.md` in the run folder** (slot →
-     measure → expected value → fallback → open points). Do this after the model validates.
+   - **pbip-layout**, *pipeline mode* (its SKILL.md section "Pipeline mode"): the pages the user chose in
+     step 6 (`extras.layout_pages` – never chosen by the skill), the colour/title answers as a profile, the
+     template fields mapped with its `layout.md`, `docs/layout-config.json`, and **`layout-mapping.md` in the
+     run folder** (page → template field → model field → value → fallback → open points). The measures and
+     parameters the pages need (its `measures.md`) go into `choices.json → build.measures[]` and
+     `build.parameters[]`, then `rebuild.js` – so a later rebuild keeps them. Do this after the model validates.
    - **pbip-catalog**: `build_catalog.py <pbip> --missing-only` (its fast path: only the list of missing
      descriptions, in about a second), then AI descriptions for every missing field (its step 3, with keys
      described from the relationships) and **one** full run with `--ai-descriptions … --html`. Report: counts,

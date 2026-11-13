@@ -56,11 +56,17 @@ for (const m of ['_Measures', '_measures']) tableMap[m] = '_measures';
 const newNames = Object.values(tableMap).filter((v, i, a) => a.indexOf(v) === i && v !== '_measures');
 if (newNames.length !== new Set(Object.entries(tableMap).filter(([k]) => !/^_measures$/i.test(k)).map(([, v]) => v)).size) warnings.push('two tables map to the same snake_case name');
 
-const DATE_COLS = ['Date', 'Year', 'Quarter', 'Month no', 'Month', 'Month start', 'Is complete month'];
+const DATE_COLS = ['Date', 'Year', 'Quarter', 'Month no', 'Month', 'Month start', 'Week start', 'Is complete month'];
 const knownCols = new Set(DATE_COLS);
 for (const t of B.tables || []) for (const c of t.columns || []) knownCols.add(c.name);
 const measureMap = {};
 for (const m of B.measures || []) measureMap[m.name] = snake(m.name);
+// parameters (build-spec.md): no prefix; their columns and the what-if <name> Value measure follow
+for (const p of B.parameters || []) {
+  tableMap[p.name] = snake(p.name);
+  for (const c of [p.name, `${p.name} Fields`, `${p.name} Order`]) knownCols.add(c);
+  measureMap[`${p.name} Value`] = `${snake(p.name)}_value`;
+}
 const tbl = (n) => tableMap[n] || n;
 const ref = (r) => String(r).replace(/^'?([^'\[]+?)'?\[(.+)\]$/, (all, t, c) => (tableMap[t] || t === oldDate ? `${tbl(t)}[${snake(c)}]` : all));
 // "Table[Column]" references inside free text (model.relationships, notes)
@@ -136,6 +142,10 @@ B.relationships = (B.relationships || []).map((r) => {
 });
 for (const m of B.measures || []) { m.name = measureMap[m.name] || m.name; m.expr = dax(m.expr); }
 for (const r of B.roles || []) { r.table = tbl(r.table); r.filter = dax(r.filter); }
+for (const p of B.parameters || []) {
+  p.name = tbl(p.name);
+  for (const it of p.items || []) it.measure = measureMap[it.measure] || it.measure;
+}
 B.naming = 'snake_case';
 B.measuresTable = '_measures';
 

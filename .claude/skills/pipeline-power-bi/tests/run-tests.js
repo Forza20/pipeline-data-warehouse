@@ -382,6 +382,27 @@ if (!QUICK) {
     check('snake-names: model built, every table/column/measure snake_case, dim_/fact_ tables, dim_date, _measures',
       bm.status === 0 && !bad.length && tables.includes('dim_date.tmdl') && tables.includes('_measures.tmdl') &&
       tables.filter((f) => !/^(dim|fact|bridge|rls)_|^_measures/.test(f)).length === 0, bm.stdout.slice(0, 600) + bm.stderr + bad.slice(0, 10).join('; '));
+    // parameters[] (pbip-layout's template) and the date table's week start
+    {
+      const pr = path.join(TMP, 'params');
+      fs.mkdirSync(pr);
+      const cp = JSON.parse(fs.readFileSync(path.join(sr, 'choices.json'), 'utf8'));
+      const m0 = cp.build.measures[0].name;
+      cp.build.parameters = [{ kind: 'whatIf', name: 'price_adjustment_pct', min: -1, max: 1, step: 0.1, default: 0 },
+        { kind: 'fields', name: 'metric_selection', items: [{ label: 'First', measure: m0 }] }];
+      fs.writeFileSync(path.join(pr, 'choices.json'), JSON.stringify(cp));
+      const bp = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), pr], { encoding: 'utf8' });
+      const td = path.join(pr, 'pbip', `${cp.build.name || 'Test'}.SemanticModel`, 'definition', 'tables');
+      const rd = (f) => (fs.existsSync(path.join(td, f)) ? fs.readFileSync(path.join(td, f), 'utf8') : '');
+      check('parameters: what-if table with GENERATESERIES and its _value measure, field parameter with NAMEOF and hidden _fields/_order, week_start in dim_date',
+        bp.status === 0 && /GENERATESERIES\(-1, 1, 0\.1\)/.test(rd('price_adjustment_pct.tmdl')) && /measure price_adjustment_pct_value/.test(rd('price_adjustment_pct.tmdl')) &&
+        new RegExp(`NAMEOF\\(_measures\\[${m0}\\]\\)`).test(rd('metric_selection.tmdl')) && /column metric_selection_fields\s+isHidden/.test(rd('metric_selection.tmdl')) &&
+        /column week_start/.test(rd('dim_date.tmdl')) && /Date\.StartOfWeek/.test(rd('dim_date.tmdl')), bp.stdout.slice(0, 500) + bp.stderr);
+      cp.build.parameters = [{ kind: 'fields', name: 'bad_selection', items: [{ label: 'X', measure: 'no_such_measure' }] }];
+      fs.writeFileSync(path.join(pr, 'choices.json'), JSON.stringify(cp));
+      const bb = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), pr], { encoding: 'utf8' });
+      check('parameters: a field parameter naming a measure that does not exist stops the build', bb.status === 2 && /no_such_measure/.test(bb.stdout), bb.stdout.slice(0, 300));
+    }
     const ch2 = JSON.parse(fs.readFileSync(path.join(sr, 'choices.json'), 'utf8'));
     ch2.build.measures[0].name = 'Not Snake';
     fs.writeFileSync(path.join(sr, 'choices.json'), JSON.stringify(ch2));

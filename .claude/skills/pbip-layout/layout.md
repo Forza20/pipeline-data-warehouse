@@ -1,52 +1,86 @@
-# Layout: Sales overview (dark-tile executive)
+# Layout: the AdventureWorks report template
 
-Recreated from an AdventureWorks template. One page, 1920 × 1080, white background.
-All numbers are shown as **whole numbers** (no K/M units).
+The template is a real report – `adventureworks_report.pbix`, saved as PBIP in Power BI Desktop – taken
+apart by `scripts/extract-template.js` into [templates/adventureworks/](templates/adventureworks/):
+every page, visual, bookmark and navigation icon, with every colour replaced by a colour key
+([colors.md](colors.md)). `scripts/gen-report.js` builds the pages the user chooses into a report and
+connects them to the project's own model. Pages are **1280 × 720**; numbers keep the template's formats
+and display units (K, M). The logo becomes the report title, or the user's own logo.
 
-## Colours and typography
-| Role | Colour |
-|---|---|
-| Navigation bar, KPI tiles, highlight tiles | `#333333` |
-| KPI values | `#1FC8C0` (teal), Segoe UI Bold |
-| Lines, bars, text | `#252423` |
-| Secondary text | `#605E5C` |
-| Borders on cards/charts | `#C8C6C4`, radius 8 (KPI tiles radius 16) |
-| Sparkline fill | `#E1DFDD` |
-| Table gradient (low → high) | `#E36C78` → `#FDEDEF`; swapped with `table.gradientHigherIsWorse: true` for rates where high is bad (return rate, churn) |
-| Decrease on monthly cards | `#D64550` (through a colour measure) |
+## Pages (the user always chooses which)
 
-## Positions (x, y, width, height)
-| # | Element | Visual | Position | Content |
-|---|---|---|---|---|
-| 1 | Navigation bar | shape | 0, 0, 80, 1080 | dark background |
-| 2 | Back button | actionButton | 8, 16, 64, 44 | icon "back" |
-| 3 | Page buttons (≤3) | actionButton | 8, bottom, 64, 44 | navigation to the other pages |
-| 4 | Title | textbox | 104, 52, 256, 96 | title + subtitle |
-| 5–8 | KPI tiles | cardVisual | y 20, h 148; 1–4 tiles spread evenly over x 376–1904 with 24 px gaps (4 tiles: w 364, x 376 / 764 / 1152 / 1540) | 1–4 headline KPIs, label under the value |
-| 9 | Trend | lineChart | 96, 200, 952, 548 | main measure per month, continuous axis, trend line, forecast, zoom slider |
-| 10–12 | Monthly cards | areaChart + 2 × cardVisual | y 772, h 284, w 300; x 96 / 422 / 748 | sparkline, latest month (colour by up/down), "Previous month: X (±Y%)" |
-| 13 | Bars per category | clusteredBarChart | 1072, 200, 832, 320 | measure per category, sorted descending, blanks hidden |
-| 14 | Top-10 table | tableEx | 1072, 544, 832, 340 | row + 3 measures, data bars, red gradient on the % column, TopN 10 |
-| 15–16 | Highlights | textbox + cardVisual | header y 904 h 32; tile y 944 h 112; w 404; x 1072 / 1500 | text measures (e.g. top category, top channel) |
+| Key | Page | What it shows | Needs in the model |
+|---|---|---|---|
+| `exec` | Exec Dashboard | 4 KPI tiles, revenue trend (trend line, forecast, anomalies), orders by category, top products (orders, revenue, rate), 3 monthly KPIs against last month, 2 "top" tiles, a slicer panel (filter icon, bookmarks) | revenue, orders, profit, a rate, a third count; date; category, subcategory, product; region/country for the slicer panel |
+| `map` | Map | orders per country on a map, continent slicer | a geography column (country/city) and a region column |
+| `product` | Product Detail | **drillthrough** from a product: 3 gauges against targets, profit trend with a price adjustment (what-if), a trend whose measure the user picks (field parameter), a summary text | product; targets (or last month + growth); a price adjustment parameter; a product metric field parameter |
+| `customer` | Customer Detail | customer KPIs, customer trend with a metric choice (field parameter), orders by two customer attributes (donuts), top 100 customers, the top customer, an insight button (bookmarks) | customer id and name, two customer attributes, customers measure, revenue per customer; a customer metric field parameter |
+| `tooltip` | Category Tooltip | hidden tooltip page on the category bars: KPI list and weekly orders | the exec measures; a week start date column. Without it the bars show the normal tooltip |
+| `qna` | Q&A | the Q&A visual (natural-language questions) and orders by category and an attribute | category, a product attribute |
+| `decomp` | Decomposition Tree | orders broken down by category → subcategory → product, and an orders card | category, subcategory, product |
+| `influencers` | Key Influencers | what drives a customer attribute; what drives an average price | a customer attribute to explain and attributes that explain it; a product number column |
 
-The positions above apply with all sections. With `sections` in the config (profile.md), monthly cards
-(0–3), highlights (0–2), bar chart and table can be left out; what remains is spread over the same area:
-monthly cards and highlights fill their row, bars or table alone get the whole right column, without
-highlights the right column reaches y 1056, without monthly cards the trend reaches y 1056, and without both
-bars and table the trend becomes 1808 px wide.
+Navigation: the dark rail on the left has a button per page (Exec, Map, Product, Customer). A page the
+user leaves out loses its button on every page and the buttons below close up. Product Detail is reached
+by its button or by drillthrough on a product.
 
-## Slots to connect to the model
-| Slot | Expected content | Fallback if the model lacks it |
+## Template fields → the model
+
+`config.json → fields` maps every field the chosen pages use (template.json → `fields`, each with the
+pages that use it) to `Table[Field]` in the model, or `null` when the model has nothing that fits:
+`null` leaves the field out of a visual that has more fields (Key Influencers' explain-by list), and leaves
+out a visual that needs it (a map without a location). The generator lists each missing mapping and
+every visual it left out. Choose in this order: the expected content, then the fallback.
+
+### Measures
+
+| Template field | Expected | Fallback / how to make it |
 |---|---|---|
-| KPI 1 | Revenue | — (required) |
-| KPI 2 | Number of orders | number of rows / transactions |
-| KPI 3 | Earnings / profit | revenue after discount, average order value |
-| KPI 4 | Rate in % (margin, return rate) | margin %, share of active customers |
-| Trend | Revenue per month | — |
-| Monthly card 1–3 | Revenue, orders, a third key figure (returns/customers) | active customers |
-| Bars | Orders per product category | revenue per category / segment |
-| Table | Top 10 products: orders, revenue, % key figure | top 10 customers |
-| Highlight 1–2 | Category/segment with the most orders; the second most important "top" text | top channel, top region |
+| `Measure Table[Total Revenue]` | revenue | — (required) |
+| `Measure Table[Total Orders]` | number of orders (distinct order ids) | number of rows / transactions |
+| `Measure Table[Total Profit]` | profit, gross margin | revenue after discount |
+| `Measure Table[Return Rate]` | a rate where **high is bad** (returns, churn, cancellations) | margin % – then change the texts (`Most Returned Product Type:` …) and the table's colour scale reads "low = red" (template: high = red) |
+| `Measure Table[Total Returns]` | returns, complaints | customers (then: `Monthly Returns` → `Monthly Customers`) |
+| `Measure Table[Total Customers]` | distinct customers with an order | — (customer page) |
+| `Measure Table[Previous Month Revenue/Orders/Returns]` | the measure one month back | create – measures.md "Previous month" |
+| `Measure Table[Revenue Target]`, `[Order Target]`, `[Profit Target]` | targets from the model (a target table) | last month × (1 + growth) – measures.md "Targets"; ask the user for the growth (template: 10 %) |
+| `Measure Table[… Target Gap]` | measure − target | create – measures.md |
+| `Measure Table[Adjusted Profit]` | profit with the price adjustment | create – measures.md "Price adjustment" |
+| `Measure Table[Average Revenue per Customer]` | revenue ÷ customers | create |
+| `Measure Table[Average Retail Price]` | average price of a product | average order value, average list price |
 
-KPI 1–4 is the proposal. With a user present, the user chooses 1–4 KPIs and their text (SKILL.md step 4);
-the tiles are then spread evenly across the row.
+### Columns
+
+| Template field | Expected | Fallback |
+|---|---|---|
+| `Calendar Lookup[Date]`, `[Year]`, `[Month]`, `[Start of Month]`, `[Start of Week]` | the date table's date, year, month name, month start, week start | — (pipeline-power-bi's date table has all of them) |
+| `Calendar Lookup[Date Hierarchy.Year/Start of Month/Start of Week/Date]` | the template's drill-down levels → the plain columns above | — |
+| `Calendar Lookup[Start of Quarter]` | quarter start (only in the slicer panel's bookmarks) | `null` |
+| `Product Categories Lookup[CategoryName]`, `Product Subcategories Lookup[SubcategoryName]`, `Product Lookup[ProductName]` | category, subcategory, product | segment / channel / customer for a model without products |
+| `Product Lookup[ProductColor]` | a product attribute (Q&A table) | brand, size |
+| `Product Lookup[ProductCost]` | a number per product (Key Influencers) | list price |
+| `Territory Lookup[Country]` | a location the map can place | city; `null` leaves the map out |
+| `Territory Lookup[Continent]` | the region above it | region, country |
+| `Customer Lookup[CustomerKey]`, `[Full Name]` | customer id and name | — (customer page) |
+| `Customer Lookup[Income Level]`, `[Occupation]` | two customer attributes (donuts) | segment, region, payment terms |
+| `Customer Lookup[HomeOwner]` | the customer attribute Key Influencers explains | segment, payment terms |
+| `Customer Lookup[AnnualIncome]`, `[EducationLevel]`, `[Is Parent?]`, `[MaritalStatus]` | attributes that may explain it | other customer columns; `null` leaves one out |
+| `Price Adjustment (%)[Price Adjustment (%)]` | the what-if parameter | create – measures.md "Price adjustment" |
+| `Product Metric Selection[…]`, `Customer Metric Selection[…]` (and `… Fields`) | field parameters (the user picks a measure) | create – measures.md "Field parameters" |
+
+Names on the page: `labels` sets the name shown for a field (default: the model's name made readable,
+`total_sales` → `Total sales`). `texts` replaces the template's titles and text boxes – template.json →
+`pages[].texts` lists them exactly (`Most Returned Product Type:` with its colon). Change a text whenever a
+fallback changes the meaning.
+
+## What the generator changes, and what it keeps
+
+- Only the chosen pages (new page ids), their bookmarks and their icons are written; the report's own
+  pages stay. Pages from an earlier run (and the old single-page layout) are replaced.
+- The report's base theme becomes the template's (`CY23SU04`), and a colour theme
+  (`pbip-layout-theme.json`, colours only) is registered, so default series colours match the template.
+- Data of the source report is not carried over: selected slicer values, the drillthrough product,
+  per-value formatting and a text quoting a customer were removed when the template was made, or are
+  cleared by the generator.
+- The smart narrative ("Report Summary") keeps only its first sentence ("Total orders for <product>
+  were <orders>"); the AI trend sentences belonged to the source data.

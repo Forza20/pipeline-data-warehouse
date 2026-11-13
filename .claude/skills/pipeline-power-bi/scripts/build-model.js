@@ -286,7 +286,7 @@ function tableTmdl(t) {
 // snake_case (dim_customer, customer_id, total_sales); the calendar's own columns and the measure table follow.
 const SNAKE = B.naming === 'snake_case';
 const SNAKE_RE = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
-const DATE_SNAKE = { Date: 'date', Year: 'year', Quarter: 'quarter', 'Month no': 'month_no', Month: 'month', 'Month start': 'month_start', 'Is complete month': 'is_complete_month' };
+const DATE_SNAKE = { Date: 'date', Year: 'year', Quarter: 'quarter', 'Month no': 'month_no', Month: 'month', 'Month start': 'month_start', 'Week start': 'week_start', 'Is complete month': 'is_complete_month' };
 const DN = (n) => (SNAKE ? DATE_SNAKE[n] : n);
 const MT = B.measuresTable || (SNAKE ? '_measures' : '_Measures');
 const PH = SNAKE ? 'placeholder' : 'Placeholder';
@@ -296,12 +296,14 @@ function dateTmdl(d) {
   const DD = { Date: 'One row per day; filters every fact table by date.', Year: 'Calendar year.', Quarter: 'Calendar quarter (Q1-Q4).',
     'Month no': 'Month number 1-12; sorts Month - technical field.', Month: 'Month name, sorted by month number.',
     'Month start': 'First day of the month; use it for monthly trends across years.',
+    'Week start': 'Monday of the week; use it for weekly trends.',
     'Is complete month': 'True for months fully covered by the data; filter on it to leave out a partial first or last month.' };
   const col = (n, dt, extra) => `\t/// ${desc(null, `${name}[${DN(n)}]`) || DD[n]}\n\tcolumn ${q(DN(n))}\n\t\tdataType: ${dt}\n${extra || ''}\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tsourceColumn: ${DN(n)}\n\n\t\tannotation SummarizationSetBy = Automatic\n\n`;
   let s = `/// Calendar covering whole years from the first to the last date in the facts. Marked as date table.\ntable ${q(name)}\n\tlineageTag: ${g()}\n\tdataCategory: Time\n\n`;
   s += col('Date', 'dateTime', '\t\tisKey\n\t\tformatString: yyyy-mm-dd\n') + '\t\tannotation UnderlyingDateTimeDataType = Date\n\n';
   s += col('Year', 'int64', '\t\tformatString: 0\n') + col('Quarter', 'string') + col('Month no', 'int64', '\t\tisHidden\n\t\tformatString: 0\n');
   s += col('Month', 'string', `\t\tsortByColumn: ${q(DN('Month no'))}\n`) + col('Month start', 'dateTime', '\t\tformatString: mmm yyyy\n') + '\t\tannotation UnderlyingDateTimeDataType = Date\n\n';
+  s += col('Week start', 'dateTime', '\t\tformatString: yyyy-mm-dd\n') + '\t\tannotation UnderlyingDateTimeDataType = Date\n\n';
   if (d.completeMonth) s += col('Is complete month', 'boolean');
   const steps = [
     `Dates = List.RemoveNulls(List.Combine({${refs}}))`, 'Start = #date(Date.Year(List.Min(Dates)), 1, 1)', 'End = #date(Date.Year(List.Max(Dates)), 12, 31)',
@@ -309,16 +311,17 @@ function dateTmdl(d) {
     'Year = Table.AddColumn(Calendar, "Year", each Date.Year([Date]), Int64.Type)', 'Quarter = Table.AddColumn(Year, "Quarter", each "Q" & Text.From(Date.QuarterOfYear([Date])), type text)',
     'MonthNo = Table.AddColumn(Quarter, "Month no", each Date.Month([Date]), Int64.Type)', `MonthName = Table.AddColumn(MonthNo, "Month", each Date.ToText([Date], [Format = "MMM", Culture = ${ms(B.culture || 'en-US')}]), type text)`,
     'MonthStart = Table.AddColumn(MonthName, "Month start", each Date.StartOfMonth([Date]), type date)',
+    'WeekStart = Table.AddColumn(MonthStart, "Week start", each Date.StartOfWeek([Date], Day.Monday), type date)',
   ];
-  let last = 'MonthStart';
+  let last = 'WeekStart';
   if (d.completeMonth) {
     const x = colRef(d.completeMonth);
     steps.push(`DataStart = List.Min(List.RemoveNulls(${mid(x.table)}[${x.column}]))`, `DataEnd = List.Max(List.RemoveNulls(${mid(x.table)}[${x.column}]))`,
-      'Complete = Table.AddColumn(MonthStart, "Is complete month", each Date.StartOfMonth([Date]) >= DataStart and Date.EndOfMonth([Date]) <= DataEnd, type logical)');
+      'Complete = Table.AddColumn(WeekStart, "Is complete month", each Date.StartOfMonth([Date]) >= DataStart and Date.EndOfMonth([Date]) <= DataEnd, type logical)');
     last = 'Complete';
   }
   if (SNAKE) {
-    const cols = ['Date', 'Year', 'Quarter', 'Month no', 'Month', 'Month start', ...(d.completeMonth ? ['Is complete month'] : [])];
+    const cols = ['Date', 'Year', 'Quarter', 'Month no', 'Month', 'Month start', 'Week start', ...(d.completeMonth ? ['Is complete month'] : [])];
     steps.push(`Renamed = Table.RenameColumns(${last}, {${cols.map((c) => `{${ms(c)}, ${ms(DN(c))}}`).join(', ')}})`);
     last = 'Renamed';
   }
@@ -334,12 +337,50 @@ function measuresTmdl(list) {
   }
   return s + `\t/// Hidden placeholder that keeps the measure table a table; not used in reports.\n\tcolumn ${PH}\n\t\tisHidden\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tisNameInferred\n\t\tsourceColumn: [${PH}]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition ${q(MT)} = calculated\n\t\tmode: import\n\t\tsource = ROW ( "${PH}", BLANK () )\n`;
 }
+// parameters[] (build-spec.md): calculated tables the report uses
+//   { "kind": "whatIf", "name": "price_adjustment_pct", "min": -1, "max": 1, "step": 0.1, "default": 0, "format": "0%" }
+//     → a table with one column of GENERATESERIES values and a <name>_value measure (SELECTEDVALUE)
+//   { "kind": "fields", "name": "product_metric_selection", "items": [{ "label": "Orders", "measure": "orders" }, …] }
+//     → a field parameter: <name>, <name>_fields (hidden) and <name>_order (hidden)
+const PARAMS = B.parameters || [];
+const pcol = (p, suffix) => (SNAKE ? `${p.name}_${suffix}` : `${p.name} ${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`);
+const pid = () => g().replace(/-/g, '');
+function parameterTmdl(p) {
+  if (p.kind === 'whatIf') {
+    const fmt = p.format || '0%';
+    return `/// ${p.description || `What-if parameter ${p.name}: ${p.min} to ${p.max} in steps of ${p.step}; ${pcol(p, 'value')} returns the selected value (default ${p.default ?? 0}).`}\n` +
+      `table ${q(p.name)}\n\tlineageTag: ${g()}\n\n` +
+      `\t/// The selected value of ${p.name}, or ${p.default ?? 0} when none is selected.\n` +
+      `\tmeasure ${q(pcol(p, 'value'))} = SELECTEDVALUE ( ${q(p.name)}[${p.name}], ${p.default ?? 0} )\n\t\tformatString: ${fmt}\n\t\tlineageTag: ${g()}\n\n` +
+      `\t/// The values the slicer offers.\n\tcolumn ${q(p.name)}\n\t\tformatString: ${fmt}\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tsourceColumn: [Value]\n\n` +
+      `\t\textendedProperty ParameterMetadata =\n\t\t\t\t{\n\t\t\t\t  "version": 0\n\t\t\t\t}\n\n\t\tannotation SummarizationSetBy = User\n\n` +
+      `\tpartition ${q(p.name)} = calculated\n\t\tmode: import\n\t\tsource = GENERATESERIES(${p.min}, ${p.max}, ${p.step})\n\n\tannotation PBI_Id = ${pid()}\n`;
+  }
+  if (p.kind === 'fields') {
+    const rows = (p.items || []).map((it, i) => `\t\t\t\t    (${JSON.stringify(it.label)}, NAMEOF(${q(MT)}[${it.measure}]), ${i})`).join(',\n');
+    return `/// ${p.description || `Field parameter ${p.name}: the user picks which measure the visuals show (${(p.items || []).map((i) => i.label).join(', ')}).`}\n` +
+      `table ${q(p.name)}\n\tlineageTag: ${g()}\n\n` +
+      `\t/// The measure name shown in the slicer.\n\tcolumn ${q(p.name)}\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tsourceColumn: [Value1]\n\t\tsortByColumn: ${q(pcol(p, 'order'))}\n\n` +
+      `\t\trelatedColumnDetails\n\t\t\tgroupByColumn: ${q(pcol(p, 'fields'))}\n\n\t\tannotation SummarizationSetBy = Automatic\n\n` +
+      `\t/// The measure behind each choice (used by the visuals).\n\tcolumn ${q(pcol(p, 'fields'))}\n\t\tisHidden\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tsourceColumn: [Value2]\n\t\tsortByColumn: ${q(pcol(p, 'order'))}\n\n` +
+      `\t\textendedProperty ParameterMetadata =\n\t\t\t\t{\n\t\t\t\t  "version": 3,\n\t\t\t\t  "kind": 2\n\t\t\t\t}\n\n\t\tannotation SummarizationSetBy = Automatic\n\n` +
+      `\t/// Sort order of the choices.\n\tcolumn ${q(pcol(p, 'order'))}\n\t\tisHidden\n\t\tformatString: 0\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: sum\n\t\tsourceColumn: [Value3]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n` +
+      `\tpartition ${q(p.name)} = calculated\n\t\tmode: import\n\t\tsource =\n\t\t\t\t{\n${rows}\n\t\t\t\t}\n`;
+  }
+  errors.push(`parameter ${p.name}: unknown kind ${p.kind} (whatIf, fields)`);
+  return '';
+}
+for (const p of PARAMS) {
+  if (!['whatIf', 'fields'].includes(p.kind)) errors.push(`parameter ${p.name}: unknown kind ${p.kind} (whatIf, fields)`);
+  if (p.kind === 'fields') for (const it of p.items || []) if (!(B.measures || []).some((m) => m.name === it.measure)) errors.push(`parameter ${p.name}: measure ${it.measure} is not in measures[]`);
+  if (p.kind === 'whatIf' && [p.min, p.max, p.step].some((x) => typeof x !== 'number')) errors.push(`parameter ${p.name}: min, max and step must be numbers`);
+}
 const tmdlCol = (r) => { const x = colRef(r); return `${q(x.table)}.${q(x.column)}`; };
 
 // ---------- checks before writing ----------
 const tableCols = new Map(tables.map((t) => [t.name, new Set(t.columns.map((c) => c.name))]));
 const date = B.date ? dateTmdl(B.date) : null;
-if (date) tableCols.set(date.name, new Set(['Date', 'Year', 'Quarter', 'Month no', 'Month', 'Month start', 'Is complete month'].map(DN)));
+if (date) tableCols.set(date.name, new Set(['Date', 'Year', 'Quarter', 'Month no', 'Month', 'Month start', 'Week start', 'Is complete month'].map(DN)));
 if (SNAKE) {
   const bad = [];
   for (const t of tables) {
@@ -349,6 +390,7 @@ if (SNAKE) {
   }
   for (const m of B.measures || []) if (!SNAKE_RE.test(m.name)) bad.push(`measure ${m.name}`);
   if (date && !SNAKE_RE.test(date.name)) bad.push(date.name);
+  for (const p of PARAMS) if (!SNAKE_RE.test(p.name)) bad.push(`parameter ${p.name}`);
   if (bad.length) errors.push(`naming is snake_case but these names are not – run snake-names.js <run> --apply: ${bad.slice(0, 15).join(', ')}${bad.length > 15 ? ` … (${bad.length})` : ''}`);
 }
 for (const r of B.relationships || []) {
@@ -369,7 +411,7 @@ fs.mkdirSync(path.join(def, 'tables'), { recursive: true });
 fs.writeFileSync(path.join(sm, '.platform'), JSON.stringify({ $schema: 'https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json', metadata: { type: 'SemanticModel', displayName: NAME }, config: { version: '2.0', logicalId: g() } }, null, 2));
 fs.writeFileSync(path.join(sm, 'definition.pbism'), JSON.stringify({ version: '4.2', settings: {} }, null, 2));
 fs.writeFileSync(path.join(def, 'database.tmdl'), 'database\n\tcompatibilityLevel: 1600\n');
-const allTables = [...tables.map((t) => t.name), ...(date ? [date.name] : []), ...(B.measures && B.measures.length ? [MT] : [])];
+const allTables = [...tables.map((t) => t.name), ...(date ? [date.name] : []), ...(B.measures && B.measures.length ? [MT] : []), ...PARAMS.map((p) => p.name)];
 const roles = B.roles || [];
 fs.writeFileSync(path.join(def, 'model.tmdl'), `model Model\n\tculture: ${B.culture || 'en-US'}\n\tdefaultPowerBIDataSourceVersion: powerBI_V3\n\tsourceQueryCulture: ${B.culture || 'en-US'}\n\tdataAccessOptions\n\t\tlegacyRedirects\n\t\treturnErrorValuesAsNull\n\n` +
   ['Parameters', 'Functions', '01_Stage', '02_Dimensions', '03_Facts', '04_Support'].map((n, i) => `queryGroup ${n}\n\n\tannotation PBI_QueryGroupOrder = ${i}\n`).join('\n') +
@@ -384,6 +426,7 @@ fs.writeFileSync(path.join(def, 'expressions.tmdl'), ex);
 for (const t of tables) fs.writeFileSync(path.join(def, 'tables', `${t.name}.tmdl`), tableTmdl(t));
 if (date) fs.writeFileSync(path.join(def, 'tables', `${date.name}.tmdl`), date.text);
 if (B.measures && B.measures.length) fs.writeFileSync(path.join(def, 'tables', `${MT}.tmdl`), measuresTmdl(B.measures));
+for (const p of PARAMS) fs.writeFileSync(path.join(def, 'tables', `${p.name}.tmdl`), parameterTmdl(p));
 const rels = (B.relationships || []).map((r) => {
   const [f, t] = r.from && r.to ? [r.from, r.to] : String(r).split('->').map((x) => x.trim());
   return `relationship ${g()}\n${r.active === false ? '\tisActive: false\n' : ''}\tfromColumn: ${tmdlCol(f)}\n\ttoColumn: ${tmdlCol(t)}\n`;

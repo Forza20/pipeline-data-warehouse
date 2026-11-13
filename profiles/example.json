@@ -1,11 +1,8 @@
 {
   "name": "example",
-  "colors": { "dark": "#0B3D5C", "teal": "#F2A900", "navBtn": "#1C5A80", "navHover": "#25709E", "bar": "#F7CF66", "spark": "#FBE7B2" },
+  "pages": ["exec", "map", "product", "customer", "tooltip"],
+  "colors": { "dark": "#0B3D5C", "teal": "#F2A900", "gold": "#1C5A80", "bar": "#F7CF66" },
   "theme": true,
-  "kpis": [
-    { "slot": "KPI 1", "label": "Revenue" },
-    { "slot": "KPI 2" },
-    { "slot": "KPI 4" }
-  ],
-  "sections": { "monthly": 3, "highlights": 2, "bar": true, "table": true }
+  "title": "Sales overview",
+  "targetGrowth": 0.1
 }

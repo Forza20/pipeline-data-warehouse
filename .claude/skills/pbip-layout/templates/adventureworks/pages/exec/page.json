@@ -1,0 +1,60 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "ReportSection",
+  "displayName": "Exec Dashboard",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280,
+  "objects": {
+    "outspacePane": [
+      {
+        "properties": {
+          "width": {
+            "expr": {
+              "Literal": {
+                "Value": "199L"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "visualInteractions": [
+    {
+      "source": "06933e2165296d283840",
+      "target": "bc45e1e88406385920e4",
+      "type": "NoFilter"
+    },
+    {
+      "source": "64eee47205634c27a497",
+      "target": "bc45e1e88406385920e4",
+      "type": "DataFilter"
+    },
+    {
+      "source": "64eee47205634c27a497",
+      "target": "d44689a4b6b0bc04054b",
+      "type": "NoFilter"
+    },
+    {
+      "source": "64eee47205634c27a497",
+      "target": "0bfdf045a5062072de83",
+      "type": "NoFilter"
+    },
+    {
+      "source": "64eee47205634c27a497",
+      "target": "8b4d191b63e91927eb14",
+      "type": "NoFilter"
+    },
+    {
+      "source": "06933e2165296d283840",
+      "target": "caf75cfed917296a818e",
+      "type": "NoFilter"
+    },
+    {
+      "source": "06933e2165296d283840",
+      "target": "a77ed1f707db23d0a712",
+      "type": "NoFilter"
+    }
+  ]
+}

@@ -60,7 +60,7 @@ What each step does instead of asking:
 | 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
 | 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
 | 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
-| 6 | Catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. No dashboard, Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. A named dashboard uses *Standard* (no colour, section or title questions). |
+| 6 | Catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. No dashboard, Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. A named dashboard uses *Standard* colours and title, but the pages are **always asked** (pbip-layout step 3). |
 | 8.6 | Governance's PII audit asks nothing: a visible column flagged as personal data stays as it is and goes into the hand-over as an open point (hide it later with `--resume`). |
 | 7 | Show the review summary as a record of the choices, then build without asking. |
 | 8.9 | Draft 3 grounded questions from the measures and dimensions yourself. |
@@ -359,8 +359,11 @@ The run always ends with an **overview page** (`overview.html`, step 8.7) and a 
 (`checks.dax`) – they are part of the hand-over, not extras. Ask about the rest (two questions, max 4
 options each, recommended ones first):
 
-1. *Report and documentation* (multiSelect): "Sales overview dashboard – the **pbip-layout** skill
-  (Recommended)" – then ask its colour/sections/title questions as in `/messy-pipeline` section 2b ·
+1. *Report and documentation* (multiSelect): "Report pages from the AdventureWorks template – the
+  **pbip-layout** skill (Recommended)" – then **always** ask which pages (two multiSelect questions:
+  Exec Dashboard · Map · Product Detail · Customer Detail, and Category Tooltip · Q&A · Decomposition Tree ·
+  Key Influencers; pbip-layout `layout.md` → Pages) and its colour and title questions as in
+  `/messy-pipeline` section 2b; the page keys go to `choices.json → extras.layout_pages` ·
   "Data catalog, lineage page and dbdiagram model – the **pbip-catalog** skill (Recommended)" (needs
   Python + openpyxl) · "Governance and handover – the **pbip-governance** skill (Recommended)": PII
   audit (visible personal data), RLS inventory, data sources, handover Markdown and an Azure DevOps wiki
@@ -483,11 +486,11 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/run-summary.js](scripts/run-summary.js) – the compact summary of a run's choices for `--resume`,
   step 1.4 and step 7 (Markdown, or `--json`).
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 133 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 135 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 99
-  of the 133 checks in about half the time (no drift or Python checks) for use while working; a change is
+  of the 135 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

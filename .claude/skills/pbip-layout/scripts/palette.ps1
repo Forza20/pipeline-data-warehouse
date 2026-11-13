@@ -87,12 +87,16 @@ $accentRaw = $accent
 $accent = Readable $accent $darkC 4.5        # KPI numbers sit on the dark tiles
 $sub = Readable (Mix $ink $panel 0.38) $panel 4.5
 $border = Mix $panel $ink 0.18
+# a second saturated colour (another hue than the accent) becomes the template's second series colour
+function Hue($x) { [System.Drawing.Color]::FromArgb([int]$x.r, [int]$x.g, [int]$x.b).GetHue() }
+function HueGap($a, $b) { $d = [Math]::Abs((Hue $a) - (Hue $b)); [Math]::Min($d, 360 - $d) }
+$second = $pal | Where-Object { $_.sat -ge 0.35 -and $_.lum -gt 0.05 -and $_.lum -lt 0.85 -and $_.hex -ne $accentRaw.hex -and
+  (HueGap $_ $accentRaw) -gt 40 -and (HueGap $_ (Col 0xDE 0x6A 0x73)) -gt 25 } | Select-Object -First 1   # not the red of "worse"
+# keys of the template (templates/<key>/template.json → colors); bad/badDark keep their meaning (red = worse)
 $suggest = [ordered]@{
-  page = $bg.hex; panel = $panel.hex; border = $border.hex; ink = $ink.hex; sub = $sub.hex
-  dark = $darkC.hex; onDark = $onDark.hex; teal = $accent.hex
-  navBtn = (Mix $darkC $white 0.12).hex; navHover = (Mix $darkC $white 0.2).hex
-  spark = (Mix $accent $panel 0.75).hex; bar = (Mix $accent $panel 0.55).hex
-  grid = (Mix $panel $ink 0.1).hex; trendLine = (Mix $ink $panel 0.5).hex; band = (Mix $accent $panel 0.6).hex
+  dark = $darkC.hex; muted = $sub.hex; teal = $accent.hex; onDark = $onDark.hex; panel = $panel.hex
+  soft = (Mix $panel $ink 0.1).hex; bar = (Mix $panel $ink 0.2).hex; axis = $ink.hex
+  bad = '#DE6A73'; badDark = '#A1343C'; gold = $(if ($second) { $second.hex } else { '#E1C233' })
 }
 $checks = [ordered]@{
   'ink on panel' = (Contrast $ink $panel); 'sub on panel' = (Contrast $sub $panel)

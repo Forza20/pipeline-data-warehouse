@@ -323,12 +323,44 @@ def apply_upstream(row, key, auto, prev):
 # Dashboard slots (pbip-layout)
 # ---------------------------------------------------------------------------
 
+def template_json(key):
+    """pbip-layout's template.json (templates/<key>) next to this skill, or None."""
+    here = Path(__file__).resolve()
+    for root in (here.parents[2], here.parents[3] / 'skills', Path.home() / '.claude' / 'skills'):
+        p = root / 'pbip-layout' / 'templates' / key / 'template.json'
+        if p.is_file():
+            return json.loads(p.read_text(encoding='utf-8'))
+    return None
+
+
+def template_page_ids(key='adventureworks'):
+    """The page ids gen-report.js gives the template's pages: md5('pbip-layout:<template>:<page key>')[:20]."""
+    import hashlib
+    tpl = template_json(key) or {}
+    return {hashlib.md5(f'pbip-layout:{key}:{p["key"]}'.encode()).hexdigest()[:20]: p['displayName']
+            for p in tpl.get('pages', [])}
+
+
 def slots_from_config(cfg):
     out = []
 
     def add(slot, field, role, label=''):
         if field:
             out.append({'slot': slot, 'field': field, 'role': role, 'label': label})
+    # pbip-layout's report template: config.fields maps template fields to the model, config.pages the pages
+    if 'fields' in cfg and 'pages' in cfg:
+        tpl = template_json(cfg.get('template') or 'adventureworks') or {}
+        names = {p['key']: p['displayName'] for p in tpl.get('pages', [])}
+        tfields = tpl.get('fields', {})
+        for tf, model_field in (cfg.get('fields') or {}).items():
+            if not model_field:
+                continue
+            label = (cfg.get('labels') or {}).get(tf) or tf[tf.index('[') + 1:-1].split('.')[-1]
+            role = 'Measure' if (tfields.get(tf) or {}).get('kind') == 'Measure' else 'Column'
+            for page in (tfields.get(tf) or {}).get('pages', cfg['pages']):
+                if page in cfg['pages']:
+                    add(names.get(page, page), model_field, role, label)
+        return out
     for i, k in enumerate(cfg.get('kpis', []), 1):
         add(f'KPI {i}', k.get('measure'), 'Value', k.get('label', ''))
     tr = cfg.get('trend', {})
@@ -1131,9 +1163,18 @@ def main():
         slots = slots_from_config(json.loads(cfg_path.read_text(encoding='utf-8')))
         slots_source = f'from {cfg_path.name}'
     else:
+        tpl_ids = template_page_ids()
+        tpl_pages = [p for p in parsed['report'].get('pages', []) if p['name'] in tpl_ids]
         page = next((p for p in parsed['report'].get('pages', []) if p['name'] == LAYOUT_PAGE_ID), None)
-        slots = slots_from_page(page) if page else []
-        slots_source = 'derived from the dashboard page' if page else 'no pbip-layout page found'
+        if tpl_pages:
+            # pbip-layout template pages: every field on a page is tagged with the page's name
+            slots = [{'slot': tpl_ids[p['name']], 'field': fkey(r['table'], r['name']),
+                      'role': ROLE_DA.get(r['role'], r['role']), 'label': v.get('title', '')}
+                     for p in tpl_pages for v in p['visuals'] for r in v.get('fieldRefs', [])]
+            slots_source = 'derived from the template pages'
+        else:
+            slots = slots_from_page(page) if page else []
+            slots_source = 'derived from the dashboard page' if page else 'no pbip-layout page found'
 
     xlsx = out / 'catalog.xlsx'
     prev_path = Path(a.previous) if a.previous else xlsx
