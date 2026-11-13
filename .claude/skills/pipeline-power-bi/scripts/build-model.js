@@ -256,11 +256,17 @@ const tables = (B.tables || []).map((t) => {
 // ---------- TMDL ----------
 // choices.json → pii_not_personal: ["Customer[Customer name]", …] – columns the user reviewed as not personal data
 // pbip/docs/ai_descriptions.json (the catalog step's AI drafts) fills every table, column and measure the spec
-// leaves without a description, so a rebuild keeps them; the spec's own description wins.
+// leaves without a description, so a rebuild keeps them; the spec's own description wins – except for keys in
+// pbip/docs/description_notes.json → redo[] (set by descriptions.py --redo), where the AI text wins.
 const aiFile = path.join(OUT, 'docs', 'ai_descriptions.json');
-const AI = fs.existsSync(aiFile) ? JSON.parse(fs.readFileSync(aiFile, 'utf8').replace(/^﻿/, '')) : {};
+const readJson = (f) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8').replace(/^﻿/, '')) : {});
+const AI = readJson(aiFile);
+const REDO = new Set(readJson(path.join(OUT, 'docs', 'description_notes.json')).redo || []);
 const oneLine = (x) => String(x || '').replace(/\s+/g, ' ').trim();
-const desc = (own, ...keys) => oneLine(own) || keys.map((k) => oneLine(AI[k])).find(Boolean) || '';
+const desc = (own, ...keys) => {
+  const ai = keys.map((k) => oneLine(AI[k])).find(Boolean) || '';
+  return (ai && keys.some((k) => REDO.has(k)) ? ai : oneLine(own)) || ai;
+};
 const notPersonal = new Set((choices.pii_not_personal || []).map((x) => String(x).replace(/^'([^']+)'\[/, '$1[').toLowerCase()));
 function tableTmdl(t) {
   const td = desc(t.description, t.name);
@@ -332,7 +338,7 @@ function measuresTmdl(list) {
   let s = `/// All measures. The column is a hidden placeholder required for a calculated table.\ntable ${q(MT)}\n\tlineageTag: ${g()}\n\n`;
   for (const m of list) {
     const dax = m.expr.includes('\n') ? '\n' + m.expr.split('\n').map((l) => '\t\t\t' + l).join('\n') : m.expr;
-    const md = desc(m.description, `${MT}[${m.name}]`, `_Measures[${m.name}]`, `[${m.name}]`);
+    const md = desc(m.description, `${MT}[${m.name}]`, `_Measures[${m.name}]`, `[${m.name}]`, m.name);
     s += `${md ? `\t/// ${md}\n` : ''}\tmeasure ${q(m.name)} = ${dax}\n${m.format ? `\t\tformatString: ${m.format}\n` : ''}${m.folder ? `\t\tdisplayFolder: ${m.folder}\n` : ''}\t\tlineageTag: ${g()}\n${m.term ? `\n\t\tannotation Term = ${m.term}\n` : ''}\n`;
   }
   return s + `\t/// Hidden placeholder that keeps the measure table a table; not used in reports.\n\tcolumn ${PH}\n\t\tisHidden\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tisNameInferred\n\t\tsourceColumn: [${PH}]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition ${q(MT)} = calculated\n\t\tmode: import\n\t\tsource = ROW ( "${PH}", BLANK () )\n`;

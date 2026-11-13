@@ -350,6 +350,43 @@ if (!QUICK) {
     check('descriptions: Date and _Measures columns described by build-model, Excel list written',
       dr.status === 0 && dj.total > 0 && !(dj.missing || []).some((k) => /^Date\[|^_Measures\[Placeholder\]$/.test(k)) && fs.existsSync(dj.xlsx || ''), dr.stdout.slice(0, 600) + dr.stderr);
   }
+  // descriptions.py: --redo replaces one named measure's description (even one from the spec), the review
+  // note is counted, only /// lines change, and a rebuild keeps the redone text
+  {
+    const dRun = path.join(TMP, 'desc-run');
+    fs.cpSync(run, dRun, { recursive: true });
+    const cf = path.join(dRun, 'choices.json');
+    const ch = JSON.parse(fs.readFileSync(cf, 'utf8'));
+    ch.build.measures[0].description = 'Spec text for Revenue.';
+    fs.writeFileSync(cf, JSON.stringify(ch, null, 1));
+    const bm = () => spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), dRun], { encoding: 'utf8' });
+    let res2 = bm();
+    const dp = path.join(dRun, 'pbip');
+    const docs = path.join(dp, 'docs');
+    fs.mkdirSync(docs, { recursive: true });
+    const aiF = path.join(docs, 'ai_descriptions.json');
+    const ai = fs.existsSync(aiF) ? JSON.parse(fs.readFileSync(aiF, 'utf8').replace(/^﻿/, '')) : {};
+    ai['_Measures[Revenue]'] = 'Redone: sum of Amount on rows whose Amount issue is ok.';
+    fs.writeFileSync(aiF, JSON.stringify(ai));
+    fs.writeFileSync(path.join(docs, 'description_notes.json'), JSON.stringify({ review: { Revenue: 'Assumes Amount is in USD.' } }));
+    const sm = fs.readdirSync(dp).find((d) => d.endsWith('.SemanticModel'));
+    const tdir = path.join(dp, sm, 'definition', 'tables');
+    const snap = () => Object.fromEntries(fs.readdirSync(tdir).map((f) => [f, fs.readFileSync(path.join(tdir, f), 'utf8')]));
+    const strip = (s) => s.split(/\r?\n/).filter((l) => !l.trim().startsWith('///')).join('\n');
+    const revDesc = (files) => { const t = Object.values(files).find((s) => /measure Revenue\b/.test(s)) || ''; const m = t.match(/\/\/\/ ([^\r\n]*)\r?\n\s*measure Revenue\b/); return m ? m[1] : ''; };
+    const before = snap();
+    const dr = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'descriptions.py'), dp, '--apply', '--redo', 'Revenue', '--warn-only'], { encoding: 'utf8' });
+    let dj = {};
+    try { dj = JSON.parse(dr.stdout); } catch { /* reported below */ }
+    const after = snap();
+    check('descriptions --redo: spec description replaced by the AI text, one review note',
+      res2.status === 0 && revDesc(before) === 'Spec text for Revenue.' && dr.status === 0 && dj.redone === 1 && dj.toReview === 1 && revDesc(after).startsWith('Redone:'), res2.stderr + dr.stdout.slice(0, 600) + dr.stderr);
+    check('descriptions --apply: only /// lines changed', Object.keys(before).every((f) => strip(before[f]) === strip(after[f])));
+    const notes = JSON.parse(fs.readFileSync(path.join(docs, 'description_notes.json'), 'utf8'));
+    res2 = bm();
+    check('descriptions --redo: key saved in description_notes.json, a rebuild keeps the redone text',
+      (notes.redo || []).includes('Revenue') && notes.review && res2.status === 0 && revDesc(snap()).startsWith('Redone:'), res2.stdout.slice(0, 300) + res2.stderr);
+  }
   check('rebuild: grounded answers skipped without questions.json, handover run (governance folder)', ((rb.steps || []).find((x) => x.step === 'grounded-answers') || {}).skipped === 'no questions.json yet (step 8.9)' &&
     ((rb.steps || []).find((x) => x.step === 'handover') || {}).ok && !((rb.steps || []).find((x) => x.step === 'handover') || {}).skipped);
   check('rebuild: next names the TMDL validation', (rb.next || []).some((x) => /ConnectFolder/.test(x)));

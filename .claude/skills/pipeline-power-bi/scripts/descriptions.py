@@ -3,17 +3,26 @@
 descriptions.py - Every table, column and measure in the model gets a description, and a list to download.
 
     python descriptions.py <pbip-folder> [--ai <ai_descriptions.json>] [--apply] [--xlsx <file>]
+                           [--redo "Table[Field],[Measure],..."] [--warn-only]
 
 1. Reads every `table`, `column` and `measure` in <Name>.SemanticModel/definition/tables/*.tmdl and its
    `///` description.
 2. Fields without one get the AI description from --ai (default <pbip>/docs/ai_descriptions.json, written by
    the pbip-catalog step; keys "Table", "Table[Column]" or "_Measures[Measure]"). With --apply they are
    written to the TMDL as `///` lines - only those lines change, never DAX, M or properties.
-3. Writes the list (default <pbip>/docs/descriptions.xlsx) with the columns Name | Description | Type |
-   Table | Hidden, one row per measure, column and table.
+3. <pbip>/docs/description_notes.json (optional) holds
+     "review": { "<key>": "<what to check>" }  - descriptions that rest on an assumption the DAX/M cannot
+                                                 prove; shown in the Review column of the Excel list
+     "redo":   [ "<key>", ... ]                - fields whose existing description is replaced by the AI text
+   --redo adds keys to "redo" (saved with --apply), so a later rebuild (build-model.js) keeps the new text.
+4. Self-check: before a file is written, it is compared with the original with all `///` lines removed.
+   Any other difference -> nothing is written for that file and the script exits 2.
+5. Writes the list (default <pbip>/docs/descriptions.xlsx) with the columns Name | Description | Type |
+   Table | Hidden | Review, one row per measure, column and table.
 
-Prints JSON {total, described, filledFromAi, missing[], xlsx}. Exit 1 when a field is still without a
-description: draft one for each key in `missing`, add it to the AI file and run again (--warn-only: exit 0).
+Prints JSON {total, described, filledFromAi, redone, toReview, missing[], xlsx}. Exit 1 when a field is still
+without a description (or a --redo key has no AI text): draft one for each key in `missing`, add it to the AI
+file and run again (--warn-only: exit 0). Exit 2 when the self-check fails.
 Close the project in Power BI Desktop before --apply, or Desktop may overwrite the files.
 """
 import argparse
@@ -43,7 +52,7 @@ def parse_name(rest):
 
 
 def scan(lines):
-    """Yield dicts per declaration: index, indent, kind, name, desc, hidden."""
+    """Yield dicts per declaration: index, desc_start, indent, kind, name, desc, hidden."""
     items, table = [], None
     for i, line in enumerate(lines):
         m = DECL.match(line)
@@ -65,27 +74,34 @@ def scan(lines):
             if DECL.match(lines[k]) or lines[k].strip().startswith(('partition ', 'hierarchy ')):
                 break
             k += 1
-        items.append({'index': i, 'indent': indent, 'kind': kind, 'table': table, 'name': name,
+        items.append({'index': i, 'desc_start': j, 'indent': indent, 'kind': kind, 'table': table, 'name': name,
                       'desc': ' '.join(d for d in desc if d), 'hidden': hidden})
     return items
 
 
-def ai_lookup(ai, it):
+def keys_of(it):
+    """Every key the AI file, the notes file or --redo may use for this item, most specific first."""
     if it['kind'] == 'table':
-        keys = [it['table']]
-    elif it['kind'] == 'measure':
-        keys = [f"{it['table']}[{it['name']}]", f"[{it['name']}]", it['name']]
-    else:
-        keys = [f"{it['table']}[{it['name']}]"]
-    for k in keys:
-        v = ai.get(k)
+        return [it['table']]
+    if it['kind'] == 'measure':
+        return [f"{it['table']}[{it['name']}]", f"[{it['name']}]", it['name']]
+    return [f"{it['table']}[{it['name']}]"]
+
+
+def lookup(d, it):
+    for k in keys_of(it):
+        v = d.get(k)
         if v and str(v).strip():
             return ' '.join(str(v).split())
     return ''
 
 
 def key_of(it):
-    return it['table'] if it['kind'] == 'table' else f"{it['table']}[{it['name']}]"
+    return keys_of(it)[0]
+
+
+def without_desc(lines):
+    return [l for l in lines if not l.strip().startswith('///')]
 
 
 def write_xlsx(path, rows):
@@ -94,21 +110,25 @@ def write_xlsx(path, rows):
     wb = Workbook()
     ws = wb.active
     ws.title = 'Descriptions'
-    head = ['Name', 'Description', 'Type', 'Table', 'Hidden']
+    head = ['Name', 'Description', 'Type', 'Table', 'Hidden', 'Review']
     ws.append(head)
     for c in ws[1]:
         c.font = Font(bold=True, color='FFFFFF')
         c.fill = PatternFill('solid', fgColor='1F3A5F')
+    review_fill = PatternFill('solid', fgColor='FFF2CC')
     for r in rows:
-        ws.append([r['name'], r['desc'], r['type'], r['table'], 'Yes' if r['hidden'] else ''])
-    for col, w in zip('ABCDE', (32, 90, 10, 22, 8)):
+        ws.append([r['name'], r['desc'], r['type'], r['table'], 'Yes' if r['hidden'] else '', r['review']])
+        if r['review']:
+            ws.cell(row=ws.max_row, column=6).fill = review_fill
+    for col, w in zip('ABCDEF', (32, 90, 10, 22, 8, 60)):
         ws.column_dimensions[col].width = w
     for row in ws.iter_rows(min_row=2):
-        row[1].alignment = Alignment(wrap_text=True, vertical='top')
+        for c in (row[1], row[5]):
+            c.alignment = Alignment(wrap_text=True, vertical='top')
         for c in (row[0], row[2], row[3], row[4]):
             c.alignment = Alignment(vertical='top')
     ws.freeze_panes = 'A2'
-    ws.auto_filter.ref = f'A1:E{len(rows) + 1}'
+    ws.auto_filter.ref = f'A1:F{len(rows) + 1}'
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
 
@@ -119,6 +139,7 @@ def main():
     ap.add_argument('--ai')
     ap.add_argument('--apply', action='store_true')
     ap.add_argument('--xlsx')
+    ap.add_argument('--redo', help='comma-separated keys whose existing description is replaced by the AI text')
     ap.add_argument('--warn-only', action='store_true', help='exit 0 when fields are missing (rebuild.js)')
     a = ap.parse_args()
 
@@ -129,39 +150,73 @@ def main():
         sys.exit('Could not find <Name>.SemanticModel/definition/tables (only the TMDL format is supported).')
     ai_file = Path(a.ai) if a.ai else pbip / 'docs' / 'ai_descriptions.json'
     ai = json.loads(ai_file.read_text(encoding='utf-8-sig')) if ai_file.exists() else {}
+    notes_file = pbip / 'docs' / 'description_notes.json'
+    notes = json.loads(notes_file.read_text(encoding='utf-8-sig')) if notes_file.exists() else {}
+    review = notes.get('review') or {}
+    redo_keys = list(dict.fromkeys((notes.get('redo') or []) +
+                                   [k.strip() for k in (a.redo or '').split(',') if k.strip()]))
+    redo = set(redo_keys)
 
-    rows, missing, filled = [], [], 0
+    rows, missing, redo_missing, filled, redone, failed = [], [], [], 0, 0, []
     for f in sorted(tables_dir.glob('*.tmdl')):
         text = f.read_text(encoding='utf-8-sig')
         nl = '\r\n' if '\r\n' in text else '\n'
         lines = text.split(nl)
         items = scan(lines)
-        inserts = []
+        edits = []  # (start, end, new line): replace lines[start:end] with [new line]
         for it in items:
-            if not it['desc']:
-                d = ai_lookup(ai, it)
+            d = lookup(ai, it)
+            if any(k in redo for k in keys_of(it)):
+                if d:
+                    if d != it['desc']:
+                        redone += 1
+                    it['desc'] = d
+                    edits.append((it['desc_start'], it['index'], f"{it['indent']}/// {d}"))
+                else:
+                    redo_missing.append(key_of(it))
+            elif not it['desc']:
                 if d:
                     it['desc'] = d
                     filled += 1
-                    inserts.append((it['index'], f"{it['indent']}/// {d}"))
+                    edits.append((it['index'], it['index'], f"{it['indent']}/// {d}"))
                 else:
                     missing.append(key_of(it))
             rows.append({'name': it['name'], 'desc': it['desc'], 'type': it['kind'].capitalize(),
-                         'table': it['table'], 'hidden': it['hidden']})
-        if a.apply and inserts:
-            for idx, line in sorted(inserts, reverse=True):
-                lines.insert(idx, line)
-            f.write_text(nl.join(lines), encoding='utf-8', newline='')
+                         'table': it['table'], 'hidden': it['hidden'], 'review': lookup(review, it)})
+        if a.apply and edits:
+            new = list(lines)
+            for start, end, line in sorted(edits, reverse=True):
+                new[start:end] = [line]
+            # self-check: only /// lines may differ
+            if without_desc(new) != without_desc(lines):
+                failed.append(f.name)
+                continue
+            f.write_text(nl.join(new), encoding='utf-8', newline='')
+
+    if a.apply and a.redo:
+        notes['redo'] = redo_keys
+        notes_file.parent.mkdir(parents=True, exist_ok=True)
+        notes_file.write_text(json.dumps(notes, ensure_ascii=False, indent=1), encoding='utf-8')
 
     order = {'Measure': 0, 'Table': 1, 'Column': 2}
     rows.sort(key=lambda r: (order[r['type']], r['table'] or '', r['name'].lower()))
     xlsx = Path(a.xlsx) if a.xlsx else pbip / 'docs' / 'descriptions.xlsx'
     write_xlsx(xlsx, rows)
+    warnings = []
+    if missing:
+        warnings.append(f'{len(missing)} field(s) without a description: ' + ', '.join(missing[:10]))
+    if redo_missing:
+        warnings.append(f'{len(redo_missing)} --redo key(s) without an AI text (kept the old one): ' + ', '.join(redo_missing[:10]))
+    if failed:
+        warnings.append('Self-check failed (a change other than /// lines) - not written: ' + ', '.join(failed))
     print(json.dumps({'total': len(rows), 'described': len(rows) - len(missing), 'filledFromAi': filled,
-                      'written': bool(a.apply and filled), 'missing': missing, 'xlsx': str(xlsx),
-                      'warnings': [f'{len(missing)} field(s) without a description: ' + ', '.join(missing[:10])] if missing else []},
+                      'redone': redone, 'toReview': sum(1 for r in rows if r['review']),
+                      'written': bool(a.apply and (filled or redone) and not failed), 'selfCheckFailed': failed,
+                      'missing': missing + redo_missing, 'xlsx': str(xlsx), 'warnings': warnings},
                      ensure_ascii=False, indent=1))
-    sys.exit(1 if missing and not a.warn_only else 0)
+    if failed:
+        sys.exit(2)
+    sys.exit(1 if (missing or redo_missing) and not a.warn_only else 0)
 
 
 if __name__ == '__main__':

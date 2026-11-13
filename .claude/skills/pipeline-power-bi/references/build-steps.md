@@ -106,10 +106,24 @@ close it).
      `python .claude\skills\pipeline-power-bi\scripts\descriptions.py runs\<run-id>\pbip --apply` writes the
      AI drafts from `pbip/docs/ai_descriptions.json` into the TMDL (only `///` lines; the user's run settings
      already approve it – no extra question) and writes `pbip/docs/descriptions.xlsx` (Name | Description |
-     Type | Table | Hidden). Exit 1 lists `missing` keys: draft each one in English (keys from the
+     Type | Table | Hidden | Review). Exit 1 lists `missing` keys: draft each one in English (keys from the
      relationships, the rest from name, type, source and DAX), add them to `ai_descriptions.json` and run
      again until it exits 0. Then do the catalog's full run, so it reads the descriptions from the model.
      `build-model.js` reads the same file, so a rebuild keeps them, and `rebuild.js` rewrites the Excel list.
+     - **Flag assumptions.** Describe only what the DAX, M and relationships show. When a description has to
+       assume something the code cannot prove (what a status value means, which unit an amount is in, what
+       counts as a return), still write it, and add the key to `pbip/docs/description_notes.json` →
+       `"review": { "<key>": "<the assumption, in one line>" }`. It lands in the Review column (highlighted).
+       Facts read from the code are never flagged. In the hand-over, give the number to review, e.g.
+       "4 descriptions rest on an assumption – see the Review column".
+     - **Self-check.** The script compares every file with the original minus `///` lines before it writes;
+       on any other difference it writes nothing for that file and exits 2. Stop and report it – never work
+       around it.
+     - **Redo named fields** (when the user asks for better descriptions of specific fields): write the new
+       text in `ai_descriptions.json`, then `descriptions.py <pbip> --apply --redo "fact_sales[amount],[total_sales]"`
+       (keys as in the AI file; a measure also by its bare name). The keys are saved in
+       `description_notes.json → redo`, so `build-model.js` lets the AI text win over the spec on a rebuild.
+       Only these fields change; every other existing description is kept.
      Hand-over: link `pbip/docs/descriptions.xlsx` as the downloadable list of descriptions. Without the
      catalog (Python missing) the Excel list is skipped; say so.
    - **pbip-governance**: `parse_pbip.py <pbip> --output runs\<run-id>\governance\model.json` (it writes

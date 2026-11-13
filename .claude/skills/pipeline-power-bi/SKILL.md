@@ -498,7 +498,9 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
 - [scripts/snake-names.js](scripts/snake-names.js) – renames a build spec to snake_case (`dim_`/`fact_`
   tables, columns, measures) and rewrites every reference; `rebuild.js` runs it when `naming` is `snake_case`.
 - [scripts/descriptions.py](scripts/descriptions.py) – fills every missing `///` description from the
-  catalog's AI drafts (`--apply`) and writes `pbip/docs/descriptions.xlsx`; exit 1 lists fields still missing.
+  catalog's AI drafts (`--apply`) and writes `pbip/docs/descriptions.xlsx` (with a Review column for
+  descriptions that rest on an assumption); `--redo` replaces named fields' descriptions; refuses to write a
+  file whose change is more than `///` lines (exit 2); exit 1 lists fields still missing.
 - [scripts/run-summary.js](scripts/run-summary.js) – the compact summary of a run's choices for `--resume`,
   step 1.4 and step 7 (Markdown, or `--json`).
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).

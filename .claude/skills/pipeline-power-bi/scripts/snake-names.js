@@ -12,7 +12,7 @@
 // Rewrites, consistently: choices.json → build (tables, columns – a renamed column keeps its query column
 // in `from` –, merges with loaded tables, inferMembers, date, relationships, measures + their DAX, roles),
 // build.naming = "snake_case", pii_not_personal, model.relationships, glossary examples, checks[].dax;
-// questions.json (measure, filters, dax); pbip/docs/ai_descriptions.json keys; checks-basis.json keys;
+// questions.json (measure, filters, dax); pbip/docs/ai_descriptions.json and description_notes.json keys; checks-basis.json keys;
 // the report's field references (Entity, Property, queryRef, nativeQueryRef in pbip/*.Report/definition).
 // M code is not touched: it works on the query's own column names, which do not change.
 // Idempotent: running it on a snake_case spec changes nothing. Without --apply it only prints the map.
@@ -173,17 +173,26 @@ if (fs.existsSync(qFile)) {
 }
 
 // ---------- AI descriptions and checks basis ----------
+// keys: "Table", "Table[Column]", "_Measures[Measure]", "[Measure]" or a bare measure name
+const descKey = (k) => {
+  const bare = k.match(/^\[(.+)\]$/);
+  if (bare) return `[${measureMap[bare[1]] || snake(bare[1])}]`;
+  const m = k.match(/^'?([^'\[]+?)'?\[(.+)\]$/);
+  if (!m) return tableMap[k] ? tbl(k) : measureMap[k] || k;
+  if (/^_measures$/i.test(m[1])) return `_measures[${measureMap[m[2]] || snake(m[2])}]`;
+  return ref(k);
+};
 const aiFile = path.join(runDir, 'pbip', 'docs', 'ai_descriptions.json');
 if (fs.existsSync(aiFile)) {
-  const ai = read(aiFile);
-  const out = {};
-  for (const [k, v] of Object.entries(ai)) {
-    const m = k.match(/^'?([^'\[]+?)'?\[(.+)\]$/);
-    if (!m) out[tbl(k)] = v;
-    else if (/^_measures$/i.test(m[1])) out[`_measures[${measureMap[m[2]] || snake(m[2])}]`] = v;
-    else out[ref(k)] = v;
-  }
-  save(aiFile, out);
+  save(aiFile, Object.fromEntries(Object.entries(read(aiFile)).map(([k, v]) => [descKey(k), v])));
+}
+// description_notes.json (descriptions.py): review { key: note } and redo [ key ]
+const notesFile = path.join(runDir, 'pbip', 'docs', 'description_notes.json');
+if (fs.existsSync(notesFile)) {
+  const n = read(notesFile);
+  if (n.review) n.review = Object.fromEntries(Object.entries(n.review).map(([k, v]) => [descKey(k), v]));
+  if (Array.isArray(n.redo)) n.redo = n.redo.map(descKey);
+  save(notesFile, n);
 }
 const basisFile = path.join(runDir, 'checks-basis.json');
 if (fs.existsSync(basisFile)) {
