@@ -55,7 +55,7 @@ if (def) {
     const hiddenTable = /^\tisHidden/m.test(t.split('\n\tcolumn')[0]);
     const desc = (t.match(/^\/\/\/\s*(.+)\ntable/m) || [])[1] || '';
     let kind = 'other';
-    if (name === '_Measures' || (measures.length && cols.every((c) => c.hidden))) kind = 'measures';
+    if (/^_measures$/i.test(name) || (measures.length && cols.every((c) => c.hidden))) kind = 'measures';
     else if (/dataCategory:\s*Time/.test(t)) kind = 'date';
     else if (/Fact/i.test(group)) kind = 'fact';
     else if (/Dimension/i.test(group)) kind = 'dimension';

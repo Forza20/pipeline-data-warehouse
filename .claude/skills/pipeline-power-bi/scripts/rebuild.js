@@ -4,7 +4,9 @@
 //
 //   node rebuild.js runs/<run-id> [--checks-updated] [--validate-report] [--vault "<vault>" --folder <folder>]
 //
-//   1 build-model.js       the semantic model from choices.json → build (exit 3 = folder locked: Disconnect first)
+//   0 snake-names.js       only with build.naming = "snake_case": every table, column, measure renamed to snake_case
+//   1 build-model.js      the semantic model from choices.json → build (exit 3 = folder locked: Disconnect first)
+//   – descriptions.py      pbip/docs/descriptions.xlsx (name | description of every measure, column, table)
 //   2 build-docs.js        cleaning log, expected values, checks.dax; stale checks and questions
 //   3 build-context.js     model-context.md
 //   4 model_health.py      model-health.md                           (needs profile.json)
@@ -45,7 +47,10 @@ function python() {
 const PY = python();
 
 const steps = [
+  // build.naming = "snake_case": rename the spec first (idempotent), so every name in the model is snake_case
+  ...(choices.build.naming === 'snake_case' ? [{ step: 'snake-names', cmd: ['node', path.join(S, 'snake-names.js'), runDir, '--apply'] }] : []),
   { step: 'build-model', cmd: ['node', path.join(S, 'build-model.js'), runDir] },
+  { step: 'descriptions', py: [path.join(S, 'descriptions.py'), pbip, '--warn-only'] },
   { step: 'build-docs', cmd: ['node', path.join(S, 'build-docs.js'), runDir, ...(flag('--checks-updated') ? ['--checks-updated'] : [])] },
   { step: 'build-context', cmd: ['node', path.join(S, 'build-context.js'), runDir] },
   { step: 'model-health', py: [path.join(S, 'model_health.py'), pbip, '--profile', path.join(runDir, 'profile.json')],

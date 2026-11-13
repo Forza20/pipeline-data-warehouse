@@ -390,7 +390,10 @@ flags and details of the eleven parts below, and the drift check for new files. 
 2. **Expected values** come from the source files (a script over `data/` with the kept fixes), never from the
    model, into `choices.json` → `checks[]`; `build-docs.js` writes `expected-values.md` and `checks.dax`.
 3. **The model is generated, not hand-written:** the build spec in `choices.json` → `build`
-   ([references/build-spec.md](references/build-spec.md)), the report scaffolded once with
+   ([references/build-spec.md](references/build-spec.md)), always with `"naming": "snake_case"` – every
+   table, column and measure in the model is snake_case (`dim_customer`, `customer_id`, `fact_sales`,
+   `total_sales`, `dim_date`, `_measures`); `rebuild.js` renames the spec with `snake-names.js` first,
+   so readable names written in the spec are converted consistently (DAX, relationships, checks, questions), the report scaffolded once with
    `powerbi-report-author scaffold`, then **`node .claude\skills\pipeline-power-bi\scripts\rebuild.js runs\<run-id>`** –
    model, hand-over files, model context, model health, grounded answers, handover and overview in order,
    stopping at the first failure. The same command after every later change (`--resume`).
@@ -434,7 +437,7 @@ What was built and the result of the check; links relative to the repository roo
 `grounded-answers.md` (with the open review points from `design.review`), `model-context.md`,
 `model-health.md` (and what the user chose to remove),
 `cleaning-log.md`, `expected-values.md`, and what the chosen skills made (`layout-mapping.md`,
-`pbip/docs/catalog.xlsx`, `lineage.html`, `model.dbml`, `governance/handover.md` and the wiki zip, the
+`pbip/docs/catalog.xlsx`, `pbip/docs/descriptions.xlsx` (name and description of every measure, column and table – all are described in the model), `lineage.html`, `model.dbml`, `governance/handover.md` and the wiki zip, the
 Obsidian note); the governance flags in one line (visible personal data, RLS roles); how to change a choice later: `/pipeline-power-bi --resume <run-id>` → "Change the cleaning of a
 table" → rebuild, or in Power BI Desktop → Transform data → *Applied steps* → right-click a step →
 Delete (every step is named after its fix). Where to point the files: Transform data → Manage parameters
@@ -473,14 +476,18 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
   from the run folder.
 - [scripts/rebuild.js](scripts/rebuild.js) – the run's scripts in order after a change (model → docs →
   context → health → grounded answers → handover → overview), stopping at the first failure; one JSON result.
+- [scripts/snake-names.js](scripts/snake-names.js) – renames a build spec to snake_case (`dim_`/`fact_`
+  tables, columns, measures) and rewrites every reference; `rebuild.js` runs it when `naming` is `snake_case`.
+- [scripts/descriptions.py](scripts/descriptions.py) – fills every missing `///` description from the
+  catalog's AI drafts (`--apply`) and writes `pbip/docs/descriptions.xlsx`; exit 1 lists fields still missing.
 - [scripts/run-summary.js](scripts/run-summary.js) – the compact summary of a run's choices for `--resume`,
   step 1.4 and step 7 (Markdown, or `--json`).
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 129 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 133 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 99
-  of the 129 checks in about half the time (no drift or Python checks) for use while working; a change is
+  of the 133 checks in about half the time (no drift or Python checks) for use while working; a change is
   only done when the full run passes.
 - `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
   1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load

@@ -232,7 +232,9 @@ Only columns that no earlier step already typed. Kinds from the profile: `intege
 #"F02 Rename columns" = Table.RenameColumns(<prev>, {{"order_id", "Order ID"}, {"order_date", "Order date"}}),
 ```
 Names from the profile's `readable`. Last step, so all earlier steps use the raw names. The TMDL
-`sourceColumn` and column name are the new names.
+`sourceColumn` and column name are the new names. With `build.naming = "snake_case"` (new runs) the
+model columns are renamed once more to snake_case (`Order ID` → `order_id`) in the table's final
+*Select and name columns* step.
 
 ## F27 Remove test, dummy and placeholder rows
 The profile matches a whole field that says test/dummy/placeholder/do not use, a name such as

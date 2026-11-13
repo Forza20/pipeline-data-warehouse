@@ -79,7 +79,7 @@ def main():
                 continue
             # visible dimension attributes are there for slicing; only facts and hidden columns are dead weight
             if t['name'] in facts:
-                is_id = re.search(r'\b(id|nr|no|number|key)$', c['name'], re.I)
+                is_id = re.search(r'(?:^|[\s_]|\b)(id|nr|no|number|key)$', c['name'], re.I)
                 add('info' if is_id else 'warning', 'unused column', f"{t['name']}[{c['name']}]",
                     'id in a fact – keep it only for drill-through or a detail table' if is_id else
                     'not used by a measure, relationship, RLS rule or the report – remove it from the build spec')

@@ -341,10 +341,53 @@ if (!QUICK) {
   res = spawnSync('node', [path.join(SKILL, 'scripts', 'rebuild.js'), run], { encoding: 'utf8', env: { ...process.env, PYTHON: py } });
   let rb = {};
   try { rb = JSON.parse(res.stdout); } catch { /* reported below */ }
-  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,build-docs,build-context,model-health,grounded-answers,handover,overview', res.stdout.slice(0, 800) + res.stderr);
+  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,model-health,grounded-answers,handover,overview', res.stdout.slice(0, 800) + res.stderr);
+  // descriptions.py: every table, column and measure has a /// description after a rebuild, and the Excel list exists
+  {
+    const dr = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'descriptions.py'), path.join(run, 'pbip'), '--warn-only'], { encoding: 'utf8' });
+    let dj = {};
+    try { dj = JSON.parse(dr.stdout); } catch { /* reported below */ }
+    check('descriptions: Date and _Measures columns described by build-model, Excel list written',
+      dr.status === 0 && dj.total > 0 && !(dj.missing || []).some((k) => /^Date\[|^_Measures\[Placeholder\]$/.test(k)) && fs.existsSync(dj.xlsx || ''), dr.stdout.slice(0, 600) + dr.stderr);
+  }
   check('rebuild: grounded answers skipped without questions.json, handover run (governance folder)', ((rb.steps || []).find((x) => x.step === 'grounded-answers') || {}).skipped === 'no questions.json yet (step 8.9)' &&
     ((rb.steps || []).find((x) => x.step === 'handover') || {}).ok && !((rb.steps || []).find((x) => x.step === 'handover') || {}).skipped);
   check('rebuild: next names the TMDL validation', (rb.next || []).some((x) => /ConnectFolder/.test(x)));
+  // snake-names.js + naming snake_case: every table, column and measure in the model is snake_case,
+  // DAX and relationships follow, a second run changes nothing, and a non-snake name stops the build
+  {
+    const sr = path.join(TMP, 'snake');
+    fs.mkdirSync(sr);
+    const ch = JSON.parse(fs.readFileSync(path.join(run, 'choices.json'), 'utf8'));
+    ch.build.naming = 'snake_case';
+    fs.writeFileSync(path.join(sr, 'choices.json'), JSON.stringify(ch));
+    const s1 = spawnSync('node', [path.join(SKILL, 'scripts', 'snake-names.js'), sr, '--apply'], { encoding: 'utf8' });
+    const s2 = spawnSync('node', [path.join(SKILL, 'scripts', 'snake-names.js'), sr], { encoding: 'utf8' });
+    let j2 = {};
+    try { j2 = JSON.parse(s2.stdout); } catch { /* reported below */ }
+    check('snake-names: second run changes nothing', s1.status === 0 && j2.columns === 0 && !Object.keys(j2.measures || {}).length &&
+      !Object.keys(j2.tables || {}).some((k) => !/^_measures$/i.test(k)), s1.stdout.slice(0, 400) + s1.stderr + s2.stdout.slice(0, 400));
+    const bm = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), sr], { encoding: 'utf8' });
+    const tdir = path.join(sr, 'pbip', `${ch.build.name || 'Test'}.SemanticModel`, 'definition', 'tables');
+    const bad = [];
+    if (fs.existsSync(tdir)) {
+      for (const f of fs.readdirSync(tdir)) {
+        for (const line of fs.readFileSync(path.join(tdir, f), 'utf8').split(/\r?\n/)) {
+          const m = line.match(/^\s*(table|column|measure)\s+('?)([^'=\s]+)/);
+          if (m && !/^_?[a-z][a-z0-9]*(_[a-z0-9]+)*$/.test(m[3])) bad.push(`${f}: ${m[1]} ${m[3]}`);
+        }
+      }
+    }
+    const tables = fs.existsSync(tdir) ? fs.readdirSync(tdir) : [];
+    check('snake-names: model built, every table/column/measure snake_case, dim_/fact_ tables, dim_date, _measures',
+      bm.status === 0 && !bad.length && tables.includes('dim_date.tmdl') && tables.includes('_measures.tmdl') &&
+      tables.filter((f) => !/^(dim|fact|bridge|rls)_|^_measures/.test(f)).length === 0, bm.stdout.slice(0, 600) + bm.stderr + bad.slice(0, 10).join('; '));
+    const ch2 = JSON.parse(fs.readFileSync(path.join(sr, 'choices.json'), 'utf8'));
+    ch2.build.measures[0].name = 'Not Snake';
+    fs.writeFileSync(path.join(sr, 'choices.json'), JSON.stringify(ch2));
+    const bm2 = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), sr], { encoding: 'utf8' });
+    check('snake-names: build-model refuses a non-snake name when naming is snake_case', bm2.status === 2 && /snake-names/.test(bm2.stdout), bm2.stdout.slice(0, 400));
+  }
   const goodChoices = fs.readFileSync(path.join(run, 'choices.json'), 'utf8');
   const broken = JSON.parse(goodChoices);
   broken.build = JSON.parse(JSON.stringify(spec));

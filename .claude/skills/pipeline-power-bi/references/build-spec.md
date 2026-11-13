@@ -20,6 +20,8 @@ directory is inside it) – the previous model is kept, close what holds it and 
 | Key | Meaning |
 |---|---|
 | `name` | model and file name (`Dataset` → `Dataset.SemanticModel`) |
+| `naming` | `"snake_case"` (always in new runs): every table, column and measure name must be snake_case, or the build stops. `scripts/snake-names.js <run> --apply` converts a spec written with readable names – tables get `dim_` / `fact_` / `bridge_` / `rls_` (support table used in a role) by `kind`, the calendar becomes `dim_date` with `date`, `year`, `quarter`, `month_no`, `month`, `month_start`, `is_complete_month`, the measure table `_measures`; columns and measures `customer_id`, `gross_margin_pct`. It rewrites DAX (measures, roles, `checks[]`, `questions.json`), relationships, merges with loaded tables, `pii_not_personal` and the AI description keys; a renamed column keeps its query column in `from`. Idempotent; `rebuild.js` runs it first. Without `naming` (old runs) names are kept as written. |
+| `measuresTable` | name of the measure table (set by `snake-names.js` to `_measures`; default `_Measures`) |
 | `culture` / `sourceCulture` | report culture; culture used to read text in F17 (`en-US`) |
 | `cutoffDate` | `yyyy-MM-dd` for F15 "future" (the profile's `today`) |
 | `sourceFolder` | absolute folder with the source files, ending with `\` (becomes the `SourceFolder` parameter) |

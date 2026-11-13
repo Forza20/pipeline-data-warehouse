@@ -68,8 +68,10 @@ def main():
     inactive = [f"{r['from']} → {r['to']}" for r in rels if r.get('active') is False]
     folders = sorted({m.get('folder') for m in b.get('measures', []) if m.get('folder')})
     L += ['', f"{len(rels)} relationships" + (f" ({len(inactive)} inactive: {'; '.join(inactive)})" if inactive else '') +
-          f". {len(b.get('measures', []))} measures in `_Measures`" + (f" (folders {', '.join(folders)})" if folders else '') +
-          ('. Auto date/time off; `Date` is marked as the date table.' if b.get('date') else '.'), '']
+          f". {len(b.get('measures', []))} measures in `{b.get('measuresTable') or ('_measures' if b.get('naming') == 'snake_case' else '_Measures')}`" +
+          (f" (folders {', '.join(folders)})" if folders else '') +
+          (f". Auto date/time off; `{(b.get('date') or {}).get('name') or ('dim_date' if b.get('naming') == 'snake_case' else 'Date')}` is marked as the date table."
+           if b.get('date') else '.'), '']
 
     # ---------- data source ----------
     L += ['## Data source', '', 'One parameter, `SourceFolder` (Transform data → Manage parameters), points at the folder that holds '

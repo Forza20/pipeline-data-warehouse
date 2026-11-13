@@ -20,8 +20,10 @@ close it).
    `checks.dax` from them – do not write those two files by hand.
 3. **The model is generated, not hand-written.** Write the build spec into `choices.json` → `build`
    ([build-spec.md](build-spec.md)): staging per source with its kept steps by fix
-   id, the design's tables with their ops and final columns, date, relationships, measures, roles. Then:
+   id, the design's tables with their ops and final columns, date, relationships, measures, roles, and
+   `"naming": "snake_case"` (always). Then rename it to snake_case and build:
    ```
+   node .claude\skills\pipeline-power-bi\scripts\snake-names.js runs\<run-id> --apply
    node .claude\skills\pipeline-power-bi\scripts\build-model.js runs\<run-id>
    ```
    It refuses a spec with errors and writes nothing; fix the spec and run it again. Exit code 3 means the
@@ -97,6 +99,17 @@ close it).
      described from the relationships) and **one** full run with `--ai-descriptions … --html`. Report: counts,
      description status, possible PII, and how much upstream lineage it could trace. With a staging layer
      the trace stops at merges – say how many fields reach the source.
+   - **Descriptions in the model (always, right after the catalog's AI step)**: every measure, column and
+     table must carry a `///` description, so Power BI shows it in Properties → Description.
+     `python .claude\skills\pipeline-power-bi\scripts\descriptions.py runs\<run-id>\pbip --apply` writes the
+     AI drafts from `pbip/docs/ai_descriptions.json` into the TMDL (only `///` lines; the user's run settings
+     already approve it – no extra question) and writes `pbip/docs/descriptions.xlsx` (Name | Description |
+     Type | Table | Hidden). Exit 1 lists `missing` keys: draft each one in English (keys from the
+     relationships, the rest from name, type, source and DAX), add them to `ai_descriptions.json` and run
+     again until it exits 0. Then do the catalog's full run, so it reads the descriptions from the model.
+     `build-model.js` reads the same file, so a rebuild keeps them, and `rebuild.js` rewrites the Excel list.
+     Hand-over: link `pbip/docs/descriptions.xlsx` as the downloadable list of descriptions. Without the
+     catalog (Python missing) the Excel list is skipped; say so.
    - **pbip-governance**: `parse_pbip.py <pbip> --output runs\<run-id>\governance\model.json` (it writes
      UTF-8 itself – no shell redirect), then `generate_azdo_wiki.py <json> --output governance/<Name>_azdo_wiki.zip`. The handover
      Markdown is **not** written by hand: `python .claude\skills\pipeline-power-bi\scripts\build_handover.py runs\<run-id>`

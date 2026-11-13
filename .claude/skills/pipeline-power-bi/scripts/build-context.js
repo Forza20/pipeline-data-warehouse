@@ -61,8 +61,8 @@ for (const t of b.tables || []) {
   for (const c of cols) L.push(`| ${c.name} | ${c.type} | ${one(c.description) || '–'} |`);
   L.push('');
 }
-if (b.date) L.push(`### ${b.date.name || 'Date'} (calendar)`, `Whole years covering ${(b.date.columns || []).join(', ')}.`
-  + (b.date.completeMonth ? ' `Is complete month` marks months with data up to their last day.' : ''), '');
+if (b.date) L.push(`### ${b.date.name || (b.naming === 'snake_case' ? 'dim_date' : 'Date')} (calendar)`, `Whole years covering ${(b.date.columns || []).join(', ')}.`
+  + (b.date.completeMonth ? ` \`${b.naming === 'snake_case' ? 'is_complete_month' : 'Is complete month'}\` marks months with data up to their last day.` : ''), '');
 
 // relationships
 L.push('## Relationships', '', 'All many-to-one, filtering from the one side (dimension) to the many side (fact).', '');
