@@ -13,7 +13,14 @@ Findings (warning = fix before the model grows, info = worth knowing):
   many-to-many             a many-to-many relationship – check the grain before keeping it
   auto date/time           hidden date tables for every date column
   calculated column        in a fact – compute it in Power Query instead
+  today in measure         TODAY()/NOW() in a measure – the number moves with the calendar, not the data
+  division without DIVIDE  '/' in a measure – an error or infinity when the denominator is 0 or blank
+  unknown reference        [Name] that is neither a measure nor a column in the model (a typo, a renamed
+                           field, or a measure that only existed in a DAX query's DEFINE block)
+  hardcoded result         a number in a measure equal to an expected value of a check or question –
+                           the result is typed in, not computed                                   [choices]
 Writes model-health.md and model-health.json (default: next to the pbip folder).
+--choices <choices.json> gives the expected values (checks[], and questions.json in the same folder).
 Reads the model with ../../pbip-governance/scripts/parse_pbip.py.
 """
 import argparse
@@ -26,11 +33,80 @@ from pathlib import Path
 PARSER = Path(__file__).resolve().parent.parent.parent / 'pbip-governance' / 'scripts' / 'parse_pbip.py'
 
 
+def strip_dax(expr):
+    """The expression without string contents and comments."""
+    s = re.sub(r'"(?:[^"]|"")*"', '""', expr or '')
+    s = re.sub(r'/\*.*?\*/', ' ', s, flags=re.S)
+    return re.sub(r'(//|--)[^\n]*', ' ', s)
+
+
+def expected_values(choices_file):
+    """Expected values of the given checks and the grounded-answer questions (only numbers >= 100 in size,
+    so 1, 12 or 100 % in a formula are never taken for a typed-in result)."""
+    if not choices_file or not Path(choices_file).exists():
+        return []
+    vals = [c.get('expected') for c in json.loads(Path(choices_file).read_text(encoding='utf-8-sig')).get('checks') or []]
+    qf = Path(choices_file).parent / 'questions.json'
+    if qf.exists():
+        raw = json.loads(qf.read_text(encoding='utf-8-sig'))
+        vals += [x.get('expected') for x in (raw if isinstance(raw, list) else raw.get('questions') or [])]
+    return [float(v) for v in vals if isinstance(v, (int, float)) and abs(v) >= 100]
+
+
+def dax_rules(model, choices_file, add):
+    """Rules every measure should follow, whatever the dataset."""
+    measures = {m['name'] for t in model['tables'] for m in t['measures']}
+    tcols = {t['name']: {c['name'] for c in t['columns']} for t in model['tables']}
+    all_cols = set().union(*tcols.values()) if tcols else set()
+    expected = expected_values(choices_file)
+    for t in model['tables']:
+        for m in t['measures']:
+            expr = m.get('expression') or ''
+            s = strip_dax(expr)
+            where = f"[{m['name']}]"
+            if re.search(r'\b(?:UTC)?(?:TODAY|NOW)\s*\(', s, re.I):
+                add('warning', 'today in measure', where, 'TODAY()/NOW() moves with the calendar – anchor on the latest date '
+                    'in the data: CALCULATE ( MAX ( <fact>[<date>] ), REMOVEFILTERS () )')
+            if '/' in s:
+                add('warning', 'division without DIVIDE', where, "'/' fails or gives infinity when the denominator is 0 or blank "
+                    '– use DIVIDE ( numerator, denominator )')
+            # references: Table[Name] with a model table, and bare [Name]
+            made = set(re.findall(r'"((?:[^"]|"")*)"', expr))   # columns made in the formula (ADDCOLUMNS "x", …)
+            unknown, spans = set(), []
+            for r in re.finditer(r"('(?:[^']|'')+'|(?<![\w\]])[^\W\d]\w*)\s*\[([^\]]+)\]", s):
+                tn = r.group(1)
+                tn = tn[1:-1].replace("''", "'") if tn.startswith("'") else tn
+                if tn not in tcols:
+                    continue   # a variable table, or a table the parser does not know
+                spans.append((r.start(), r.end()))
+                n = r.group(2).strip()
+                if n not in tcols[tn] and n not in measures:
+                    unknown.add(f"{tn}[{n}]")
+            for r in re.finditer(r'\[([^\]]+)\]', s):
+                if any(a <= r.start() < b for a, b in spans):
+                    continue
+                n = r.group(1).strip()
+                if n not in measures and n not in all_cols and n not in made and not re.fullmatch(r'Value\d*', n):
+                    unknown.add(f"[{n}]")
+            if unknown:
+                add('warning', 'unknown reference', where, f"{', '.join(sorted(unknown))} is neither a measure nor a column in the "
+                    'model – a typo, a renamed field, or a definition that only existed in a DAX query')
+            if expected:
+                bare = re.sub(r"'(?:[^']|'')*'", "''", re.sub(r'\[[^\]]*\]', '[]', s))
+                for lit in re.findall(r'(?<![\w.])(\d+(?:\.\d+)?)(?![\w.])', bare):
+                    v = float(lit)
+                    if abs(v) >= 100 and any(abs(v - e) < 0.005 for e in expected):
+                        add('warning', 'hardcoded result', where, f'{lit} equals an expected value of a check – compute the '
+                            'number in DAX; expected values are only for checking')
+                        break
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('pbip')
     ap.add_argument('--profile')
     ap.add_argument('--out')
+    ap.add_argument('--choices')
     a = ap.parse_args()
     pbip = Path(a.pbip).resolve()
     out = Path(a.out) if a.out else pbip.parent
@@ -102,6 +178,8 @@ def main():
             add('warning', 'many-to-many', where, 'many-to-many – check the grain; a bridge table is usually clearer')
     if re.search(r'__PBI_TimeIntelligenceEnabled\s*=\s*1', tmdl):
         add('warning', 'auto date/time', 'model', 'auto date/time is on – a hidden date table per date column; turn it off and use the Date table')
+
+    dax_rules(model, a.choices, add)
 
     if profile:
         ptab = {}

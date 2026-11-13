@@ -351,7 +351,9 @@ away are dropped.
    sum of each amount column ("Total amount"; with F14 *flag*: only rows with `amount issue = "ok"`, say
    so), row count of the fact ("Orders"), distinct count of each dimension key ("Customers"), average per
    row ("Average order value"), share of a flag ("Paid share"), latest complete month and previous month
-   for the main amount when there is a date table. All measures go into `_Measures` with display folders.
+   for the main amount when there is a date table, and – with at least 2 × 3 complete months of data – the
+   last 3 complete months vs the 3 before with growth % (modeling-guide.md §5 template, with its filter
+   contract). All measures go into `_Measures` with display folders.
 5. *Business terms (glossary):* every measure that goes on the report gets a **term** – the business word
    for it ("Revenue", "Active customer") with a one-sentence definition in the user's words. Draft the
    definitions from the formulas and the review answers (step 4b.5), show them in one AskUserQuestion
@@ -389,7 +391,11 @@ Show all choices compact with `node .claude\skills\pipeline-power-bi\scripts\run
 per source one line (`Sales: 9 steps – F08 order_date (day-first), F09 amount … · not kept: F14 amount`),
 then relationships, measures, roles, extras and the review points. Ask:
 "Build the project (Recommended)" · "Change the cleaning of a table" (ask which, then repeat step 4 for
-it) · "Change the model or extras" · "Stop here (choices are saved)". Repeat until "Build" or "Stop".
+it) · "Change the model, a measure or extras" · "Stop here (choices are saved)". Repeat until "Build" or "Stop".
+**Adding or changing a measure** on a built run (a new business question, a period comparison, a fix):
+follow build-steps.md → *Add or change a measure* – the measure goes in the spec with its filter contract
+and an expected value from the source files, is tested with `measure-test.js` before it is saved, and is
+proved again in `checks.dax` after the rebuild.
 
 ## Step 8 – Build
 
@@ -501,10 +507,16 @@ table in the workbook breaks the refresh – keep the names, or tell the skill o
   catalog's AI drafts (`--apply`) and writes `pbip/docs/descriptions.xlsx` (with a Review column for
   descriptions that rest on an assumption); `--redo` replaces named fields' descriptions; refuses to write a
   file whose change is more than `///` lines (exit 2); exit 1 lists fields still missing.
+- [scripts/measure-test.js](scripts/measure-test.js) – a DAX query view test of a new or changed measure
+  before it is saved (`DEFINE` + its checks and filter contract + a per-member breakdown);
+  [scripts/filter-checks.js](scripts/filter-checks.js) turns a measure's `filters` into checks for it and
+  for `checks.dax`.
+- [scripts/model_health.py](scripts/model_health.py) – model size and DAX rules (TODAY/NOW, `/` without
+  DIVIDE, unknown references, typed-in results).
 - [scripts/run-summary.js](scripts/run-summary.js) – the compact summary of a run's choices for `--resume`,
   step 1.4 and step 7 (Markdown, or `--json`).
 - Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 136 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
+- [tests/run-tests.js](tests/run-tests.js) – 144 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
   page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
   script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
   (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 99

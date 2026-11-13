@@ -53,7 +53,7 @@ const steps = [
   { step: 'descriptions', py: [path.join(S, 'descriptions.py'), pbip, '--warn-only'] },
   { step: 'build-docs', cmd: ['node', path.join(S, 'build-docs.js'), runDir, ...(flag('--checks-updated') ? ['--checks-updated'] : [])] },
   { step: 'build-context', cmd: ['node', path.join(S, 'build-context.js'), runDir] },
-  { step: 'model-health', py: [path.join(S, 'model_health.py'), pbip, '--profile', path.join(runDir, 'profile.json')],
+  { step: 'model-health', py: [path.join(S, 'model_health.py'), pbip, '--profile', path.join(runDir, 'profile.json'), '--choices', path.join(runDir, 'choices.json')],
     skip: !fs.existsSync(path.join(runDir, 'profile.json')) && 'no profile.json' },
   { step: 'grounded-answers', py: [path.join(S, 'grounded_answers.py'), pbip, path.join(runDir, 'questions.json'), '--out', runDir],
     skip: !fs.existsSync(path.join(runDir, 'questions.json')) && 'no questions.json yet (step 8.9)' },

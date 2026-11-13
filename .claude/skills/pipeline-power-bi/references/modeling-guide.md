@@ -91,6 +91,41 @@ Write the answers as the proposed design (step 4b) before building anything.
   a display folder and a one-line description.
 - Ratios with `DIVIDE`; semi-additive with `LASTDATE`/`MAX` of the period; period comparisons on the
   latest **complete** month.
+- Never `TODAY()`/`NOW()` in a measure: the number would move with the calendar, not the data. Anchor on the
+  latest date in the data.
+- Reuse measures (`[Total sales]`) instead of repeating their formula; helpers are `VAR`s in the measure.
+
+### Template: the latest N complete months vs the N before
+
+For "revenue for the last 3 complete months versus the 3 before, and growth" in any model. Replace
+`<Fact>[<date>]`, `<Date>`, `[<Base>]` and `N`. The last month counts only when the data reaches its last
+day; the windows ignore calendar and fact-date filters but follow every other dimension.
+
+```dax
+-- <Base> last N months
+VAR LastDate  = CALCULATE ( MAX ( <Fact>[<date>] ), REMOVEFILTERS () )          -- the whole dataset
+VAR LastMonth = IF ( LastDate = EOMONTH ( LastDate, 0 ), EOMONTH ( LastDate, 0 ), EOMONTH ( LastDate, -1 ) )
+VAR FirstDay  = EOMONTH ( LastMonth, -N ) + 1
+RETURN
+    CALCULATE ( [<Base>], REMOVEFILTERS ( <Date> ), REMOVEFILTERS ( <Fact>[<date>] ),
+        DATESBETWEEN ( <Date>[Date], FirstDay, LastMonth ) )
+
+-- <Base> previous N months: the same, with
+VAR PrevLast  = EOMONTH ( LastMonth, -N )
+VAR PrevFirst = EOMONTH ( LastMonth, -2 * N ) + 1          -- DATESBETWEEN ( <Date>[Date], PrevFirst, PrevLast )
+
+-- <Base> growth % (format 0.0 %)
+DIVIDE ( [<Base> last N months] - [<Base> previous N months], [<Base> previous N months] )
+```
+- With the date table's `Is complete month` flag (fix M01 *flag complete months*), `LastMonth` may instead
+  be `CALCULATE ( MAX ( <Date>[Date] ), REMOVEFILTERS (), <Date>[Is complete month] = TRUE () )`.
+- `REMOVEFILTERS ()` in `LastDate` makes the windows the same for every product or region; anchor inside
+  the filter context instead only when the user asks for "each one's own latest month".
+- Filter contract (build-spec.md): `ignore` a calendar column and `<Fact>[<date>]`, `keep` the dimensions;
+  `additive: true` for the two windows, not for the growth %. `DIVIDE` returns blank when the previous
+  window is 0 or blank.
+- The window dates themselves are worth a test row: put `FirstDay`/`LastMonth` in `measure-test.dax`'s B
+  query or a check, so the user sees which months were used.
 
 ## 6. Power Query structure
 

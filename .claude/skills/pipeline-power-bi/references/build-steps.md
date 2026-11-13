@@ -175,10 +175,41 @@ close it).
     access rules and known limits. Give it to Copilot, Claude or an agent that answers questions on the
     report, so it uses the definitions instead of guessing. Its warnings (a term without a measure, a
     measure with an unknown term) go back to step 5.
-11. **Model health** (always): `python .claude\skills\pipeline-power-bi\scripts\model_health.py runs\<run-id>\pbip --profile runs\<run-id>\profile.json`
+11. **Model health** (always): `python .claude\skills\pipeline-power-bi\scripts\model_health.py runs\<run-id>\pbip --profile runs\<run-id>\profile.json --choices runs\<run-id>\choices.json`
     → `model-health.md`: unused fact columns, hidden unused columns, near-unique text, dates with times,
-    text keys, bidirectional and many-to-many relationships, auto date/time. Offer the warnings as one
-    multiSelect ("Remove the unused fact columns: …"); a yes changes the build spec's columns and rebuilds.
+    text keys, bidirectional and many-to-many relationships, auto date/time – and four DAX rules for every
+    measure: `TODAY()`/`NOW()` (anchor on the latest date in the data instead), `/` without `DIVIDE`, a
+    `[Name]` that is neither a measure nor a column, and a number equal to an expected value of a check or
+    question (a typed-in result). Offer the warnings as one multiSelect ("Remove the unused fact columns: …");
+    a yes changes the build spec and rebuilds. A DAX warning is fixed in the measure's `expr`, never accepted.
+
+## Add or change a measure (`--resume <run-id>` → "Change the model, a measure or extras")
+
+For a measure asked for after the build – a new business question, a period comparison, a correction. The
+same steps whatever the dataset:
+
+1. **Pin down the definition with the user** (one AskUserQuestion, recommendation first) only where the
+   formula cannot decide it: which date anchors "latest" (the latest date in the data – never `TODAY()`),
+   whether a partial last month counts, which filters the number must ignore and which it must follow.
+2. **Write it in the spec** (`choices.json → build.measures[]`) with names as the model has them (snake_case
+   when `naming` is `snake_case`): `expr` reuses existing measures (`[total_sales]`, not a copy of its formula),
+   `DIVIDE` for every ratio, every helper as a `VAR` inside the formula – nothing may depend on a definition
+   that only exists in a query. Add `filters` (build-spec.md) – the contract the checks test. Period measures:
+   the template in modeling-guide.md §5.
+3. **Expected value from the source files** (a short script over `data/` with the kept fixes, as in part 2):
+   add `{ "name": "<measure>", "dax": "[<measure>]", "expected": <n>, "assumes": "…" }` to `checks[]`. A
+   number the user gives is a cross-check, never the formula's input.
+4. **Test before saving:** `node .claude\skills\pipeline-power-bi\scripts\measure-test.js runs\<run-id> "<measure>" [--by "Table[Column]"]`
+   → `measure-test.dax`: `DEFINE` with the measure and the spec measures it uses, `EVALUATE` A (its checks
+   and filter contract, Difference per row) and B (the measure per member of a dimension). With Desktop open
+   on the current model run it with `dax_query_operations`; otherwise give it to the user (DAX query view →
+   Run). Every Difference must be 0 and B must look plausible before you go on – fix `expr` and run again.
+5. **Save the pipeline way:** close Desktop, `rebuild.js runs\<run-id>` (not "Update model with changes" in
+   Desktop – the next rebuild would overwrite it), validate, refresh.
+6. **Prove the saved measure:** `checks.dax` now holds the same checks without `DEFINE` – they only pass when
+   the saved measure works on its own. Model health must show no DAX warning for it. Then add a description
+   (`descriptions.py --redo "<measure>"` when it replaced an existing one) and, if it goes on the report, a
+   glossary term.
 
 ## New versions of the source files (`--resume <run-id>` → "New files")
 

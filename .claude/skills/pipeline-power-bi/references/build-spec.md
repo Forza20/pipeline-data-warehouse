@@ -108,6 +108,17 @@ The date table is marked (`dataCategory: Time`), spans whole years of the listed
 `\n` in `expr`. `term` names the glossary term (`choices.json` → `glossary[]`) and is written as
 `annotation Term` on the measure. Relationships are many-to-one, single direction.
 
+**Filter contract** (optional per measure, recommended for every measure with `REMOVEFILTERS`/`ALL`, a fixed
+period or a ratio):
+```json
+{ "name": "Revenue last 3 months", "expr": "…", "filters": { "ignore": ["Date[Month]", "Sales[Order date]"], "keep": ["Product[Category]", "Customer[Region]"], "additive": true } }
+```
+- `ignore`: columns whose filter must **not** change the value (a fixed period ignores the calendar).
+- `keep`: columns whose filter **must** change it (when more than one member has data).
+- `additive`: the values per `keep` member add up to the total (false for ratios, averages, distinct counts).
+`build-docs.js` turns it into rows in `checks.dax` (expected 0, marked *auto*), and `measure-test.js` into the
+same rows in a test query before the measure is saved. `snake-names.js` renames the references.
+
 ## `parameters[]` – calculated tables the report uses (pbip-layout's template)
 
 ```json

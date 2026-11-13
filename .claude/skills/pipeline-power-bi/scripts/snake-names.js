@@ -140,7 +140,11 @@ B.relationships = (B.relationships || []).map((r) => {
   if (r && typeof r === 'object') return { ...r, from: ref(r.from), to: ref(r.to) };
   return String(r).split('->').map((x) => ref(x.trim())).join(' -> ');
 });
-for (const m of B.measures || []) { m.name = measureMap[m.name] || m.name; m.expr = dax(m.expr); }
+for (const m of B.measures || []) {
+  m.name = measureMap[m.name] || m.name; m.expr = dax(m.expr);
+  // filter contract (build-spec.md): ignore[] / keep[] are "Table[Column]" references
+  if (m.filters) for (const k of ['ignore', 'keep']) if (Array.isArray(m.filters[k])) m.filters[k] = m.filters[k].map(ref);
+}
 for (const r of B.roles || []) { r.table = tbl(r.table); r.filter = dax(r.filter); }
 for (const p of B.parameters || []) {
   p.name = tbl(p.name);

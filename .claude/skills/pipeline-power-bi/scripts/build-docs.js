@@ -13,9 +13,9 @@
 //
 // Run it after build-model.js. Reads choices.json (build, tables, checks, expected_notes), profile.json and
 // pbip/<Name>.SemanticModel/definition. The expected values are the one thing it does not compute: they come
-// from the source files, in choices.json → checks[] = { name, dax, expected, assumes }. It adds two kinds of
-// checks itself, both with expected 0: fact rows without a dimension row (one per active relationship) and
-// test rows left (one per kept F27 step).
+// from the source files, in choices.json → checks[] = { name, dax, expected, assumes }. It adds three kinds of
+// checks itself, all with expected 0: fact rows without a dimension row (one per active relationship), test
+// rows left (one per kept F27 step) and the filter contract of measures with `filters` (build-spec.md).
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -161,6 +161,12 @@ for (const st of B.staging || []) {
     }
   }
 }
+
+// filter contract per measure (build-spec.md → measures[].filters): a filter on an `ignore` column must not
+// change the value, a filter on a `keep` column must; with `additive`, the values per `keep` member add up to
+// the total (filter-checks.js).
+const { contractChecks } = require('./filter-checks');
+for (const m of B.measures || []) for (const c of contractChecks(B, m, warnings)) add(c);
 
 // ---------- are the given checks older than the design? ----------
 // checks-basis.json keeps a fingerprint per model table and per measure from the time the expected values

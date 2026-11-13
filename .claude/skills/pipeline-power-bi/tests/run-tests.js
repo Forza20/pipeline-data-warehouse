@@ -387,6 +387,47 @@ if (!QUICK) {
     check('descriptions --redo: key saved in description_notes.json, a rebuild keeps the redone text',
       (notes.redo || []).includes('Revenue') && notes.review && res2.status === 0 && revDesc(snap()).startsWith('Redone:'), res2.stdout.slice(0, 300) + res2.stderr);
   }
+  // filter contract, measure-test.js and the DAX rules of model health – on a copy of the run
+  {
+    const fRun = path.join(TMP, 'filter-run');
+    fs.cpSync(run, fRun, { recursive: true });
+    const cf = path.join(fRun, 'choices.json');
+    const ch = JSON.parse(fs.readFileSync(cf, 'utf8'));
+    ch.build.measures[0].filters = { ignore: ['Date[Month]'], keep: ['Product[Category]'], additive: true };
+    ch.build.measures.push({ name: 'Revenue share', expr: 'VAR r = [Revenue]\nRETURN\n\tDIVIDE ( r, CALCULATE ( [Revenue], REMOVEFILTERS ( Product ) ) )', format: '0.0 %', folder: 'Sales' },
+      { name: 'Bad', expr: 'SUM ( Sales[Amount] ) / [Orders] + [Nope] + YEAR ( TODAY () ) + 98765.43 + Sales[Ghost] // [Comment] / 2', folder: 'Sales' });
+    ch.checks = [...(ch.checks || []), { name: 'Revenue total', dax: '[Revenue]', expected: 98765.43, assumes: 'test' }];
+    fs.writeFileSync(cf, JSON.stringify(ch, null, 1));
+    let r = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), fRun], { encoding: 'utf8' });
+    const r2 = spawnSync('node', [path.join(SKILL, 'scripts', 'build-docs.js'), fRun], { encoding: 'utf8' });
+    const cdax = fs.existsSync(path.join(fRun, 'checks.dax')) ? fs.readFileSync(path.join(fRun, 'checks.dax'), 'utf8') : '';
+    check('filter contract: ignore, keep and additive rows in checks.dax',
+      r.status === 0 && r2.status === 0 && cdax.includes('"Revenue ignores a Date[Month] filter", ROUND ( CALCULATE ( \'_Measures\'[Revenue], FIRSTNONBLANK ( ALL ( \'Date\'[Month] )') &&
+      cdax.includes('"Revenue follows a Product[Category] filter"') && cdax.includes('"Revenue adds up over Product[Category]", ROUND ( SUMX ( ALL ( \'Product\'[Category] )'), r.stderr + r2.stdout.slice(0, 400) + r2.stderr);
+    // measure-test.js: DEFINE with the measure and the spec measure it uses, checks with the expected value, per-member breakdown
+    r = spawnSync('node', [path.join(SKILL, 'scripts', 'measure-test.js'), fRun, 'Revenue share', '--by', 'Product[Category]'], { encoding: 'utf8' });
+    let mt = {};
+    try { mt = JSON.parse(r.stdout); } catch { /* reported below */ }
+    const mdax = fs.existsSync(path.join(fRun, 'measure-test.dax')) ? fs.readFileSync(path.join(fRun, 'measure-test.dax'), 'utf8') : '';
+    check('measure-test: DEFINE holds the measure and the measure it uses, B groups by the column',
+      r.status === 0 && JSON.stringify(mt.defined) === '["Revenue","Revenue share"]' && /DEFINE\n    MEASURE '_Measures'\[Revenue\] =/.test(mdax) &&
+      mdax.includes("MEASURE '_Measures'[Revenue share] =") && mdax.includes("SUMMARIZECOLUMNS ( 'Product'[Category], \"Revenue share\", '_Measures'[Revenue share] )") &&
+      (mt.warnings || []).some((w) => /no expected value/.test(w)) && (mt.warnings || []).some((w) => /no filters contract/.test(w)), r.stdout.slice(0, 600) + r.stderr);
+    r = spawnSync('node', [path.join(SKILL, 'scripts', 'measure-test.js'), fRun, 'Revenue'], { encoding: 'utf8' });
+    const mdax2 = fs.existsSync(path.join(fRun, 'measure-test.dax')) ? fs.readFileSync(path.join(fRun, 'measure-test.dax'), 'utf8') : '';
+    check('measure-test: own expected value and filter contract in A, --by defaults to the first keep column',
+      r.status === 0 && mdax2.includes('( "Revenue total", \'_Measures\'[Revenue], 98765.43 )') && mdax2.includes('"Revenue follows a Product[Category] filter"') &&
+      mdax2.includes("SUMMARIZECOLUMNS ( 'Product'[Category]"), r.stdout.slice(0, 400) + r.stderr);
+    // model health: the four DAX rules hit the bad measure only
+    r = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(fRun, 'pbip'), '--choices', cf, '--out', fRun], { encoding: 'utf8' });
+    const hl = fs.existsSync(path.join(fRun, 'model-health.json')) ? JSON.parse(fs.readFileSync(path.join(fRun, 'model-health.json'), 'utf8')) : [];
+    const daxKinds = ['today in measure', 'division without DIVIDE', 'unknown reference', 'hardcoded result'];
+    const onBad = (k) => hl.some((f) => f.kind === k && f.where === '[Bad]');
+    const unk = (hl.find((f) => f.kind === 'unknown reference' && f.where === '[Bad]') || {}).text || '';
+    check('health: today, division, unknown reference and hardcoded result found in the bad measure',
+      r.status === 0 && daxKinds.every(onBad) && unk.includes('[Nope]') && unk.includes('Sales[Ghost]') && !unk.includes('Comment'), r.stdout.slice(0, 400) + r.stderr + JSON.stringify(hl.filter((f) => daxKinds.includes(f.kind))));
+    check('health: no DAX warning for the good measures', !hl.some((f) => daxKinds.includes(f.kind) && f.where !== '[Bad]'), JSON.stringify(hl.filter((f) => daxKinds.includes(f.kind))));
+  }
   check('rebuild: grounded answers skipped without questions.json, handover run (governance folder)', ((rb.steps || []).find((x) => x.step === 'grounded-answers') || {}).skipped === 'no questions.json yet (step 8.9)' &&
     ((rb.steps || []).find((x) => x.step === 'handover') || {}).ok && !((rb.steps || []).find((x) => x.step === 'handover') || {}).skipped);
   check('rebuild: next names the TMDL validation', (rb.next || []).some((x) => /ConnectFolder/.test(x)));
