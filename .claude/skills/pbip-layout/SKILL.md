@@ -71,11 +71,26 @@ Work with the user in their language (English by default).
    (a wireframe of the chosen pages: positions, sizes, background colours, titles and fields; Power BI
    draws the visuals). Show a table: page → template field → model field → value, the new measures, and
    what will be left out (`dropped`). Publish the preview as a private page when the Artifact tool is
-   there, otherwise give the path. Ask with AskUserQuestion about the mapping and the colours; build only
-   after approval. *In pipeline mode:* no preview, no question – the table goes to `layout-mapping.md`.
+   there, otherwise give the path. Ask with AskUserQuestion about the mapping and the colours, **and every
+   decision** (below); build only after approval. *In pipeline mode:* no preview, no question – the table
+   goes to `layout-mapping.md`, the decisions to `layout-decisions.json`.
+
+   **Decisions – the user decides, with your recommendation.** Whatever the data leaves open is not chosen
+   silently and not only noted: it is a decision with your recommendation and the alternatives. Typical:
+   - a fallback that changes the meaning (margin % where the template has a return rate): the colour scale's
+     direction (`reverseScales`), the texts (`texts`), or another measure;
+   - targets: the model's own, or last month + a growth (5 / 10 / 15 %);
+   - a template field with no match (`null`): leave the field or visual out, or use a named alternative;
+   - a page the model cannot fill well (a map with cities only, Key Influencers with few attributes);
+   - a visible column that holds personal data on a page (top customers).
+   Ask with AskUserQuestion, at most 4 per call: per decision one question that stands on its own (what the
+   data shows, why it matters), the recommendation first with "(Recommended)" and its reason in the
+   description, then 1–3 alternatives with their effect; the user can always write their own ("Other").
+   Apply the answers to config.json (or measures) before building.
 
 8. **config.json** (scratchpad) like [config.example.json](config.example.json): `template`, `pages`,
-   `fields` (`Table[Field]` or `null`), `labels`, `texts`, `title`/`subtitle` or `logo`, `colors`, `theme`.
+   `fields` (`Table[Field]` or `null`), `labels`, `texts`, `reverseScales` (template fields whose colour
+   scales run the other way), `title`/`subtitle` or `logo`, `colors`, `theme`.
    Save a copy as `<project folder>/docs/layout-config.json` (create `docs/`), so pbip-catalog can tag the
    fields with their page.
 
@@ -124,11 +139,21 @@ says "pipeline mode":
   (or the task). **No pages given: do not choose them yourself** – finish with status `waiting_for_user`
   and the reason "pages not chosen"; the orchestrator asks.
 - **Profile:** `run.json` → `profile` gives colours, title, labels, texts, target growth. Otherwise
-  *Standard* and growth 10 % (write it under "Open points").
-- **No AskUserQuestion** anywhere; every doubt goes to "Open points" in `layout-mapping.md` with the choice made.
+  *Standard*; the target growth is a decision (below).
+- **No AskUserQuestion** – but no silent choices either. Every decision (step 7) goes to
+  `layout-decisions.json` in the run folder and the **recommendation is applied**, so the run finishes:
+  ```json
+  [ { "id": "return-rate-scale", "question": "The data has no returns; margin % stands where the template shows the return rate. Which way should its colour scale run?",
+      "why": "In the template high = red (bad); for margin high is good.",
+      "options": [ { "label": "High margin = light, low = red", "recommended": true, "effect": "reverseScales: [\"Measure Table[Return Rate]\"]" },
+                   { "label": "Keep the template's direction", "effect": "no change" } ],
+      "applied": "High margin = light, low = red" } ]
+  ```
+  The orchestrator (`/messy-pipeline`, pipeline-power-bi's hand-over) asks the user these questions with
+  AskUserQuestion; an answer other than the applied one changes config.json and `gen-report.js` runs again.
 - **Mapping:** write `layout-mapping.md` in the run folder: page → template field → model field → value →
-  fallback used; new measures and parameters; `dropped`; open points. The first match in layout.md wins;
-  a fallback only when the model lacks the data.
+  fallback used; new measures and parameters; `dropped`; the decisions with what was applied. The first
+  match in layout.md wins; a fallback only when the model lacks the data.
 - **Desktop (step 10):** check that Desktop is closed before writing. If Desktop is open with unsaved
   changes, or opening/the screenshot fails (memory, sign-in): do not retry, do not write further, finish
   with `waiting_for_user` and the reason.

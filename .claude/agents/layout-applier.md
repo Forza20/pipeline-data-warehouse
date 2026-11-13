@@ -32,7 +32,9 @@ Your task, in the skill's words: **pipeline mode** – apply `pbip-layout` to `p
    the chosen pages (the first match in layout.md's tables; a fallback only where the model lacks the data;
    `null` where nothing fits), write the table to `runs\<id>\layout-mapping.md` (page → template field →
    model field → value → fallback used; new measures and parameters; what was left out), and continue.
-   Doubts go to an "Open points" list in the same file, with the choice you made.
+   Every doubt is a **decision** (the skill's step 7): write it to `runs\<id>\layout-decisions.json` with the
+   question, why it matters, your recommendation and 1–3 alternatives with their effect, apply the
+   recommendation, and list it in `layout-mapping.md`. The orchestrator asks the user afterwards.
 4. **Units:** the template's pages keep their own formats and display units (K, M); the other pages from
    step 2 keep theirs. Do not change the other pages.
 5. **Measures – powerbi-modeling-mcp offline first (works without Desktop):**
@@ -78,4 +80,4 @@ Never publish to Fabric. Never change the report's own pages (the skill's "Fixed
 write is in English.
 
 Final message (at most 5 lines): mapping summary (fallbacks), new measures, validation result, screenshot,
-open points.
+the decisions applied (and that they are in layout-decisions.json for the orchestrator to ask).

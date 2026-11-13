@@ -188,6 +188,27 @@ function clearDataValues(node) {
   for (const v of Object.values(node)) clearDataValues(v);
 }
 
+// colour scales driven by a template field in config.reverseScales run the other way: a fallback
+// whose high values are good (margin %) for a template field where high was bad (return rate)
+const REVERSE = new Set(cfg.reverseScales || []);
+for (const k of REVERSE) if (!(k in T.fields)) errors.push(`config.reverseScales: "${k}" is not a template field`);
+if (errors.length) fail();
+function reverseScales(node) {
+  if (!REVERSE.size) return 0;
+  let n = 0;
+  (function walk(o) {
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (!o || typeof o !== 'object') return;
+    if (o.FillRule && o.Input && [...fieldsIn(o.Input)].some((k) => REVERSE.has(k))) {
+      for (const g of Object.values(o.FillRule)) {
+        if (g && g.min && g.max && g.min.color && g.max.color) { [g.min.color, g.max.color] = [g.max.color, g.min.color]; n++; }
+      }
+    }
+    for (const v of Object.values(o)) walk(v);
+  })(node);
+  return n;
+}
+
 // ---------- build the pages in memory ----------
 const pages = []; // { key, id, page, visuals: [{name, json}] }
 const dropped = [];
@@ -260,7 +281,8 @@ for (const key of chosen) {
       }
     }
   }
-  // 7. fields, strings, colours, page ids
+  // 7. reversed colour scales (before the fields are renamed), then fields, strings, colours, page ids
+  for (const v of visuals) { const r = reverseScales(v.json); if (r) notes.push(`${key}/${v.name}: colour scale reversed (${r})`); }
   page.name = idMap[meta.id];
   clearDataValues(page);
   withAliases(page, {});

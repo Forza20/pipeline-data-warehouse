@@ -146,6 +146,13 @@ is `done`. `catalog-builder` needs `layout` = `done`; it does not need Desktop. 
   for the answer, verify, set the step to `done` (or `pending` to rerun it) and continue. Never perform a
   call an agent was refused on its behalf.
 - Never pass the answer key or anything from it to an agent.
+- **Decisions the agents applied:** after `layout-applier` (and any agent that writes a decisions file,
+  e.g. `runs\<run_id>\layout-decisions.json`), ask the user each decision with AskUserQuestion (max 4 per
+  call): the question as written, the applied recommendation first with "(Recommended)" and its reason,
+  the alternatives with their effect. An answer other than the applied one: change
+  `pbip\docs\layout-config.json` accordingly (`reverseScales`, `texts`, `fields` …), run pbip-layout's
+  `gen-report.js` and `check-fields.js` again, and write the answer back into the file (`"answered"`).
+  Agents never leave a bare open point – each one comes with a recommendation the user can keep or change.
 
 ## 4. Scorecard (`runs\<run_id>\scorecard.md`) – only when medallion is `done`
 

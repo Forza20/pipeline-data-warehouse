@@ -134,6 +134,13 @@ const nlText = Object.values(textFiles(nl.dir)).join('\n');
 check('null: the field is left out of a visual that has more fields, a visual it needs goes', nl.r.status === 0 && !/MaritalStatus|"Property": "Country"/.test(nlText) &&
   (nl.out.dropped || []).some((d) => d.type === 'map') && !(nl.out.dropped || []).some((d) => d.type === 'keyDriversVisual'), JSON.stringify(nl.out.dropped || nl.r.stdout).slice(0, 400));
 
+// ---------- a reversed colour scale (decision: a fallback where high is good) ----------
+const rev = build('reverse', { reverseScales: ['Measure Table[Return Rate]'] });
+const revText = textFiles(rev.dir);
+const revDiff = Object.keys(stdText).filter((k) => revText[k] !== stdText[k]);
+check('reverseScales: only the scales driven by that field change, and only their colours', rev.r.status === 0 &&
+  (rev.out.notes || []).some((n) => /colour scale reversed/.test(n)) && revDiff.length > 0 && revDiff.every((k) => mask(revText[k]) === mask(stdText[k])), revDiff.join(','));
+
 // ---------- bad colours ----------
 const bad1 = build('badkey', { colors: { primary: '#112233' } });
 check('unknown colour key stops the build', bad1.r.status === 2 && /unknown colour key/.test(bad1.r.stdout), bad1.r.stdout.slice(0, 300));

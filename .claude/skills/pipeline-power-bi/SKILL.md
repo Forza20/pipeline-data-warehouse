@@ -25,7 +25,11 @@ Arguments: file paths or a folder – CSV, Excel, a `.pbip` project or a `.pbix`
    choice. Every question has the recommended option first, marked "(Recommended)", with what it does,
    how many rows it touches and whether it changes the numbers. "Accept all recommended" is one click
    for those who want speed; "choose one by one" and "skip" are always offered next to it. In fast mode
-   the user decides once, for the whole run.
+   the user decides once, for the whole run. **No open point without a recommendation:** whatever comes up
+   later (a review point left open, a row left out, a PII flag, a pbip-layout decision in
+   `layout-decisions.json`) is a question with your recommendation and its alternatives – asked when it
+   comes up, or, when the run must go on (fast mode, a subagent), applied as recommended and asked at the
+   hand-over (step 10), where the user keeps it or picks another option.
 2. **Choices are kept** in `runs/<run-id>/choices.json`. Before the build the user sees all of them and
    can change any; `--resume <run-id>` reopens them later. Never ask again what is already answered,
    unless the user asks to change it.
@@ -434,6 +438,15 @@ flags and details of the eleven parts below, and the drift check for new files. 
   `expected-values.md` (column "In Power BI") and rebuild the overview page.
 
 ## Step 10 – Hand-over (5–8 lines)
+
+**First the decisions still open** (principle 1): the open review points (`design.review`), the
+`handover_notes` that are choices (a row left out, a value treated a certain way), visible PII the audit
+flagged, and pbip-layout's `layout-decisions.json`. Ask them with AskUserQuestion (max 4 per call): each
+question stands on its own, says what was applied, has your recommendation first with "(Recommended)"
+and its reason, then 1–3 alternatives with their effect. Keep the answers in `choices.json`; an answer
+that differs from what was applied changes the spec or the layout config, then `rebuild.js` (and
+pbip-layout's `gen-report.js`) runs again before the hand-over text. A point that is only information
+(not a choice) stays a note.
 
 What was built and the result of the check; links relative to the repository root to
 `runs/<run-id>/pbip/<Name>.pbip`, `overview.html` (or its published link), `checks.dax`,
