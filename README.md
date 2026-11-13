@@ -82,7 +82,7 @@ How long it takes:
 
 | Run | Time |
 |---|---|
-| Fastest: `--fast` (no questions; catalog and governance, no dashboard) | about 8 minutes (estimate) |
+| Fastest: `--fast` (one question: the dashboard pages; dashboard, catalog and governance) | about 8 minutes + the dashboard step (estimate) |
 | Quick: answer the questions, untick the dashboard, catalog and governance | 10–12 minutes |
 | Full: every extra accepted | 20–30 minutes |
 | Refresh and `checks.dax` in Power BI Desktop | about 5 minutes more |

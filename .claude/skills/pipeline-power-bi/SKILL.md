@@ -51,7 +51,8 @@ its recommended option, and nothing more is asked until the hand-over. Only thes
 
 - the path of the files when none was given (the report name is not asked: `--name`, else the folder name);
 - a run folder that already exists (step 1.4), and Power BI Desktop being open (step 8);
-- installing a missing program (step 0) – never install without a yes.
+- installing a missing program (step 0) – never install without a yes;
+- which AdventureWorks template pages the dashboard gets (step 6 – the dashboard is always built).
 
 What each step does instead of asking:
 
@@ -64,7 +65,7 @@ What each step does instead of asking:
 | 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
 | 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
 | 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
-| 6 | Catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. No dashboard, Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. A named dashboard uses *Standard* colours and title, but the pages are **always asked** (pbip-layout step 3). |
+| 6 | Dashboard (pbip-layout, the AdventureWorks template), catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. The dashboard uses *Standard* colours and title, but the pages are **always asked** (pbip-layout step 3; `extras.layout: true`, the chosen keys in `extras.layout_pages`) – a report with only the empty default page is never handed over. No Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. |
 | 8.6 | Governance's PII audit asks nothing: a visible column flagged as personal data stays as it is and goes into the hand-over as an open point (hide it later with `--resume`). |
 | 7 | Show the review summary as a record of the choices, then build without asking. |
 | 8.9 | Draft 3 grounded questions from the measures and dimensions yourself. |
