@@ -199,9 +199,11 @@ same steps whatever the dataset:
 3. **Expected value from the source files** (a short script over `data/` with the kept fixes, as in part 2):
    add `{ "name": "<measure>", "dax": "[<measure>]", "expected": <n>, "assumes": "…" }` to `checks[]`. A
    number the user gives is a cross-check, never the formula's input.
-4. **Test before saving:** `node .claude\skills\pipeline-power-bi\scripts\measure-test.js runs\<run-id> "<measure>" [--by "Table[Column]"]`
+4. **Test before saving:** `node .claude\skills\pipeline-power-bi\scripts\measure-test.js runs\<run-id> "<measure>" [--by "Table[Column]"] [--show-vars]`
    → `measure-test.dax`: `DEFINE` with the measure and the spec measures it uses, `EVALUATE` A (its checks
-   and filter contract, Difference per row) and B (the measure per member of a dimension). With Desktop open
+   and filter contract, Difference per row) and B (the measure per member of a dimension). Add
+   `--show-vars` for a measure with `VAR`s (always for a period window): `EVALUATE` C shows its scalar
+   VARs – first and last day, thresholds – so the user sees which months it really uses. With Desktop open
    on the current model run it with `dax_query_operations`; otherwise give it to the user (DAX query view →
    Run). Every Difference must be 0 and B must look plausible before you go on – fix `expr` and run again.
 5. **Save the pipeline way:** close Desktop, `rebuild.js runs\<run-id>` (not "Update model with changes" in

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // A DAX query that tests a new or changed measure against the model as it is now, before it is saved.
 //
-//   node measure-test.js runs/<run-id> "<measure>" [--by "Table[Column]"] [--out <file>]
+//   node measure-test.js runs/<run-id> "<measure>" [--by "Table[Column]"] [--show-vars] [--out <file>]
 //
 // The measure must already be in choices.json → build.measures[] (name, expr, optional filters), and its
 // expected value, when there is one, in checks[] with dax "[<measure>]" (computed from the source files).
@@ -11,6 +11,9 @@
 //   EVALUATE A  one row per check: the measure's own checks (Expected, Difference) and its filter contract
 //   EVALUATE B  the measure per member of --by (default: its first `keep` column, else the first text column
 //               of the first dimension)
+//   EVALUATE C  with --show-vars: the measure's scalar VARs as one row (e.g. the first and last day of a
+//               period window), so the user sees which dates or thresholds it really uses. Table VARs
+//               (FILTER, VALUES, DATESBETWEEN …) are defined but not shown.
 // Each measure is self-contained: everything it uses is a model object or another spec measure, never
 // something that only exists in this query – so the same formulas work once saved. After the rebuild the
 // same checks run in checks.dax without DEFINE, which proves the saved measure.
@@ -65,6 +68,17 @@ if (!by) {
 }
 const byRef = by ? ref(by) : null;
 
+// the measure's top-level VARs (--show-vars)
+const TABLE_FN = /^(?:FILTER|ALL\w*|VALUES|DISTINCT|SUMMARIZE\w*|ADDCOLUMNS|SELECTCOLUMNS|CALCULATETABLE|DATES\w+|TOPN|GENERATE\w*|UNION|INTERSECT|EXCEPT|TREATAS|CROSSJOIN|DATATABLE|GENERATESERIES|CALENDAR\w*|RELATEDTABLE|KEEPFILTERS|REMOVEFILTERS)\s*\(|^\{/i;
+let vars = [];
+if (process.argv.includes('--show-vars')) {
+  // comments out, strings kept as they are
+  const body = String(m.expr).replace(/("(?:[^"]|"")*")|\/\*[\s\S]*?\*\/|(?:\/\/|--)[^\n]*/g, (all, str) => str || '');
+  vars = [...body.matchAll(/\bVAR\s+([A-Za-z_]\w*)\s*=\s*([\s\S]*?)(?=\bVAR\s+[A-Za-z_]\w*\s*=|\bRETURN\b)/gi)].map((x) => ({ name: x[1], expr: x[2].trim() }));
+  if (!vars.length) warnings.push(`--show-vars: ${m.name} has no VARs to show`);
+}
+const shown = vars.filter((v) => !TABLE_FN.test(v.expr));
+
 const ind = (s, pad) => String(s).split('\n').map((l, i) => (i ? pad : '') + l).join('\n');
 const daxStr = (s) => `"${String(s).replace(/"/g, '""')}"`;
 const out = [
@@ -86,7 +100,10 @@ const out = [
     '            "In Power BI", [Value2],', '            "Expected", [Value3],', '            "Difference", ROUND ( [Value2] - [Value3], 2 )', '        )',
   ].join('\n') : `    ROW ( ${daxStr(m.name)}, ${M} )`, '',
   ...(byRef ? ['// B – per member', 'EVALUATE', `    SUMMARIZECOLUMNS ( ${cref(byRef)}, ${daxStr(m.name)}, ${M} )`, `    ORDER BY ${cref(byRef)}`, ''] : []),
+  ...(shown.length ? ['// C – the values the measure works with (its VARs, without any filter)', 'EVALUATE',
+    ...vars.map((v) => `    VAR ${v.name} =\n        ${ind(v.expr, '        ')}`), '    RETURN',
+    `        ROW ( ${shown.map((v) => `${daxStr(v.name)}, ${v.name}`).join(', ')} )`, ''] : []),
 ];
 const file = opt('--out') ? path.resolve(opt('--out')) : path.join(runDir, 'measure-test.dax');
 fs.writeFileSync(file, out.join('\n'), 'utf8');
-console.log(JSON.stringify({ ok: true, file, measure: m.name, defined: defined.map((x) => x.name), checks: checks.length, by: by || null, warnings }, null, 1));
+console.log(JSON.stringify({ ok: true, file, measure: m.name, defined: defined.map((x) => x.name), checks: checks.length, by: by || null, vars: shown.map((v) => v.name), warnings }, null, 1));

@@ -413,6 +413,13 @@ if (!QUICK) {
       r.status === 0 && JSON.stringify(mt.defined) === '["Revenue","Revenue share"]' && /DEFINE\n    MEASURE '_Measures'\[Revenue\] =/.test(mdax) &&
       mdax.includes("MEASURE '_Measures'[Revenue share] =") && mdax.includes("SUMMARIZECOLUMNS ( 'Product'[Category], \"Revenue share\", '_Measures'[Revenue share] )") &&
       (mt.warnings || []).some((w) => /no expected value/.test(w)) && (mt.warnings || []).some((w) => /no filters contract/.test(w)), r.stdout.slice(0, 600) + r.stderr);
+    let bd = {};
+    try { bd = JSON.parse(r2.stdout); } catch { /* reported below */ }
+    check('build-docs: a measure with REMOVEFILTERS and no filter contract is named, one with a contract is not',
+      JSON.stringify((bd.checks || {}).missingContract) === '["Revenue share"]' && (bd.warnings || []).some((w) => /no filter contract for Revenue share/.test(w)), r2.stdout.slice(0, 600));
+    r = spawnSync('node', [path.join(SKILL, 'scripts', 'measure-test.js'), fRun, 'Revenue share', '--show-vars', '--out', path.join(fRun, 'vars.dax')], { encoding: 'utf8' });
+    const vdax = fs.existsSync(path.join(fRun, 'vars.dax')) ? fs.readFileSync(path.join(fRun, 'vars.dax'), 'utf8') : '';
+    check('measure-test --show-vars: the scalar VARs in a ROW of their own', r.status === 0 && /EVALUATE\n    VAR r =\n        \[Revenue\]\n    RETURN\n        ROW \( "r", r \)/.test(vdax), r.stdout.slice(0, 400) + r.stderr + vdax.slice(-300));
     r = spawnSync('node', [path.join(SKILL, 'scripts', 'measure-test.js'), fRun, 'Revenue'], { encoding: 'utf8' });
     const mdax2 = fs.existsSync(path.join(fRun, 'measure-test.dax')) ? fs.readFileSync(path.join(fRun, 'measure-test.dax'), 'utf8') : '';
     check('measure-test: own expected value and filter contract in A, --by defaults to the first keep column',

@@ -167,6 +167,13 @@ for (const st of B.staging || []) {
 // the total (filter-checks.js).
 const { contractChecks } = require('./filter-checks');
 for (const m of B.measures || []) for (const c of contractChecks(B, m, warnings)) add(c);
+// a measure that removes or replaces filters needs a contract, or nothing tests what it ignores
+const missingContract = (B.measures || []).filter((m) => !m.filters &&
+  /\b(?:REMOVEFILTERS|ALL|ALLEXCEPT|ALLSELECTED|DATESBETWEEN|DATESINPERIOD)\s*\(/i.test(String(m.expr).replace(/"(?:[^"]|"")*"/g, '""'))).map((m) => m.name);
+if (missingContract.length) {
+  warnings.push(`no filter contract for ${missingContract.join(', ')} – they remove or replace filters; add measures[].filters ` +
+    '(ignore / keep / additive, build-spec.md) so checks.dax tests which filters they ignore and which they follow');
+}
 
 // ---------- are the given checks older than the design? ----------
 // checks-basis.json keeps a fingerprint per model table and per measure from the time the expected values
@@ -259,5 +266,5 @@ const dax = [`// Control check for ${NAME} (${RUN}). Written by build-docs.js.`,
 fs.writeFileSync(path.join(runDir, 'checks.dax'), dax.join('\n'), 'utf8');
 
 console.log(JSON.stringify({ ok: true, cleaningLog: { sources: (B.staging || []).length, findings: nFind, kept: nKept, notKept: nFind - nKept },
-  checks: { given: checks.filter((c) => !c.auto).length, auto: checks.filter((c) => c.auto).length, stale: stale.map((c) => c.name), staleQuestions },
+  checks: { given: checks.filter((c) => !c.auto).length, auto: checks.filter((c) => c.auto).length, stale: stale.map((c) => c.name), staleQuestions, missingContract },
   files: ['cleaning-log.md', 'expected-values.md', 'checks.dax'].map((f) => path.join(runDir, f)), warnings }, null, 1));

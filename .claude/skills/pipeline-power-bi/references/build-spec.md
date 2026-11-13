@@ -118,6 +118,8 @@ period or a ratio):
 - `additive`: the values per `keep` member add up to the total (false for ratios, averages, distinct counts).
 `build-docs.js` turns it into rows in `checks.dax` (expected 0, marked *auto*), and `measure-test.js` into the
 same rows in a test query before the measure is saved. `snake-names.js` renames the references.
+`build-docs.js` warns (`missingContract`) about every measure that uses `REMOVEFILTERS`, `ALL…`,
+`DATESBETWEEN` or `DATESINPERIOD` without `filters` – add the contract before the hand-over.
 
 ## `parameters[]` – calculated tables the report uses (pbip-layout's template)
 

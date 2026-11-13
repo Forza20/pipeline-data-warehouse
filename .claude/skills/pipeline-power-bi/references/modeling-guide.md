@@ -124,8 +124,8 @@ DIVIDE ( [<Base> last N months] - [<Base> previous N months], [<Base> previous N
 - Filter contract (build-spec.md): `ignore` a calendar column and `<Fact>[<date>]`, `keep` the dimensions;
   `additive: true` for the two windows, not for the growth %. `DIVIDE` returns blank when the previous
   window is 0 or blank.
-- The window dates themselves are worth a test row: put `FirstDay`/`LastMonth` in `measure-test.dax`'s B
-  query or a check, so the user sees which months were used.
+- Show the window dates: `measure-test.js … --show-vars` lists `LastDate`, `LastMonth` and `FirstDay`, so
+  the user sees which months were used.
 
 ## 6. Power Query structure
 
