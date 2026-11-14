@@ -1163,7 +1163,7 @@ def main():
         slots = slots_from_config(json.loads(cfg_path.read_text(encoding='utf-8')))
         slots_source = f'from {cfg_path.name}'
     else:
-        tpl_ids = template_page_ids()
+        tpl_ids = {**template_page_ids('adventureworks'), **template_page_ids('business')}
         tpl_pages = [p for p in parsed['report'].get('pages', []) if p['name'] in tpl_ids]
         page = next((p for p in parsed['report'].get('pages', []) if p['name'] == LAYOUT_PAGE_ID), None)
         if tpl_pages:

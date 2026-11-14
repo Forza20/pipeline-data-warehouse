@@ -79,6 +79,22 @@ check('a drillthrough page without its overview is refused', !dt.j.ok && /campai
 const ho = build('ho', { pages: ['home'] });
 check('Home alone is refused', !ho.j.ok && /module page/.test(JSON.stringify(ho.j)));
 
+// ---------- suggest-fields.js: the template comes from the config, no field-hints.json needed ----------
+{
+  const td = path.join(TMP, "Sim.SemanticModel", "definition", "tables");
+  fs.mkdirSync(td, { recursive: true });
+  fs.writeFileSync(path.join(td, "fact_marketing_daily.tmdl"), "table fact_marketing_daily\n\tcolumn leads\n\tcolumn mq_ls\n\tcolumn sq_ls\n");
+  fs.writeFileSync(path.join(td, "fact_opportunities.tmdl"), "table fact_opportunities\n\tcolumn amount\n\tcolumn stage\n");
+  fs.writeFileSync(path.join(td, "dim_date.tmdl"), "table dim_date\n\tdataCategory: Time\n\tcolumn date\n\tcolumn month_start\n");
+  const cf = path.join(TMP, "suggest.json");
+  fs.writeFileSync(cf, JSON.stringify({ template: "business", pages: ["home", "marketing", "sales"] }));
+  const r = spawnSync("node", [path.join(SKILL, "scripts", "suggest-fields.js"), path.join(TMP, "Sim.SemanticModel"), "--config", cf], { encoding: "utf8" });
+  let j = {}; try { j = JSON.parse(r.stdout); } catch { j = {}; }
+  const c = j.contract || {};
+  check("suggest-fields: business from the config, MQLs as mq_ls (pipeline snake_case), required columns found",
+    r.status === 0 && c["Fact_Marketing[MQLs]"] === "fact_marketing_daily[mq_ls]" && c["Fact_Opportunity[Stage]"] === "fact_opportunities[stage]" && c["Dim_Date[Date]"] === "dim_date[date]" && !(j.requiredMissing || []).length, (r.stdout + r.stderr).slice(0, 300));
+}
+
 fs.rmSync(TMP, { recursive: true, force: true });
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

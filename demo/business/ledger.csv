@@ -1,0 +1,421 @@
+DateKey,AccountKey,Amount,OperatingCashMovement,Description,Status
+2023-01-01,2,57396.93,55101.05,Hardware shipments,Confirmed
+2023-01-02,4,62516.61,-62516.61,Supplier payments,Confirmed
+2023-01-05,11,12900.0,0.0,Tax and interest,Reversed
+2023-01-07,1,109387.58,0.0,Licence invoicing,Pending
+2023-01-08,5,33454.69,-33454.69,Payroll run,Confirmed
+2023-01-09,2,59910.26,57513.85,Hardware invoicing batch,Confirmed
+2023-01-09,6,16350.64,-16350.64,R&D vendor,Confirmed
+2023-01-11,3,37674.0,36167.04,Consulting invoices,Confirmed
+2023-01-12,8,9108.75,-9108.75,Facilities and utilities,Confirmed
+2023-01-15,9,12166.0,-12166.0,Office rent,Confirmed
+2023-01-15,10,5729.3,0.0,Travel and misc,Pending
+2023-01-19,4,82111.24,-82111.24,Hosting and logistics,Confirmed
+2023-01-21,5,38840.87,-38840.87,Contractor payments,Confirmed
+2023-01-21,7,13210.29,-13210.29,Agency retainer,Confirmed
+2023-01-27,8,12068.55,-12068.55,Operations vendor,Confirmed
+2023-01-27,10,4640.76,-4640.76,Software subscriptions,Confirmed
+2023-01-28,3,38185.11,36657.71,Support contracts,Confirmed
+2023-01-29,1,131236.43,125986.97,Subscription invoicing,Confirmed
+2023-01-30,6,16085.86,-16085.86,R&D tooling,Confirmed
+2023-01-30,7,12840.73,-12840.73,Ad platform charges,Confirmed
+2023-02-01,8,11419.29,-11419.29,Facilities and utilities,Confirmed
+2023-02-03,4,81365.19,-81365.19,Supplier payments,Confirmed
+2023-02-04,3,43359.75,41625.36,Consulting invoices,Confirmed
+2023-02-04,7,15520.36,-15520.36,Ad platform charges,Confirmed
+2023-02-04,11,13289.58,0.0,Tax and interest,Reversed
+2023-02-05,1,129362.87,124188.36,Subscription invoicing,Confirmed
+2023-02-08,6,15701.17,-15701.17,R&D vendor,Confirmed
+2023-02-08,10,5555.23,-5555.23,Software subscriptions,Confirmed
+2023-02-09,3,32474.97,31175.97,Support contracts,Confirmed
+2023-02-11,5,42126.43,-42126.43,Payroll run,Confirmed
+2023-02-12,2,72175.27,69288.26,Hardware shipments,Confirmed
+2023-02-12,10,5181.39,-5181.39,Travel and misc,Confirmed
+2023-02-14,1,113074.73,0.0,Licence invoicing,Pending
+2023-02-15,6,17428.56,0.0,R&D tooling,Pending
+2023-02-16,9,12505.68,-12505.68,Office rent,Confirmed
+2023-02-18,7,12501.58,-12501.58,Agency retainer,Confirmed
+2023-02-21,5,33813.71,-33813.71,Contractor payments,Confirmed
+2023-02-24,2,51003.63,48963.48,Hardware invoicing batch,Confirmed
+2023-02-27,8,10392.25,-10392.25,Operations vendor,Confirmed
+2023-02-28,4,67153.16,-67153.16,Hosting and logistics,Confirmed
+2023-03-01,3,38407.75,36871.44,Support contracts,Confirmed
+2023-03-03,2,72574.64,69671.65,Hardware invoicing batch,Confirmed
+2023-03-05,1,99259.31,95288.94,Licence invoicing,Confirmed
+2023-03-05,6,13591.63,-13591.63,R&D vendor,Confirmed
+2023-03-05,7,15709.73,-15709.73,Ad platform charges,Confirmed
+2023-03-06,7,12370.65,-12370.65,Agency retainer,Confirmed
+2023-03-11,10,5574.3,-5574.3,Software subscriptions,Confirmed
+2023-03-12,5,34676.45,-34676.45,Contractor payments,Confirmed
+2023-03-15,11,13613.81,-13613.81,Tax and interest,Confirmed
+2023-03-16,4,73121.23,-73121.23,Hosting and logistics,Confirmed
+2023-03-18,8,9906.0,0.0,Facilities and utilities,Pending
+2023-03-19,3,37938.22,0.0,Consulting invoices,Pending
+2023-03-19,10,5633.82,-5633.82,Travel and misc,Confirmed
+2023-03-20,2,57247.6,54957.7,Hardware shipments,Confirmed
+2023-03-22,1,142538.84,136837.29,Subscription invoicing,Confirmed
+2023-03-23,4,85837.34,-85837.34,Supplier payments,Confirmed
+2023-03-23,9,13231.08,-13231.08,Office rent,Confirmed
+2023-03-26,8,11981.35,-11981.35,Operations vendor,Confirmed
+2023-03-29,6,19204.18,0.0,R&D tooling,Reversed
+2023-03-30,5,44026.97,-44026.97,Payroll run,Confirmed
+2023-04-06,1,117327.5,112634.4,Licence invoicing,Confirmed
+2023-04-08,4,85868.7,0.0,Supplier payments,Reversed
+2023-04-09,8,11475.73,-11475.73,Operations vendor,Confirmed
+2023-04-10,5,44566.86,-44566.86,Contractor payments,Confirmed
+2023-04-10,9,13363.18,-13363.18,Office rent,Confirmed
+2023-04-10,10,5830.06,-5830.06,Software subscriptions,Confirmed
+2023-04-11,4,72062.0,-72062.0,Hosting and logistics,Confirmed
+2023-04-12,1,137525.64,132024.61,Subscription invoicing,Confirmed
+2023-04-13,7,13755.97,0.0,Ad platform charges,Pending
+2023-04-13,8,10637.47,-10637.47,Facilities and utilities,Confirmed
+2023-04-15,2,63147.51,60621.61,Hardware invoicing batch,Confirmed
+2023-04-15,6,16995.28,-16995.28,R&D tooling,Confirmed
+2023-04-15,10,5458.33,-5458.33,Travel and misc,Confirmed
+2023-04-16,2,61005.39,58565.17,Hardware shipments,Confirmed
+2023-04-21,6,16644.55,-16644.55,R&D vendor,Confirmed
+2023-04-22,5,33998.13,-33998.13,Payroll run,Confirmed
+2023-04-23,3,40121.13,38516.28,Support contracts,Confirmed
+2023-04-24,3,40808.47,39176.13,Consulting invoices,Confirmed
+2023-04-28,7,14210.56,-14210.56,Agency retainer,Confirmed
+2023-04-30,11,13818.48,-13818.48,Tax and interest,Confirmed
+2023-05-01,8,11816.76,-11816.76,Facilities and utilities,Confirmed
+2023-05-02,6,15565.89,-15565.89,R&D tooling,Confirmed
+2023-05-05,5,41534.03,-41534.03,Payroll run,Confirmed
+2023-05-07,1,119040.63,114279.0,Subscription invoicing,Confirmed
+2023-05-07,3,41790.03,40118.43,Support contracts,Confirmed
+2023-05-07,9,13235.27,-13235.27,Office rent,Confirmed
+2023-05-08,2,62694.99,60187.19,Hardware invoicing batch,Confirmed
+2023-05-08,4,80145.12,-80145.12,Supplier payments,Confirmed
+2023-05-13,6,18055.87,-18055.87,R&D vendor,Confirmed
+2023-05-17,2,62724.52,0.0,Hardware shipments,Pending
+2023-05-17,7,12495.07,-12495.07,Ad platform charges,Confirmed
+2023-05-20,1,143212.22,137483.73,Licence invoicing,Confirmed
+2023-05-20,4,78769.17,-78769.17,Hosting and logistics,Confirmed
+2023-05-22,3,39135.79,37570.36,Consulting invoices,Confirmed
+2023-05-23,7,15500.15,0.0,Agency retainer,Reversed
+2023-05-24,5,37179.57,-37179.57,Contractor payments,Confirmed
+2023-05-25,8,10339.44,-10339.44,Operations vendor,Confirmed
+2023-05-25,10,5268.48,-5268.48,Software subscriptions,Confirmed
+2023-05-26,11,13880.74,-13880.74,Tax and interest,Confirmed
+2023-05-28,10,5807.56,-5807.56,Travel and misc,Confirmed
+2023-06-01,4,86916.77,0.0,Supplier payments,Pending
+2023-06-01,5,40893.65,-40893.65,Contractor payments,Confirmed
+2023-06-05,2,73944.44,70986.66,Hardware shipments,Confirmed
+2023-06-07,9,13312.23,-13312.23,Office rent,Confirmed
+2023-06-08,5,37977.14,-37977.14,Payroll run,Confirmed
+2023-06-08,7,14252.55,-14252.55,Agency retainer,Confirmed
+2023-06-08,10,5224.25,-5224.25,Travel and misc,Confirmed
+2023-06-14,6,18829.98,0.0,R&D vendor,Pending
+2023-06-14,8,9458.26,-9458.26,Facilities and utilities,Confirmed
+2023-06-14,10,5803.38,-5803.38,Software subscriptions,Confirmed
+2023-06-16,11,13815.9,-13815.9,Tax and interest,Confirmed
+2023-06-18,2,54732.41,52543.11,Hardware invoicing batch,Confirmed
+2023-06-18,4,73962.22,-73962.22,Hosting and logistics,Confirmed
+2023-06-19,6,14793.02,-14793.02,R&D tooling,Confirmed
+2023-06-20,1,118107.19,113382.9,Licence invoicing,Confirmed
+2023-06-20,7,14261.1,-14261.1,Ad platform charges,Confirmed
+2023-06-22,3,40888.46,0.0,Consulting invoices,Pending
+2023-06-25,3,39243.73,37673.98,Support contracts,Confirmed
+2023-06-25,8,12652.15,-12652.15,Operations vendor,Confirmed
+2023-06-28,1,130056.04,124853.8,Subscription invoicing,Confirmed
+2023-07-01,4,79703.77,-79703.77,Supplier payments,Confirmed
+2023-07-01,5,36610.52,-36610.52,Contractor payments,Confirmed
+2023-07-03,1,123450.93,118512.89,Subscription invoicing,Confirmed
+2023-07-05,8,11281.68,-11281.68,Facilities and utilities,Confirmed
+2023-07-06,2,62966.04,60447.4,Hardware shipments,Confirmed
+2023-07-07,6,16950.35,0.0,R&D tooling,Pending
+2023-07-16,10,5445.21,-5445.21,Travel and misc,Confirmed
+2023-07-17,3,36035.71,0.0,Support contracts,Pending
+2023-07-18,7,14762.1,-14762.1,Agency retainer,Confirmed
+2023-07-21,8,11167.93,-11167.93,Operations vendor,Confirmed
+2023-07-22,5,41109.67,-41109.67,Payroll run,Confirmed
+2023-07-23,10,6012.44,0.0,Software subscriptions,Pending
+2023-07-25,1,135016.59,129615.93,Licence invoicing,Confirmed
+2023-07-27,6,17663.84,-17663.84,R&D vendor,Confirmed
+2023-07-27,7,13617.22,-13617.22,Ad platform charges,Confirmed
+2023-07-28,2,64794.33,62202.56,Hardware invoicing batch,Confirmed
+2023-07-29,4,79251.01,-79251.01,Hosting and logistics,Confirmed
+2023-07-30,9,13372.75,-13372.75,Office rent,Confirmed
+2023-07-30,11,13674.0,-13674.0,Tax and interest,Confirmed
+2023-07-31,3,42290.0,40598.4,Consulting invoices,Confirmed
+2023-08-02,7,13768.86,-13768.86,Agency retainer,Confirmed
+2023-08-03,6,16893.64,-16893.64,R&D tooling,Confirmed
+2023-08-03,6,17369.84,-17369.84,R&D vendor,Confirmed
+2023-08-07,1,125699.79,120671.8,Subscription invoicing,Confirmed
+2023-08-07,9,13282.6,-13282.6,Office rent,Confirmed
+2023-08-10,8,12653.23,-12653.23,Operations vendor,Confirmed
+2023-08-10,10,5829.58,-5829.58,Software subscriptions,Confirmed
+2023-08-11,2,74251.11,71281.07,Hardware invoicing batch,Confirmed
+2023-08-11,3,35575.41,34152.39,Support contracts,Confirmed
+2023-08-12,3,42623.18,40918.25,Consulting invoices,Confirmed
+2023-08-14,7,13784.69,-13784.69,Ad platform charges,Confirmed
+2023-08-14,8,9901.58,-9901.58,Facilities and utilities,Confirmed
+2023-08-16,1,121591.45,116727.79,Licence invoicing,Confirmed
+2023-08-16,5,45038.82,0.0,Payroll run,Pending
+2023-08-19,5,30668.76,-30668.76,Contractor payments,Confirmed
+2023-08-23,2,54156.65,51990.38,Hardware shipments,Confirmed
+2023-08-23,4,69112.68,-69112.68,Supplier payments,Confirmed
+2023-08-23,4,90059.46,-90059.46,Hosting and logistics,Confirmed
+2023-08-24,10,4984.34,-4984.34,Travel and misc,Confirmed
+2023-08-25,11,13526.94,-13526.94,Tax and interest,Confirmed
+2023-09-01,11,13449.38,-13449.38,Tax and interest,Confirmed
+2023-09-02,7,14827.29,0.0,Ad platform charges,Pending
+2023-09-02,10,5170.07,-5170.07,Software subscriptions,Confirmed
+2023-09-03,8,11456.08,-11456.08,Operations vendor,Confirmed
+2023-09-07,5,40067.01,-40067.01,Contractor payments,Confirmed
+2023-09-10,4,76451.77,-76451.77,Hosting and logistics,Confirmed
+2023-09-11,2,63346.09,60812.25,Hardware shipments,Confirmed
+2023-09-11,7,12749.04,-12749.04,Agency retainer,Confirmed
+2023-09-13,2,62130.56,59645.34,Hardware invoicing batch,Confirmed
+2023-09-13,10,5718.79,-5718.79,Travel and misc,Confirmed
+2023-09-14,3,41332.43,39679.13,Consulting invoices,Confirmed
+2023-09-14,6,17454.84,0.0,R&D tooling,Pending
+2023-09-17,1,115089.66,110486.07,Licence invoicing,Confirmed
+2023-09-18,9,12616.0,-12616.0,Office rent,Confirmed
+2023-09-19,3,36059.78,34617.39,Support contracts,Confirmed
+2023-09-20,4,80062.86,-80062.86,Supplier payments,Confirmed
+2023-09-22,6,15718.1,-15718.1,R&D vendor,Confirmed
+2023-09-23,1,122449.86,117551.87,Subscription invoicing,Confirmed
+2023-09-24,8,10735.18,-10735.18,Facilities and utilities,Confirmed
+2023-09-26,5,38018.06,-38018.06,Payroll run,Confirmed
+2023-10-04,1,125051.75,120049.68,Licence invoicing,Confirmed
+2023-10-06,4,82377.11,-82377.11,Hosting and logistics,Confirmed
+2023-10-07,6,17337.63,-17337.63,R&D vendor,Confirmed
+2023-10-07,8,12865.61,-12865.61,Operations vendor,Confirmed
+2023-10-07,10,6181.62,-6181.62,Software subscriptions,Confirmed
+2023-10-08,3,40843.8,39210.05,Support contracts,Confirmed
+2023-10-08,5,43331.35,-43331.35,Payroll run,Confirmed
+2023-10-08,7,14211.05,-14211.05,Ad platform charges,Confirmed
+2023-10-10,5,34548.12,0.0,Contractor payments,Pending
+2023-10-11,9,13251.82,-13251.82,Office rent,Confirmed
+2023-10-12,6,15630.22,-15630.22,R&D tooling,Confirmed
+2023-10-13,4,73715.63,-73715.63,Supplier payments,Confirmed
+2023-10-16,11,13498.56,-13498.56,Tax and interest,Confirmed
+2023-10-17,2,66928.88,0.0,Hardware invoicing batch,Pending
+2023-10-17,8,9869.3,0.0,Facilities and utilities,Pending
+2023-10-19,10,5216.4,-5216.4,Travel and misc,Confirmed
+2023-10-26,2,62409.74,59913.35,Hardware shipments,Confirmed
+2023-10-26,3,33176.95,31849.87,Consulting invoices,Confirmed
+2023-10-28,1,125990.84,120951.21,Subscription invoicing,Confirmed
+2023-10-30,7,12820.82,-12820.82,Agency retainer,Confirmed
+2023-11-02,5,42317.44,-42317.44,Contractor payments,Confirmed
+2023-11-07,1,110719.67,106290.88,Subscription invoicing,Confirmed
+2023-11-10,6,14766.26,-14766.26,R&D vendor,Confirmed
+2023-11-11,7,14153.12,-14153.12,Agency retainer,Confirmed
+2023-11-13,1,143186.15,137458.7,Licence invoicing,Confirmed
+2023-11-13,11,13698.44,-13698.44,Tax and interest,Confirmed
+2023-11-17,6,19320.54,-19320.54,R&D tooling,Confirmed
+2023-11-18,2,68415.73,65679.1,Hardware invoicing batch,Confirmed
+2023-11-18,3,40975.46,0.0,Support contracts,Pending
+2023-11-24,3,36634.17,35168.8,Consulting invoices,Confirmed
+2023-11-24,5,34631.14,-34631.14,Payroll run,Confirmed
+2023-11-24,8,12574.7,-12574.7,Operations vendor,Confirmed
+2023-11-24,10,5410.04,-5410.04,Software subscriptions,Confirmed
+2023-11-25,4,77222.74,-77222.74,Supplier payments,Confirmed
+2023-11-25,4,78302.19,-78302.19,Hosting and logistics,Confirmed
+2023-11-25,10,5498.8,-5498.8,Travel and misc,Confirmed
+2023-11-26,2,58949.23,56591.26,Hardware shipments,Confirmed
+2023-11-26,8,10256.59,-10256.59,Facilities and utilities,Confirmed
+2023-11-30,7,13383.55,-13383.55,Ad platform charges,Confirmed
+2023-11-30,9,13259.6,-13259.6,Office rent,Confirmed
+2023-12-04,1,109870.31,105475.5,Subscription invoicing,Confirmed
+2023-12-04,6,16308.66,-16308.66,R&D tooling,Confirmed
+2023-12-05,8,11016.24,-11016.24,Facilities and utilities,Confirmed
+2023-12-06,10,6300.83,0.0,Travel and misc,Pending
+2023-12-07,9,13385.11,-13385.11,Office rent,Confirmed
+2023-12-09,8,12209.55,-12209.55,Operations vendor,Confirmed
+2023-12-12,3,37697.44,36189.54,Support contracts,Confirmed
+2023-12-12,4,76352.69,-76352.69,Hosting and logistics,Confirmed
+2023-12-15,5,41658.9,-41658.9,Contractor payments,Confirmed
+2023-12-16,1,155315.03,149102.43,Licence invoicing,Confirmed
+2023-12-19,6,17383.99,-17383.99,R&D vendor,Confirmed
+2023-12-24,7,16414.47,-16414.47,Ad platform charges,Confirmed
+2023-12-24,10,5269.49,-5269.49,Software subscriptions,Confirmed
+2023-12-29,2,66141.04,63495.4,Hardware invoicing batch,Confirmed
+2023-12-29,4,81636.48,-81636.48,Supplier payments,Confirmed
+2023-12-30,11,14032.62,-14032.62,Tax and interest,Confirmed
+2023-12-31,2,64222.21,61653.32,Hardware shipments,Confirmed
+2023-12-31,3,44964.03,43165.47,Consulting invoices,Confirmed
+2023-12-31,5,41112.82,-41112.82,Payroll run,Confirmed
+2023-12-31,7,12153.96,-12153.96,Agency retainer,Confirmed
+2024-01-04,7,13505.49,-13505.49,Ad platform charges,Confirmed
+2024-01-05,1,120267.91,115457.19,Subscription invoicing,Confirmed
+2024-01-08,10,5264.8,-5264.8,Travel and misc,Confirmed
+2024-01-08,11,14448.0,-14448.0,Tax and interest,Confirmed
+2024-01-10,6,15761.87,-15761.87,R&D vendor,Confirmed
+2024-01-11,9,13029.55,-13029.55,Office rent,Confirmed
+2024-01-15,4,82048.21,-82048.21,Hosting and logistics,Confirmed
+2024-01-16,3,36036.13,34594.68,Consulting invoices,Confirmed
+2024-01-16,4,80907.05,-80907.05,Supplier payments,Confirmed
+2024-01-18,5,36906.13,-36906.13,Contractor payments,Confirmed
+2024-01-20,3,43212.86,41484.35,Support contracts,Confirmed
+2024-01-21,8,10131.32,-10131.32,Operations vendor,Confirmed
+2024-01-21,10,6189.14,-6189.14,Software subscriptions,Confirmed
+2024-01-22,2,73755.64,70805.41,Hardware invoicing batch,Confirmed
+2024-01-22,6,18409.83,-18409.83,R&D tooling,Confirmed
+2024-01-23,2,57280.47,54989.25,Hardware shipments,Confirmed
+2024-01-24,8,11968.27,-11968.27,Facilities and utilities,Confirmed
+2024-01-28,7,14190.38,-14190.38,Agency retainer,Confirmed
+2024-01-30,1,147090.98,141207.34,Licence invoicing,Confirmed
+2024-01-31,5,40494.32,-40494.32,Payroll run,Confirmed
+2024-02-01,1,119252.8,114482.69,Licence invoicing,Confirmed
+2024-02-01,3,45261.89,43451.41,Consulting invoices,Confirmed
+2024-02-02,7,12369.97,-12369.97,Ad platform charges,Confirmed
+2024-02-03,2,73915.05,70958.45,Hardware shipments,Confirmed
+2024-02-03,6,16521.44,-16521.44,R&D vendor,Confirmed
+2024-02-06,4,91745.57,-91745.57,Hosting and logistics,Confirmed
+2024-02-06,11,14868.54,-14868.54,Tax and interest,Confirmed
+2024-02-07,10,5233.74,-5233.74,Software subscriptions,Confirmed
+2024-02-09,2,67746.88,65037.0,Hardware invoicing batch,Confirmed
+2024-02-12,1,157731.77,151422.5,Subscription invoicing,Confirmed
+2024-02-12,8,11910.42,-11910.42,Operations vendor,Confirmed
+2024-02-13,7,16737.67,-16737.67,Agency retainer,Confirmed
+2024-02-18,6,17118.34,-17118.34,R&D tooling,Confirmed
+2024-02-20,5,40529.93,-40529.93,Payroll run,Confirmed
+2024-02-21,4,76675.63,-76675.63,Supplier payments,Confirmed
+2024-02-21,9,13324.42,-13324.42,Office rent,Confirmed
+2024-02-22,3,39006.57,37446.31,Support contracts,Confirmed
+2024-02-23,5,41494.72,-41494.72,Contractor payments,Confirmed
+2024-02-26,10,6284.6,-6284.6,Travel and misc,Confirmed
+2024-02-27,8,10451.64,-10451.64,Facilities and utilities,Confirmed
+2024-03-02,2,78037.64,74916.13,Hardware invoicing batch,Confirmed
+2024-03-03,10,6522.28,-6522.28,Travel and misc,Confirmed
+2024-03-04,11,15215.43,-15215.43,Tax and interest,Confirmed
+2024-03-07,4,86989.15,-86989.15,Hosting and logistics,Confirmed
+2024-03-15,1,141089.94,135446.34,Licence invoicing,Confirmed
+2024-03-15,3,39044.27,37482.5,Consulting invoices,Confirmed
+2024-03-16,6,16609.35,-16609.35,R&D vendor,Confirmed
+2024-03-20,2,67667.01,64960.33,Hardware shipments,Confirmed
+2024-03-22,5,37832.41,-37832.41,Contractor payments,Confirmed
+2024-03-22,9,13935.43,-13935.43,Office rent,Confirmed
+2024-03-24,5,45428.37,-45428.37,Payroll run,Confirmed
+2024-03-25,6,19558.04,-19558.04,R&D tooling,Confirmed
+2024-03-25,8,9320.21,0.0,Facilities and utilities,Reversed
+2024-03-26,4,86212.34,-86212.34,Supplier payments,Confirmed
+2024-03-26,10,5414.05,-5414.05,Software subscriptions,Confirmed
+2024-03-27,1,141413.2,135756.67,Subscription invoicing,Confirmed
+2024-03-29,7,15723.97,-15723.97,Agency retainer,Confirmed
+2024-03-31,3,44386.23,0.0,Support contracts,Pending
+2024-03-31,7,12713.93,-12713.93,Ad platform charges,Confirmed
+2024-03-31,8,13750.01,-13750.01,Operations vendor,Confirmed
+2024-04-02,7,15484.67,-15484.67,Ad platform charges,Confirmed
+2024-04-05,6,21790.53,-21790.53,R&D vendor,Confirmed
+2024-04-05,8,11898.57,-11898.57,Facilities and utilities,Confirmed
+2024-04-07,10,4867.1,-4867.1,Travel and misc,Confirmed
+2024-04-10,1,147653.22,141747.09,Licence invoicing,Confirmed
+2024-04-11,1,141212.61,135564.11,Subscription invoicing,Confirmed
+2024-04-11,2,71863.4,68988.86,Hardware invoicing batch,Confirmed
+2024-04-11,4,93388.82,-93388.82,Supplier payments,Confirmed
+2024-04-13,10,6689.72,-6689.72,Software subscriptions,Confirmed
+2024-04-15,4,85057.41,-85057.41,Hosting and logistics,Confirmed
+2024-04-15,11,15428.4,-15428.4,Tax and interest,Confirmed
+2024-04-16,6,14874.3,-14874.3,R&D tooling,Confirmed
+2024-04-17,8,11337.19,-11337.19,Operations vendor,Confirmed
+2024-04-17,9,13620.83,-13620.83,Office rent,Confirmed
+2024-04-18,7,14590.84,-14590.84,Agency retainer,Confirmed
+2024-04-19,3,42468.45,40769.71,Support contracts,Confirmed
+2024-04-20,2,70086.76,67283.29,Hardware shipments,Confirmed
+2024-04-22,5,42633.52,-42633.52,Payroll run,Confirmed
+2024-04-23,5,39080.09,-39080.09,Contractor payments,Confirmed
+2024-04-27,3,43903.68,42147.53,Consulting invoices,Confirmed
+2024-05-03,8,12916.79,-12916.79,Facilities and utilities,Confirmed
+2024-05-05,3,49872.41,0.0,Support contracts,Pending
+2024-05-05,10,5057.01,-5057.01,Travel and misc,Confirmed
+2024-05-07,1,141739.91,136070.31,Licence invoicing,Confirmed
+2024-05-09,11,15482.37,-15482.37,Tax and interest,Confirmed
+2024-05-13,5,47443.12,-47443.12,Contractor payments,Confirmed
+2024-05-14,9,13941.22,-13941.22,Office rent,Confirmed
+2024-05-15,5,37894.0,-37894.0,Payroll run,Confirmed
+2024-05-15,6,15659.65,0.0,R&D tooling,Pending
+2024-05-16,1,141041.82,0.0,Subscription invoicing,Pending
+2024-05-17,7,15144.68,-15144.68,Ad platform charges,Confirmed
+2024-05-19,3,40220.69,0.0,Consulting invoices,Pending
+2024-05-23,4,84362.39,-84362.39,Supplier payments,Confirmed
+2024-05-23,7,13963.85,-13963.85,Agency retainer,Confirmed
+2024-05-24,10,7051.96,-7051.96,Software subscriptions,Confirmed
+2024-05-25,2,69807.96,67015.64,Hardware shipments,Confirmed
+2024-05-27,2,80157.79,0.0,Hardware invoicing batch,Pending
+2024-05-29,4,92789.25,0.0,Hosting and logistics,Pending
+2024-05-29,6,20557.13,-20557.13,R&D vendor,Confirmed
+2024-05-30,8,11585.47,-11585.47,Operations vendor,Confirmed
+2024-06-01,5,45096.69,-45096.69,Payroll run,Confirmed
+2024-06-03,8,11359.48,-11359.48,Facilities and utilities,Confirmed
+2024-06-05,8,13015.84,0.0,Operations vendor,Pending
+2024-06-06,1,128819.66,123666.87,Licence invoicing,Confirmed
+2024-06-08,1,147620.43,141715.61,Subscription invoicing,Confirmed
+2024-06-09,10,5597.2,-5597.2,Software subscriptions,Confirmed
+2024-06-10,7,14975.46,0.0,Agency retainer,Reversed
+2024-06-10,9,13573.03,0.0,Office rent,Pending
+2024-06-11,10,5938.18,-5938.18,Travel and misc,Confirmed
+2024-06-12,3,43007.87,41287.56,Support contracts,Confirmed
+2024-06-13,4,97536.63,-97536.63,Supplier payments,Confirmed
+2024-06-13,6,15509.99,-15509.99,R&D tooling,Confirmed
+2024-06-14,3,47535.02,45633.62,Consulting invoices,Confirmed
+2024-06-19,2,64610.06,62025.66,Hardware shipments,Confirmed
+2024-06-19,11,15394.86,0.0,Tax and interest,Pending
+2024-06-20,7,15460.51,-15460.51,Ad platform charges,Confirmed
+2024-06-24,2,73541.38,70599.72,Hardware invoicing batch,Confirmed
+2024-06-25,4,75962.08,-75962.08,Hosting and logistics,Confirmed
+2024-06-26,5,38531.36,-38531.36,Contractor payments,Confirmed
+2024-06-26,6,20204.17,-20204.17,R&D vendor,Confirmed
+2024-07-02,7,14774.72,-14774.72,Agency retainer,Confirmed
+2024-07-04,3,43921.18,42164.33,Consulting invoices,Confirmed
+2024-07-07,4,76734.1,-76734.1,Hosting and logistics,Confirmed
+2024-07-07,8,11784.31,-11784.31,Operations vendor,Confirmed
+2024-07-07,8,12159.86,-12159.86,Facilities and utilities,Confirmed
+2024-07-10,5,44649.57,-44649.57,Contractor payments,Confirmed
+2024-07-13,10,5992.65,-5992.65,Travel and misc,Confirmed
+2024-07-14,1,149808.71,143816.36,Subscription invoicing,Confirmed
+2024-07-16,2,68013.28,65292.75,Hardware invoicing batch,Confirmed
+2024-07-16,3,44590.92,42807.28,Support contracts,Confirmed
+2024-07-21,1,128588.61,123445.07,Licence invoicing,Confirmed
+2024-07-22,11,15222.0,-15222.0,Tax and interest,Confirmed
+2024-07-23,5,36376.23,-36376.23,Payroll run,Confirmed
+2024-07-24,6,16162.85,-16162.85,R&D tooling,Confirmed
+2024-07-25,9,13749.08,-13749.08,Office rent,Confirmed
+2024-07-25,10,6041.71,-6041.71,Software subscriptions,Confirmed
+2024-07-27,7,14897.9,-14897.9,Ad platform charges,Confirmed
+2024-07-30,6,18583.31,-18583.31,R&D vendor,Confirmed
+2024-07-31,2,69904.36,67108.19,Hardware shipments,Confirmed
+2024-07-31,4,99426.91,0.0,Supplier payments,Pending
+2024-08-02,1,137858.62,132344.28,Licence invoicing,Confirmed
+2024-08-03,10,5878.32,-5878.32,Travel and misc,Confirmed
+2024-08-05,3,48111.41,46186.95,Consulting invoices,Confirmed
+2024-08-06,1,128896.46,123740.6,Subscription invoicing,Confirmed
+2024-08-10,2,60216.05,57807.41,Hardware shipments,Confirmed
+2024-08-12,10,5748.02,-5748.02,Software subscriptions,Confirmed
+2024-08-13,8,12874.48,-12874.48,Operations vendor,Confirmed
+2024-08-16,6,19892.96,0.0,R&D tooling,Pending
+2024-08-16,6,15280.22,-15280.22,R&D vendor,Confirmed
+2024-08-16,9,13319.43,-13319.43,Office rent,Confirmed
+2024-08-17,4,85911.89,-85911.89,Supplier payments,Confirmed
+2024-08-18,3,39761.16,38170.71,Support contracts,Confirmed
+2024-08-19,5,37450.14,-37450.14,Payroll run,Confirmed
+2024-08-22,8,10547.76,-10547.76,Facilities and utilities,Confirmed
+2024-08-22,11,15043.98,-15043.98,Tax and interest,Confirmed
+2024-08-25,2,79840.63,0.0,Hardware invoicing batch,Pending
+2024-08-28,4,89473.39,-89473.39,Hosting and logistics,Confirmed
+2024-08-30,5,42449.89,-42449.89,Contractor payments,Confirmed
+2024-08-30,7,14720.16,-14720.16,Ad platform charges,Confirmed
+2024-08-30,7,14278.56,-14278.56,Agency retainer,Confirmed
+2024-09-01,11,14943.76,-14943.76,Tax and interest,Confirmed
+2024-09-03,2,71438.02,68580.5,Hardware invoicing batch,Confirmed
+2024-09-05,9,13680.94,-13680.94,Office rent,Confirmed
+2024-09-05,10,6474.2,-6474.2,Software subscriptions,Confirmed
+2024-09-08,10,4921.52,-4921.52,Travel and misc,Confirmed
+2024-09-11,6,18175.58,-18175.58,R&D vendor,Confirmed
+2024-09-11,7,14515.87,0.0,Ad platform charges,Pending
+2024-09-14,6,16299.53,-16299.53,R&D tooling,Confirmed
+2024-09-15,2,68643.78,65898.03,Hardware shipments,Confirmed
+2024-09-16,3,40639.53,39013.95,Consulting invoices,Confirmed
+2024-09-16,8,11951.99,-11951.99,Facilities and utilities,Confirmed
+2024-09-18,1,159438.59,153061.05,Licence invoicing,Confirmed
+2024-09-18,4,89325.21,-89325.21,Hosting and logistics,Confirmed
+2024-09-20,8,11347.56,-11347.56,Operations vendor,Confirmed
+2024-09-21,3,47087.81,45204.3,Support contracts,Confirmed
+2024-09-22,1,125132.6,120127.3,Subscription invoicing,Confirmed
+2024-09-24,5,41935.58,-41935.58,Contractor payments,Confirmed
+2024-09-25,7,14012.67,-14012.67,Agency retainer,Confirmed
+2024-09-27,4,78729.66,-78729.66,Supplier payments,Confirmed
+2024-09-28,5,38543.76,-38543.76,Payroll run,Confirmed

@@ -22,3 +22,8 @@ Total sales 4,054.70, 11 orders, 5 customers and a paid share of 63.6 %. That is
 `expected-values.md` in the run folder shows every number and which steps it assumes.
 
 The same files are the test fixtures in `.claude/skills/pipeline-power-bi/tests/fixtures/`.
+
+## Business dashboard
+
+`business/` holds clean sample data for pbip-layout's Business template (Marketing, Sales, Finance) –
+see [business/README.md](business/README.md).

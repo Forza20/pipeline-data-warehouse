@@ -8,8 +8,8 @@
   "Dim_Date[Quarter]": { "module": "shared", "use": "x-axis of the quarterly charts", "table": "date", "names": ["^quarter$", "^kvartal$"] },
 
   "Fact_Marketing[Leads]": { "module": "marketing", "use": "Leads, CPL, funnel", "table": "lead|marketing|campaign", "names": ["^leads?$", "^lead_?count$", "^leads_?count$", "^n_?leads$"] },
-  "Fact_Marketing[MQLs]": { "module": "marketing", "use": "MQLs, MQL to SQL rate", "table": "lead|marketing|campaign", "names": ["^mqls?$", "^mql_?count$", "^marketing_?qualified"] },
-  "Fact_Marketing[SQLs]": { "module": "marketing", "use": "MQL to SQL rate, funnel", "table": "lead|marketing|campaign", "names": ["^sqls?$", "^sql_?count$", "^sales_?qualified"] },
+  "Fact_Marketing[MQLs]": { "module": "marketing", "use": "MQLs, MQL to SQL rate", "table": "lead|marketing|campaign", "names": ["^mqls?$", "^mq_ls?$", "^mql_?count$", "^marketing_?qualified"] },
+  "Fact_Marketing[SQLs]": { "module": "marketing", "use": "MQL to SQL rate, funnel", "table": "lead|marketing|campaign", "names": ["^sqls?$", "^sq_ls?$", "^sql_?count$", "^sales_?qualified"] },
   "Fact_Marketing[Conversions]": { "module": "marketing", "use": "campaign table, funnel", "table": "lead|marketing|campaign", "names": ["^conversions?$", "^converted$", "^won$"] },
   "Fact_Marketing[Spend]": { "module": "marketing", "use": "Spend, CPL, ROI %, Marketing CAC", "table": "marketing|campaign|spend|cost", "names": ["^spend$", "^marketing_?spend$", "^ad_?spend$", "^cost$", "^budget_?spent$"] },
   "Fact_Marketing[AttributedRevenue]": { "module": "marketing", "use": "Marketing ROI %", "table": "marketing|campaign", "names": ["^attributed_?revenue$", "^revenue$", "^campaign_?revenue$"] },

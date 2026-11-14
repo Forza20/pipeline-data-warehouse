@@ -16,12 +16,12 @@ const args = process.argv.slice(2);
 const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
 const sm = args[0];
 if (!sm || sm.startsWith('--')) { console.error('Usage: node suggest-fields.js <Name.SemanticModel> [--template key] [--pages a,b] [--config config.json]'); process.exit(2); }
-const key = opt('--template') || 'adventureworks';
-const TPL = path.join(__dirname, '..', 'templates', key);
-const T = JSON.parse(fs.readFileSync(path.join(TPL, 'template.json'), 'utf8'));
-const H = JSON.parse(fs.readFileSync(path.join(TPL, 'field-hints.json'), 'utf8'));
 const cfgPath = opt('--config');
 const cfg = cfgPath && fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8').replace(/^﻿/, '')) : null;
+const key = opt('--template') || (cfg && cfg.template) || 'adventureworks';
+const TPL = path.join(__dirname, '..', 'templates', key);
+const T = JSON.parse(fs.readFileSync(path.join(TPL, 'template.json'), 'utf8'));
+const H = fs.existsSync(path.join(TPL, 'field-hints.json')) ? JSON.parse(fs.readFileSync(path.join(TPL, 'field-hints.json'), 'utf8')) : {};
 const pages = (opt('--pages') ? opt('--pages').split(',') : cfg && cfg.pages) || T.pages.map((p) => p.key);
 
 // ---------- the model (TMDL) ----------
