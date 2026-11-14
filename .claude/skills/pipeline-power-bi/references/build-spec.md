@@ -90,7 +90,8 @@ F01 is built from `kind`/`header`/`columns`; F02, F26 come from the table column
 | `m` | `label`, `expr` with `<prev>` |
 - `columns`: the final columns in order – `name` (in the report), `from` (column in the query, default
   `name`), `type` (`text`, `int`, `key`, `number`, `currency`, `percent`, `date`, `datetime`, `bool`),
-  optional `format`, `hidden`, `summarize`, `description`. The table ends with select + rename + types.
+  optional `format`, `hidden`, `summarize`, `description`, `sortBy` (another column of the table that orders
+  this one – a stage by its stage order; written as `sortByColumn`). The table ends with select + rename + types.
   A column listed in `choices.json` → `pii_not_personal` ("Customer[Customer name]") gets
   `annotation PII = not personal`: reviewed by the user, so pbip-governance and pbip-catalog do not flag it.
 

@@ -128,6 +128,7 @@ for (const t of B.tables || []) {
   for (const c of t.columns || []) {
     const n = snake(c.name);
     if (n !== c.name) { if (!c.from) c.from = c.name; c.name = n; columns++; }
+    if (c.sortBy) c.sortBy = snake(c.sortBy);
   }
   t.name = tbl(t.name);
 }
@@ -148,7 +149,7 @@ for (const m of B.measures || []) {
 for (const r of B.roles || []) { r.table = tbl(r.table); r.filter = dax(r.filter); }
 for (const p of B.parameters || []) {
   p.name = tbl(p.name);
-  for (const it of p.items || []) it.measure = measureMap[it.measure] || it.measure;
+  for (const it of p.items || []) if (it && typeof it === 'object') it.measure = measureMap[it.measure] || it.measure; // a list (kind "list") holds plain texts
 }
 B.naming = 'snake_case';
 B.measuresTable = '_measures';

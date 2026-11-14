@@ -29,6 +29,20 @@ const profFile = path.join(TMP, 'profile.json');
 execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
   '-Path', FIX, '-OutFile', profFile, '-Today', '2026-11-06'], { stdio: 'pipe' });
 const prof = JSON.parse(fs.readFileSync(profFile, 'utf8').replace(/^﻿/, ''));
+// CamelCase keys (CustomerKey) and plain integer keys under different names (CampaignKey 1..8 vs
+// OpportunityKey 1..468): the demo/business files must give exactly their 7 relationships by name
+{
+  const DEMO_BIZ = path.join(SKILL, '..', '..', '..', 'demo', 'business');
+  if (fs.existsSync(DEMO_BIZ)) {
+    const pf = path.join(TMP, 'profile-business.json');
+    execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
+      '-Path', DEMO_BIZ, '-OutFile', pf, '-Today', '2026-11-14'], { stdio: 'pipe' });
+    const pb = JSON.parse(fs.readFileSync(pf, 'utf8').replace(/^﻿/, ''));
+    const rels = pb.relations.map((r) => `${r.from}->${r.to}`).sort();
+    check('profiler: CamelCase Key columns are ids, and plain numbers under two key names are not related (demo/business: 7 relationships, all by name)',
+      rels.length === 7 && pb.relations.every((r) => r.matchedBy === 'name' && r.preferred) && rels.includes('opportunities[CustomerKey]->customers[CustomerKey]'), rels.join(', '));
+  }
+}
 const T = (n) => prof.tables.find((t) => t.name === n) || { findings: [], columns: [] };
 const has = (t, fix, col) => T(t).findings.some((f) => f.fix === fix && (col === undefined || f.column === col));
 const find = (t, fix, col) => T(t).findings.find((f) => f.fix === fix && (col === undefined || f.column === col));
@@ -518,6 +532,9 @@ if (!QUICK) {
         const col = (re) => ((fact.columns || []).find((c) => re.test(c.name)) || {}).name;
         const amount = col(/bel|amount/); const cust = col(/kunde|customer/); const stage = col(/kanal|channel|region/);
         const F = (c) => `${fact.name}[${c}]`;
+        // sortBy (build-spec.md): the channel/region column sorted by the amount column of the same table
+        const sortCol = (fact.columns || []).find((c) => c.name === stage);
+        if (sortCol) sortCol.sortBy = amount;
         fs.writeFileSync(path.join(br, 'choices.json'), JSON.stringify(cb));
         const cfgFile = path.join(br, 'layout-config.json');
         fs.writeFileSync(cfgFile, JSON.stringify({ template: 'business', pages: ['home', 'sales', 'opportunity', 'marketing', 'campaign'], contract: {
@@ -528,7 +545,12 @@ if (!QUICK) {
         const gm = spawnSync('node', [path.join(LAYOUT, 'gen-measures.js'), cfgFile, '--spec', path.join(br, 'choices.json'), '--write-config'], { encoding: 'utf8' });
         let gmj = {};
         try { gmj = JSON.parse(gm.stdout); } catch { /* reported below */ }
+        // the rebuild path: snake-names must accept a list parameter (plain text items) before the build
+        const sn2 = spawnSync('node', [path.join(SKILL, 'scripts', 'snake-names.js'), br, '--apply'], { encoding: 'utf8' });
         const bb2 = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), br], { encoding: 'utf8' });
+        check('snake-names accepts a list parameter, and a column sortBy becomes sortByColumn in the TMDL',
+          sn2.status === 0 && bb2.status === 0 && new RegExp(`sortByColumn: ${amount}`).test(fs.readFileSync(path.join(br, 'pbip', `${cb.build.name || 'Test'}.SemanticModel`, 'definition', 'tables', `${fact.name}.tmdl`), 'utf8')),
+          (sn2.stdout + sn2.stderr).slice(0, 300) + ' | ' + (bb2.stdout + bb2.stderr).slice(0, 300));
         const smDir = path.join(br, 'pbip', `${cb.build.name || 'Test'}.SemanticModel`);
         const td = path.join(smDir, 'definition', 'tables');
         const rd = (f) => (fs.existsSync(path.join(td, f)) ? fs.readFileSync(path.join(td, f), 'utf8') : '');

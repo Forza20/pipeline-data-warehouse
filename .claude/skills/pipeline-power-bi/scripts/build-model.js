@@ -280,7 +280,10 @@ function tableTmdl(t) {
     if (c.hidden) s += '\t\tisHidden\n';
     const f = c.format === undefined ? fmt : c.format;
     if (f) s += `\t\tformatString: ${f}\n`;
-    s += `\t\tlineageTag: ${g()}\n\t\tsummarizeBy: ${c.summarize || sum}\n\t\tsourceColumn: ${c.name}\n\n\t\tannotation SummarizationSetBy = Automatic\n\n`;
+    s += `\t\tlineageTag: ${g()}\n\t\tsummarizeBy: ${c.summarize || sum}\n\t\tsourceColumn: ${c.name}\n`;
+    // sortBy: another column of the same table that orders this one (stage order, age band order)
+    if (c.sortBy) s += `\t\tsortByColumn: ${q(c.sortBy)}\n`; // checked before writing
+    s += `\n\t\tannotation SummarizationSetBy = Automatic\n\n`;
     if (c.type === 'date') s += '\t\tannotation UnderlyingDateTimeDataType = Date\n\n';
     // reviewed by the user as not personal data: pbip-governance and pbip-catalog stop flagging it
     if (notPersonal.has(`${t.name}[${c.name}]`.toLowerCase())) s += '\t\tannotation PII = not personal\n\n';
@@ -415,6 +418,7 @@ for (const r of B.relationships || []) {
   for (const side of [f, t]) { const x = colRef(side); if (!tableCols.has(x.table) || !tableCols.get(x.table).has(x.column)) errors.push(`relationship column not in model: ${side}`); }
 }
 for (const t of tables) { const n = new Set(); for (const c of t.columns) { if (n.has(c.name)) errors.push(`${t.name}: column ${c.name} twice`); n.add(c.name); } }
+for (const t of tables) for (const c of t.columns) if (c.sortBy && (c.sortBy === c.name || !t.columns.some((x) => x.name === c.sortBy))) errors.push(`${t.name}[${c.name}]: sortBy ${c.sortBy} is not another column of ${t.name}`);
 if (errors.length) { console.log(JSON.stringify({ ok: false, errors, warnings }, null, 1)); process.exit(2); }
 
 // ---------- write ----------

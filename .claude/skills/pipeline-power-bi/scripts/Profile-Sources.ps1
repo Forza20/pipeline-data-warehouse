@@ -587,10 +587,10 @@ foreach ($k in $dateFormats.Keys) { [PpbiProfile.Profiler]::AddDateFormats($k, [
 [PpbiProfile.Profiler]::SetRegexes(
     '^(?i:null|nil|n/?a|#n/?a|none|nan|-|--|\?|missing|unknown|ukendt|ingen)$',
     '^(?i:total|totals|grand total|subtotal|sub-total|sum|i alt|samlet|totalt)\b',
-    '(?i:^id$|_id$|^key$|_key$|nr$|_no$|number$|nummer$|code$|kode$)|[a-z]ID$|[a-z]Id$',
+    '(?i:^id$|_id$|^key$|_key$|nr$|_no$|number$|nummer$|code$|kode$)|[a-z]ID$|[a-z]Id$|[a-z]Key$',
     '^([A-Za-z]*)[-_ ]?0*(\d+)$')
 
-$rxIdName   = New-Object regex('(?i:^id$|_id$|^key$|_key$|nr$|_no$|number$|nummer$|code$|kode$)|[a-z]ID$|[a-z]Id$')
+$rxIdName   = New-Object regex('(?i:^id$|_id$|^key$|_key$|nr$|_no$|number$|nummer$|code$|kode$)|[a-z]ID$|[a-z]Id$|[a-z]Key$')
 $rxTechName = New-Object regex('(?i)^(_.*|.*hash.*|checksum|row_?version|etl_.*|.*_?etl|load_?(ts|date|time|id)|loaded_?at|ingest.*|batch_?id|source_?(id|system|key)|src_?id|record_?source|meta_.*)$')
 $rxPiiName  = New-Object regex('(?i)(e-?mail|^mail|phone|telefon|^tlf|mobil|cpr|ssn|social_?security|birth|f(oe|ø)dsel|contact_?name|kontaktperson|^street|gade|^address(line)?\d?$|adresse$|ip_?address|passport|iban|account_?number)')
 $textStore = @{}
@@ -1078,6 +1078,12 @@ foreach ($a in $keyStore.Values) {
         if (-not $same -and $ratio -ge 0.8 -and $a.counts.Count -ge 3) {
             if ($a.prefix -and $a.prefix -eq $b.prefix) { $valueOk = $true }
             else { $rawHit = 0; foreach ($k in $a.raw.Keys) { if ($b.raw.ContainsKey($k)) { $rawHit++ } }; if ($a.raw.Count -and $rawHit / $a.raw.Count -ge 0.8) { $valueOk = $true } }
+            # Plain numbers under two different key names (CampaignKey 1..8 and OpportunityKey 1..468) match
+            # by chance: two named ids of different entities are not related on their values alone
+            $sa = Get-Stem $a.column; $sb = Get-Stem $b.column
+            # (a plain number has the shape "N", so its "prefix" is N – not a letter prefix the ids share)
+            if ($valueOk -and $a.prefix -in @('', 'N') -and $sa.Length -ge 3 -and $sb.Length -ge 3 -and $sa -ne $sb -and
+                ($a.column.ToLowerInvariant() -replace '[^a-z]', '') -ne $sa -and ($b.column.ToLowerInvariant() -replace '[^a-z]', '') -ne $sb) { $valueOk = $false }
         }
         if (($same -and $ratio -ge 0.5) -or $valueOk) {
             [pscustomobject]@{ b = $b; same = $same; ratio = $ratio; rank = (Get-HomeRank $b) }
