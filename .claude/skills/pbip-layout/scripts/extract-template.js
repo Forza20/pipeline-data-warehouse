@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Turns a PBIR report (a .pbix saved as .pbip in Power BI Desktop) into a pbip-layout template:
 //
-//   node extract-template.js "<…/Name.Report>" "<skill>/templates/<key>" [--theme <BaseTheme.json>]
+//   node extract-template.js "<…/Name.Report>" "<skill>/templates/<key>" [--theme <BaseTheme.json>] [--keys adventureworks|business]
 //
+// --keys picks the colour keys and page keys of a known source report (KEYSETS below; default adventureworks).
 // - every page (page.json + visuals) and every bookmark is copied
 // - theme colour references (ThemeDataColor) are resolved to hex with the report's base theme, and every
 //   colour is replaced by a colour key token '{{key}}' (COLOR_KEYS below) – the generator fills them in,
@@ -17,6 +18,8 @@ const path = require('path');
 
 const [src, out] = process.argv.slice(2);
 const ti = process.argv.indexOf('--theme');
+const ki = process.argv.indexOf('--keys');
+const KEYSET = ki > 0 ? process.argv[ki + 1] : 'adventureworks';
 if (!src || !out) { console.error('Usage: node extract-template.js <Name.Report> <templates/key> [--theme <BaseTheme.json>]'); process.exit(2); }
 const def = path.join(src, 'definition');
 const readJ = (f) => JSON.parse(fs.readFileSync(f, 'utf8').replace(/^﻿/, ''));
@@ -35,36 +38,98 @@ function shade(hex, p) {
 const themeColor = (id, p) => shade(id === 0 ? '#FFFFFF' : id === 1 ? '#000000' : theme.dataColors[id - 2], p || 0);
 
 // ---------- colour keys ----------
-// default value of each key = the template's own colour, so Standard is exactly the source report
-const COLOR_KEYS = {
-  dark: '#333333',    // tiles, navigation rail, shapes, chart series, tooltip background
-  muted: '#666666',   // secondary titles
-  teal: '#20E2D7',    // accent: KPI values, labels, active icons, highlights
-  onDark: '#FFFFFF',  // text and icons on dark
-  panel: '#FFFFFF',   // light backgrounds, low end of colour scales
-  soft: '#E6E6E6',    // slicer item background
-  bar: '#CCCCCC',     // data bars in tables
-  axis: '#252423',    // data bar axis
-  bad: '#DE6A73',     // decrease / high return rate
-  badDark: '#A1343C', // returns series
-  gold: '#E1C233',    // second series (donut)
+// default value of each key = the template's own colour, so Standard is exactly the source report.
+// Each source report has its own set: colour keys, classify() (hex + where it is used → key), the page keys,
+// the order of the theme's series colours, and the colours that stay as they are ('fixed', never re-branded).
+const KEYSETS = {
+  adventureworks: {
+    colors: {
+      dark: '#333333',    // tiles, navigation rail, shapes, chart series, tooltip background
+      muted: '#666666',   // secondary titles
+      teal: '#20E2D7',    // accent: KPI values, labels, active icons, highlights
+      onDark: '#FFFFFF',  // text and icons on dark
+      panel: '#FFFFFF',   // light backgrounds, low end of colour scales
+      soft: '#E6E6E6',    // slicer item background
+      bar: '#CCCCCC',     // data bars in tables
+      axis: '#252423',    // data bar axis
+      bad: '#DE6A73',     // decrease / high return rate
+      badDark: '#A1343C', // returns series
+      gold: '#E1C233',    // second series (donut)
+    },
+    classify(hex, t) {
+      switch (hex) {
+        case '#20E2D7': return 'teal';
+        case '#333333': return 'dark';
+        case '#666666': return 'muted';
+        case '#E6E6E6': return 'soft';
+        case '#CCCCCC': return 'bar';
+        case '#252423': return 'axis';
+        case '#DE6A73': return 'bad';
+        case '#A1343C': return 'badDark';
+        case '#E1C233': return 'gold';
+        case '#FFFFFF': return /FillRule|negativeColor|[Bb]ackground/.test(t) ? 'panel' : 'onDark';
+        default: return null;
+      }
+    },
+    pages: { 'Exec Dashboard': 'exec', Map: 'map', 'Product Detail': 'product', 'Customer Detail': 'customer', 'Category Tooltip': 'tooltip',
+      'Q&A': 'qna', 'Decomposition Tree': 'decomp', 'Key Influencers': 'influencers' },
+    themeDataColors: ['dark', 'gold', 'teal', 'bad', 'muted', 'badDark'],
+    themeRoles: { background: 'panel', foreground: 'axis', tableAccent: 'teal' },
+  },
+  // Power BI Template Library – Marketing, Sales, Finance (Home + three modules). Good / bad / neutral
+  // (#197A4C / #C0392B / #6B7280) are status colours: fixed, never re-branded (the YoY Colour measures hold them).
+  business: {
+    colors: {
+      primary: '#1B2A4A',   // KPI card 1, current-year series, headings, the buttons on Home
+      secondary: '#1A7F7C', // KPI card 2, second series
+      tertiary: '#5F6F86',  // KPI card 3, third series
+      highlight: '#7FB3D9', // KPI card 4, fourth series, selected state
+      prior: '#A9B4C6',     // prior-year lines and bars
+      sidebar: '#12212B',   // navigation rail
+      navActive: '#24475C', // the active page's button in the rail
+      ink: '#12212B',       // dark text on the light KPI card
+      subtle: '#475569',    // subtitles
+      canvas: '#F2F5F8',    // page background
+      panel: '#FFFFFF',     // card and chart backgrounds
+      onDark: '#FFFFFF',    // text on dark and coloured backgrounds
+      line: '#D5DCE6',      // borders
+    },
+    classify(hex, t) {
+      switch (hex) {
+        case '#1B2A4A': return 'primary';
+        case '#1A7F7C': return 'secondary';
+        case '#5F6F86': return 'tertiary';
+        case '#7FB3D9': return 'highlight';
+        case '#A9B4C6': return 'prior';
+        case '#12212B': return /fill/i.test(t) ? 'sidebar' : 'ink';
+        case '#24475C': return 'navActive';
+        case '#475569': return 'subtle';
+        case '#F2F5F8': return 'canvas';
+        case '#D5DCE6': return 'line';
+        case '#FFFFFF': return /[Bb]ackground|border/.test(t) ? 'panel' : 'onDark';
+        case '#197A4C': case '#C0392B': case '#6B7280': return 'fixed';
+        default: return null;
+      }
+    },
+    pages: { Home: 'home', Marketing: 'marketing', 'Campaign Detail': 'campaign', Sales: 'sales', 'Opportunity Detail': 'opportunity',
+      Finance: 'finance', 'P&L Detail': 'pnl' },
+    themeDataColors: ['primary', 'secondary', 'tertiary', 'highlight', 'prior'],
+    themeRoles: { background: 'panel', foreground: 'primary', tableAccent: 'secondary' },
+    // fixes to the source report (powerbi-report-author validate): drillthrough filters marked "Drill" are
+    // not drillthrough filters, and the text boxes are too low for their font with the default padding
+    fix(json, kind) {
+      if (kind === 'page' && json.type === 'Drillthrough') for (const fl of (json.filterConfig || {}).filters || []) if (fl.howCreated === 'Drill') fl.howCreated = 'Drillthrough';
+      if (kind === 'visual' && json.visual && json.visual.visualType === 'textbox') {
+        const lit = (v) => ({ expr: { Literal: { Value: v } } });
+        json.visual.visualContainerObjects = { ...(json.visual.visualContainerObjects || {}), padding: [{ properties: { top: lit('0D'), bottom: lit('0D') } }] };
+      }
+    },
+  },
 };
-function classify(hex, trail) {
-  const t = trail.join('.');
-  switch (hex) {
-    case '#20E2D7': return 'teal';
-    case '#333333': return 'dark';
-    case '#666666': return 'muted';
-    case '#E6E6E6': return 'soft';
-    case '#CCCCCC': return 'bar';
-    case '#252423': return 'axis';
-    case '#DE6A73': return 'bad';
-    case '#A1343C': return 'badDark';
-    case '#E1C233': return 'gold';
-    case '#FFFFFF': return /FillRule|negativeColor|[Bb]ackground/.test(t) ? 'panel' : 'onDark';
-    default: return null;
-  }
-}
+const KS = KEYSETS[KEYSET];
+if (!KS) { console.error(`--keys: unknown key set "${KEYSET}" – ${Object.keys(KEYSETS).join(', ')}`); process.exit(2); }
+const COLOR_KEYS = KS.colors;
+const classify = (hex, trail) => KS.classify(hex, trail.join('.'));
 const unknown = new Map();
 const used = {};
 function tokenise(node, trail, file) {
@@ -74,6 +139,7 @@ function tokenise(node, trail, file) {
       const hex = themeColor(node.ThemeDataColor.ColorId, node.ThemeDataColor.Percent);
       const key = classify(hex, trail);
       if (!key) { unknown.set(`${hex} ${trail.slice(-3).join('.')}`, file); return node; }
+      if (key === 'fixed') return { Literal: { Value: `'${hex}'` } };
       used[key] = (used[key] || 0) + 1;
       return { Literal: { Value: `'{{${key}}}'` } };
     }
@@ -85,6 +151,7 @@ function tokenise(node, trail, file) {
     return node.replace(/#[0-9A-Fa-f]{6}\b/g, (h) => {
       const key = classify(h.toUpperCase(), trail);
       if (!key) { unknown.set(`${h} ${trail.slice(-3).join('.')}`, file); return h; }
+      if (key === 'fixed') return h;
       used[key] = (used[key] || 0) + 1;
       return `{{${key}}}`;
     });
@@ -138,9 +205,10 @@ function stripDataBound(node) {
 }
 
 // ---------- pages ----------
-const KEYS = { 'Exec Dashboard': 'exec', Map: 'map', 'Product Detail': 'product', 'Customer Detail': 'customer', 'Category Tooltip': 'tooltip',
-  'Q&A': 'qna', 'Decomposition Tree': 'decomp', 'Key Influencers': 'influencers' };
-fs.rmSync(out, { recursive: true, force: true });
+const KEYS = KS.pages;
+// only what this script writes is replaced: hand-written files (field-hints.json, modules.json, contract.json,
+// measures/) stay
+for (const x of ['pages', 'bookmarks', 'icons', 'template.json', 'base-theme.json', 'custom-theme.json']) fs.rmSync(path.join(out, x), { recursive: true, force: true });
 fs.mkdirSync(path.join(out, 'pages'), { recursive: true });
 const pagesJson = readJ(path.join(def, 'pages', 'pages.json'));
 const pages = [];
@@ -148,6 +216,7 @@ let logo = null;
 for (const id of pagesJson.pageOrder) {
   const pdir = path.join(def, 'pages', id);
   const pj = readJ(path.join(pdir, 'page.json'));
+  if (KS.fix) KS.fix(pj, 'page');
   const key = KEYS[pj.displayName] || pj.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const odir = path.join(out, 'pages', key);
   fs.mkdirSync(odir, { recursive: true });
@@ -157,6 +226,7 @@ for (const id of pagesJson.pageOrder) {
   const vdir = path.join(pdir, 'visuals');
   for (const v of fs.existsSync(vdir) ? fs.readdirSync(vdir).sort() : []) {
     const vj = readJ(path.join(vdir, v, 'visual.json'));
+    if (KS.fix) KS.fix(vj, 'visual');
     stripDataBound(vj);
     // smart narrative: keep only the values that are plain fields/measures (they can be remapped) and the
     // paragraphs that use nothing else; the AI trend sentences are bound to the source data
@@ -231,6 +301,17 @@ if (fs.existsSync(rr)) {
   }
 }
 fs.copyFileSync(themeFile, path.join(out, 'base-theme.json'));
+// the source report's own custom theme (fonts, text classes, visual styles): kept, with its colours as keys
+// where they have one – a colour without a key stays as it is (status colours, grid lines)
+let customTheme = false;
+const ctName = ((report.themeCollection || {}).customTheme || {}).name;
+if (ctName && fs.existsSync(path.join(rr, ctName))) {
+  const ct = readJ(path.join(rr, ctName));
+  const keyOf = (k, v) => { const key = KS.classify(v.toUpperCase(), k); return key && key !== 'fixed' ? key : null; };
+  const keyed = JSON.parse(JSON.stringify(ct), (k, v) => (typeof v === 'string' && /^#[0-9A-Fa-f]{6}$/.test(v) && keyOf(k, v) ? `{{${keyOf(k, v)}}}` : v));
+  fs.writeFileSync(path.join(out, 'custom-theme.json'), JSON.stringify(keyed, null, 2) + '\n');
+  customTheme = true;
+}
 
 if (unknown.size) {
   console.error('Colours without a key (add them to classify()):');
@@ -244,6 +325,9 @@ const tpl = {
   width: pages[0].width, height: pages[0].height,
   colors: COLOR_KEYS,
   colorUse: used,
+  themeDataColors: KS.themeDataColors,
+  themeRoles: KS.themeRoles,
+  ...(customTheme ? { customTheme: 'custom-theme.json' } : {}),
   logo,
   pages,
   bookmarks,

@@ -20,8 +20,9 @@ they usually want, title, logo, names and texts. Example: [profile.example.json]
 
 | Field | Meaning | If left out |
 |---|---|---|
-| `pages` | the pages the user usually wants (keys in layout.md). **Only a suggestion**: the user is still asked every time (SKILL.md step 3); in pipeline mode the orchestrator asks before the run | all pages pre-ticked |
-| `colors` | colour keys ([colors.md](colors.md)) | the template's colours (*Standard*) |
+| `template` | `adventureworks` or `business` (layout-business.md) – only a suggestion; the template is still asked | asked |
+| `pages` | the pages the user usually wants (keys in layout.md / layout-business.md). **Only a suggestion**: the user is still asked every time (SKILL.md step 3); in pipeline mode the orchestrator asks before the run | all pages pre-ticked |
+| `colors` | colour keys ([colors.md](colors.md); business: layout-business.md → Colours) | the template's colours (*Standard*) |
 | `theme` | `false` = do not register the colour theme | registered |
 | `title` / `subtitle` | top-left of Exec Dashboard (where the source report has its logo) | "Sales overview" |
 | `logo` | path to the user's own logo image (.png/.jpg) – shown instead of the title | the title |

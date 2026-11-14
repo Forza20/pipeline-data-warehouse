@@ -1,0 +1,215 @@
+{
+  "name": "PBI Template Library",
+  "dataColors": [
+    "{{primary}}",
+    "{{secondary}}",
+    "{{tertiary}}",
+    "{{highlight}}",
+    "{{prior}}",
+    "#2E5C8A",
+    "#5E8F8E",
+    "#8795AB"
+  ],
+  "foreground": "{{primary}}",
+  "foregroundNeutralSecondary": "{{subtle}}",
+  "foregroundNeutralTertiary": "#94A3B8",
+  "background": "{{panel}}",
+  "backgroundLight": "{{canvas}}",
+  "backgroundNeutral": "{{line}}",
+  "secondaryBackground": "#EEF2F7",
+  "tableAccent": "{{secondary}}",
+  "accent": "{{secondary}}",
+  "shapeStroke": "{{line}}",
+  "disabledText": "#94A3B8",
+  "good": "#197A4C",
+  "neutral": "#6B7280",
+  "bad": "#C0392B",
+  "maximum": "{{secondary}}",
+  "center": "{{prior}}",
+  "minimum": "{{primary}}",
+  "null": "#6B7280",
+  "hyperlink": "{{secondary}}",
+  "visitedHyperlink": "{{tertiary}}",
+  "textClasses": {
+    "callout": {
+      "fontSize": 26,
+      "fontFace": "Segoe UI Semibold",
+      "color": "{{primary}}"
+    },
+    "title": {
+      "fontSize": 13,
+      "fontFace": "Segoe UI Semibold",
+      "color": "{{primary}}"
+    },
+    "header": {
+      "fontSize": 12,
+      "fontFace": "Segoe UI Semibold",
+      "color": "{{primary}}"
+    },
+    "label": {
+      "fontSize": 11,
+      "fontFace": "Segoe UI",
+      "color": "{{subtle}}"
+    }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "legend": [
+          {
+            "show": true,
+            "position": "Bottom",
+            "showTitle": false
+          }
+        ],
+        "categoryAxis": [
+          {
+            "gridlineShow": false,
+            "showAxisTitle": false,
+            "labelColor": {
+              "solid": {
+                "color": "{{subtle}}"
+              }
+            },
+            "fontSize": 10
+          }
+        ],
+        "valueAxis": [
+          {
+            "gridlineShow": true,
+            "gridlineColor": {
+              "solid": {
+                "color": "#E5EAF1"
+              }
+            },
+            "showAxisTitle": false,
+            "labelColor": {
+              "solid": {
+                "color": "{{subtle}}"
+              }
+            },
+            "fontSize": 10
+          }
+        ],
+        "lineStyles": [
+          {
+            "strokeWidth": 3
+          }
+        ],
+        "labels": [
+          {
+            "show": false
+          }
+        ],
+        "wordWrap": [
+          {
+            "show": true
+          }
+        ],
+        "padding": [
+          {
+            "left": 12,
+            "top": 8,
+            "right": 12,
+            "bottom": 8
+          }
+        ]
+      }
+    },
+    "tableEx": {
+      "*": {
+        "columnHeaders": [
+          {
+            "fontColor": {
+              "solid": {
+                "color": "{{primary}}"
+              }
+            },
+            "backColor": {
+              "solid": {
+                "color": "#EEF2F7"
+              }
+            },
+            "bold": true,
+            "fontSize": 11
+          }
+        ],
+        "values": [
+          {
+            "fontSize": 11,
+            "fontColor": {
+              "solid": {
+                "color": "{{primary}}"
+              }
+            }
+          }
+        ],
+        "grid": [
+          {
+            "gridHorizontal": true,
+            "gridHorizontalColor": {
+              "solid": {
+                "color": "#E5EAF1"
+              }
+            },
+            "gridVertical": false
+          }
+        ]
+      }
+    },
+    "pivotTable": {
+      "*": {
+        "columnHeaders": [
+          {
+            "fontColor": {
+              "solid": {
+                "color": "{{primary}}"
+              }
+            },
+            "backColor": {
+              "solid": {
+                "color": "#EEF2F7"
+              }
+            },
+            "bold": true,
+            "fontSize": 11
+          }
+        ],
+        "rowHeaders": [
+          {
+            "fontColor": {
+              "solid": {
+                "color": "{{primary}}"
+              }
+            },
+            "fontSize": 11
+          }
+        ],
+        "values": [
+          {
+            "fontSize": 11,
+            "fontColor": {
+              "solid": {
+                "color": "{{primary}}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [
+          {
+            "color": {
+              "solid": {
+                "color": "{{canvas}}"
+              }
+            },
+            "transparency": 0
+          }
+        ]
+      }
+    }
+  }
+}

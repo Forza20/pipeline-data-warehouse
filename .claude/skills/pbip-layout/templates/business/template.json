@@ -1,0 +1,1495 @@
+{
+ "source": "PowerBI_Template_Library\\PowerBI_Template_Library.Report",
+ "extracted": "2026-11-14",
+ "baseTheme": "CY24SU10",
+ "width": 1280,
+ "height": 720,
+ "colors": {
+  "primary": "#1B2A4A",
+  "secondary": "#1A7F7C",
+  "tertiary": "#5F6F86",
+  "highlight": "#7FB3D9",
+  "prior": "#A9B4C6",
+  "sidebar": "#12212B",
+  "navActive": "#24475C",
+  "ink": "#12212B",
+  "subtle": "#475569",
+  "canvas": "#F2F5F8",
+  "panel": "#FFFFFF",
+  "onDark": "#FFFFFF",
+  "line": "#D5DCE6"
+ },
+ "colorUse": {
+  "canvas": 7,
+  "sidebar": 7,
+  "onDark": 104,
+  "primary": 59,
+  "subtle": 7,
+  "secondary": 25,
+  "panel": 87,
+  "line": 33,
+  "navActive": 10,
+  "ink": 21,
+  "highlight": 14,
+  "tertiary": 14,
+  "prior": 2
+ },
+ "themeDataColors": [
+  "primary",
+  "secondary",
+  "tertiary",
+  "highlight",
+  "prior"
+ ],
+ "themeRoles": {
+  "background": "panel",
+  "foreground": "primary",
+  "tableAccent": "secondary"
+ },
+ "customTheme": "custom-theme.json",
+ "logo": null,
+ "pages": [
+  {
+   "key": "home",
+   "id": "Home",
+   "displayName": "Home",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "0ebbdc9b3e800ccd73d0",
+     "type": "shape"
+    },
+    {
+     "name": "119fd1d32ce0a28e42cb",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    },
+    {
+     "name": "24c5cda4149ad1e7e901",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "3541fd0dc38c9fed474d",
+     "type": "textbox"
+    },
+    {
+     "name": "36100b444274aca079bf",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "3c1a4943b7493b115988",
+     "type": "lineChart"
+    },
+    {
+     "name": "4aa95a5e819e7e49a062",
+     "type": "card"
+    },
+    {
+     "name": "508e097dddd7260bf9f5",
+     "type": "card"
+    },
+    {
+     "name": "62093f7ee0241a00e566",
+     "type": "card"
+    },
+    {
+     "name": "688149cb54280b768f4d",
+     "type": "card"
+    },
+    {
+     "name": "72b715e29d23d947051e",
+     "type": "lineChart"
+    },
+    {
+     "name": "80d0ce7f5d517a667285",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "8424329159271fbe345e",
+     "type": "textbox"
+    },
+    {
+     "name": "8d1409755b05367b63b8",
+     "type": "textbox"
+    },
+    {
+     "name": "8e63f918fc98d8416fa9",
+     "type": "actionButton",
+     "navigatesTo": "home"
+    },
+    {
+     "name": "980644e08a574dfd2dca",
+     "type": "slicer"
+    },
+    {
+     "name": "9d3aa4574dda9eacc469",
+     "type": "card"
+    },
+    {
+     "name": "a41d212ad79ffbd0303f",
+     "type": "card"
+    },
+    {
+     "name": "a51c3afb5bcddc0e2a5f",
+     "type": "lineChart"
+    },
+    {
+     "name": "a9986c86d856e93f6bcf",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "d2351d98ad199d300fd6",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    },
+    {
+     "name": "e4ccd183bfafba8d41ba",
+     "type": "lineChart"
+    },
+    {
+     "name": "f747b33d2a2a19bce519",
+     "type": "card"
+    },
+    {
+     "name": "fa8c15023a7579255349",
+     "type": "card"
+    }
+   ],
+   "texts": [
+    "BI Library",
+    "Business Overview",
+    "Closed-won revenue",
+    "Finance",
+    "Finance: net profit margin by month",
+    "FinanceOverview",
+    "Headline KPIs across marketing, sales and finance",
+    "Higher is better",
+    "Home",
+    "Lower is better",
+    "MQLs",
+    "Marketing",
+    "Marketing CAC",
+    "Marketing: MQLs by month",
+    "MarketingOverview",
+    "Net profit margin %",
+    "Open Finance Overview",
+    "Open Marketing Overview",
+    "Open Sales Overview",
+    "Revenue vs operating expenses",
+    "Sales",
+    "Sales: closed-won revenue by month",
+    "SalesOverview"
+   ]
+  },
+  {
+   "key": "marketing",
+   "id": "MarketingOverview",
+   "displayName": "Marketing",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "1e939cb9074ceced6d62",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    },
+    {
+     "name": "2896c2a90c19f2258e3a",
+     "type": "card"
+    },
+    {
+     "name": "2b472dc72ab1034c193d",
+     "type": "columnChart"
+    },
+    {
+     "name": "2df2527014d3c8855cb7",
+     "type": "card"
+    },
+    {
+     "name": "396f8f103af8088f0090",
+     "type": "tableEx"
+    },
+    {
+     "name": "3b5a9d8d4138c34dfb1a",
+     "type": "shape"
+    },
+    {
+     "name": "5483c685aa329fca9e91",
+     "type": "card"
+    },
+    {
+     "name": "699098c02ab7077e06f1",
+     "type": "card"
+    },
+    {
+     "name": "6b84448487ea62871a3b",
+     "type": "textbox"
+    },
+    {
+     "name": "81bfecadaf77371be13b",
+     "type": "textbox"
+    },
+    {
+     "name": "831c539aef38eda30670",
+     "type": "textbox"
+    },
+    {
+     "name": "8cadcc95475ec266127d",
+     "type": "card"
+    },
+    {
+     "name": "b52a7e661619155fad87",
+     "type": "clusteredBarChart"
+    },
+    {
+     "name": "c1b88563ce23d8c1265d",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "c8230087e85628ff8f25",
+     "type": "slicer"
+    },
+    {
+     "name": "c96415407162a6492046",
+     "type": "lineChart"
+    },
+    {
+     "name": "cf499b7529420db4d5e2",
+     "type": "card"
+    },
+    {
+     "name": "e30b8f11519d8aa35e71",
+     "type": "card"
+    },
+    {
+     "name": "e5fb3cdc454e98ae99e6",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "ec71d1e8fd61e47f2b9a",
+     "type": "actionButton",
+     "navigatesTo": "home"
+    },
+    {
+     "name": "f5a48ee6bada299c805c",
+     "type": "card"
+    }
+   ],
+   "texts": [
+    "BI Library",
+    "Content performance",
+    "Cost per lead (CPL)",
+    "Finance",
+    "FinanceOverview",
+    "Higher is better",
+    "Home",
+    "Leads by channel",
+    "Lower is better",
+    "MQL to SQL rate",
+    "MQLs",
+    "MQLs vs prior year",
+    "Marketing",
+    "Marketing Performance",
+    "Marketing ROI %",
+    "MarketingOverview",
+    "Pipeline, funnel and cost",
+    "Sales",
+    "SalesOverview",
+    "Top converting campaigns (right-click a row > Drill through > Campaign Detail)"
+   ]
+  },
+  {
+   "key": "campaign",
+   "id": "CampaignDetail",
+   "displayName": "Campaign Detail",
+   "type": "Drillthrough",
+   "hidden": true,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "0125caab96428a50aeaf",
+     "type": "card"
+    },
+    {
+     "name": "0291f05be5b85fe3da5c",
+     "type": "card"
+    },
+    {
+     "name": "0507cb83a2856df480bd",
+     "type": "card"
+    },
+    {
+     "name": "070e350256ceb694a27d",
+     "type": "card"
+    },
+    {
+     "name": "0827eed5337540d9b77b",
+     "type": "shape"
+    },
+    {
+     "name": "12be7f8559d2b8608417",
+     "type": "card"
+    },
+    {
+     "name": "2148c9fe0af185888235",
+     "type": "funnel"
+    },
+    {
+     "name": "3d71cde288777a6d5a0e",
+     "type": "card"
+    },
+    {
+     "name": "4f49de299ed6e066e4dc",
+     "type": "tableEx"
+    },
+    {
+     "name": "505128f2df5c7af1e1ed",
+     "type": "card"
+    },
+    {
+     "name": "7ef6c9f9cb672b7fc1a5",
+     "type": "slicer"
+    },
+    {
+     "name": "84b6d68d1d86e350baa9",
+     "type": "actionButton",
+     "navigatesTo": "home"
+    },
+    {
+     "name": "8ef7bfefd353a7e5d6c8",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    },
+    {
+     "name": "94763ffd906d59574c0c",
+     "type": "textbox"
+    },
+    {
+     "name": "9c026dccb766c0445eb3",
+     "type": "card"
+    },
+    {
+     "name": "a323c6c07ad2c04d5695",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "b07d44748f631fe71c40",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "c02108c50ffd18a19581",
+     "type": "card"
+    },
+    {
+     "name": "c8c9eb1e9bbca1ef642b",
+     "type": "lineChart"
+    },
+    {
+     "name": "d2bb3160c8880ed1fa09",
+     "type": "clusteredBarChart"
+    },
+    {
+     "name": "d48719f5d8157d599c15",
+     "type": "card"
+    },
+    {
+     "name": "e7e3ba27bd2f5ae5736e",
+     "type": "textbox"
+    },
+    {
+     "name": "ecbbc10647ce53c88e9d",
+     "type": "actionButton"
+    },
+    {
+     "name": "f729d0957503ace2d548",
+     "type": "textbox"
+    }
+   ],
+   "texts": [
+    "BI Library",
+    "Campaign Detail",
+    "Campaign funnel",
+    "Content items",
+    "Context only",
+    "Drill-through from Marketing Overview, filtered to the selected campaign",
+    "Finance",
+    "FinanceOverview",
+    "Higher is better",
+    "Home",
+    "Leads",
+    "Leads by channel",
+    "MQL to SQL rate",
+    "MQLs",
+    "Marketing",
+    "Marketing ROI %",
+    "MarketingOverview",
+    "Sales",
+    "SalesOverview",
+    "Spend",
+    "Spend vs attributed revenue"
+   ]
+  },
+  {
+   "key": "sales",
+   "id": "SalesOverview",
+   "displayName": "Sales",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "03310133ec6c9085e06e",
+     "type": "slicer"
+    },
+    {
+     "name": "048fe0a4ce71ceee4f51",
+     "type": "clusteredColumnChart"
+    },
+    {
+     "name": "15c85b0b5e085192d890",
+     "type": "card"
+    },
+    {
+     "name": "167b0ea7f1c5a70cb316",
+     "type": "shape"
+    },
+    {
+     "name": "2c06c503ed07edc28eeb",
+     "type": "textbox"
+    },
+    {
+     "name": "31475d7e86e824b087c5",
+     "type": "card"
+    },
+    {
+     "name": "3195f2e6af5587523df2",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "4e3065b02456db3b4813",
+     "type": "textbox"
+    },
+    {
+     "name": "537b27c064b5f6321e57",
+     "type": "textbox"
+    },
+    {
+     "name": "769f7a6866791649f816",
+     "type": "tableEx"
+    },
+    {
+     "name": "7906e3850dbaccdfc459",
+     "type": "card"
+    },
+    {
+     "name": "79442b8070c85bf48599",
+     "type": "lineChart"
+    },
+    {
+     "name": "7c882d27763c4db74a19",
+     "type": "card"
+    },
+    {
+     "name": "7d4291e66c5421c508fe",
+     "type": "card"
+    },
+    {
+     "name": "7f965a4be3c20f10a542",
+     "type": "card"
+    },
+    {
+     "name": "a63509b61bb928cdd89e",
+     "type": "actionButton",
+     "navigatesTo": "home"
+    },
+    {
+     "name": "a7d049b2c123edcc5931",
+     "type": "card"
+    },
+    {
+     "name": "ae11ef893f61ec706b1d",
+     "type": "clusteredBarChart"
+    },
+    {
+     "name": "d28a03424d19283b2971",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "d82320cf99db4349afa6",
+     "type": "card"
+    },
+    {
+     "name": "dd749b4b03f7632a3af7",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    }
+   ],
+   "texts": [
+    "BI Library",
+    "Closed-won revenue",
+    "Closed-won revenue vs prior year",
+    "Finance",
+    "FinanceOverview",
+    "Higher is better",
+    "Home",
+    "Lower is better",
+    "Marketing",
+    "MarketingOverview",
+    "New customers",
+    "Opportunities (right-click a row > Drill through > Opportunity Detail)",
+    "Quota attainment per rep (100% = quota)",
+    "Revenue by product category per quarter",
+    "Revenue, win rate and cycle time",
+    "Sales",
+    "Sales Performance",
+    "Sales cycle (days)",
+    "SalesOverview",
+    "Win rate"
+   ]
+  },
+  {
+   "key": "opportunity",
+   "id": "OpportunityDetail",
+   "displayName": "Opportunity Detail",
+   "type": "Drillthrough",
+   "hidden": true,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "0add1c535b8fd41ee203",
+     "type": "clusteredColumnChart"
+    },
+    {
+     "name": "1012e355898ff1dec754",
+     "type": "textbox"
+    },
+    {
+     "name": "17353ed2c3b109f49d2d",
+     "type": "card"
+    },
+    {
+     "name": "1949d66401ecf6a392ca",
+     "type": "card"
+    },
+    {
+     "name": "3436d0cf6ad3679f4b7b",
+     "type": "card"
+    },
+    {
+     "name": "3bc2a78762ebefafb4ca",
+     "type": "textbox"
+    },
+    {
+     "name": "4d98122b329e624831b7",
+     "type": "card"
+    },
+    {
+     "name": "4e98e3be479827759cd7",
+     "type": "actionButton",
+     "navigatesTo": "home"
+    },
+    {
+     "name": "66bd754ed8cd672a559d",
+     "type": "actionButton"
+    },
+    {
+     "name": "67fecdfbc529a77edfc9",
+     "type": "card"
+    },
+    {
+     "name": "95696c8d285100687eaf",
+     "type": "slicer"
+    },
+    {
+     "name": "986d2208d8d1916c6562",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "a1550a4061b96f0999b0",
+     "type": "textbox"
+    },
+    {
+     "name": "a5ad229e3e4d06ae4809",
+     "type": "funnel"
+    },
+    {
+     "name": "a8a4de91b5c06a0531cb",
+     "type": "shape"
+    },
+    {
+     "name": "b11deefd6f720a958e44",
+     "type": "card"
+    },
+    {
+     "name": "c8028d36d5347f835086",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "cd43cd0c831324f9a1d2",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    },
+    {
+     "name": "d26399adc9454f320edf",
+     "type": "tableEx"
+    }
+   ],
+   "texts": [
+    "Average deal age (days)",
+    "Average deal size",
+    "BI Library",
+    "Deals for the selected rep or customer",
+    "Drill-through from Sales Overview, filtered to the selected rep or customer",
+    "Finance",
+    "FinanceOverview",
+    "Higher is better",
+    "Home",
+    "Lower is better",
+    "Marketing",
+    "MarketingOverview",
+    "Open deals by age bucket",
+    "Open pipeline",
+    "Open pipeline by stage",
+    "Opportunity Detail",
+    "Sales",
+    "SalesOverview",
+    "Win rate"
+   ]
+  },
+  {
+   "key": "finance",
+   "id": "FinanceOverview",
+   "displayName": "Finance",
+   "type": "Standard",
+   "hidden": false,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "00398d2c379f8b18ad0c",
+     "type": "tableEx"
+    },
+    {
+     "name": "0db086db824eb10d2009",
+     "type": "card"
+    },
+    {
+     "name": "0e12bfabf5701acc7239",
+     "type": "card"
+    },
+    {
+     "name": "2a840f32b245fcc783f6",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    },
+    {
+     "name": "4eae8c67a222222bd8d0",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "4f0fb88b863656c55891",
+     "type": "card"
+    },
+    {
+     "name": "4ff4eff0a5e950c020b8",
+     "type": "lineChart"
+    },
+    {
+     "name": "50aad71fd584d0a45c5a",
+     "type": "card"
+    },
+    {
+     "name": "58b446283377c9515e9e",
+     "type": "textbox"
+    },
+    {
+     "name": "61f6c4d9c4f644cdcf7f",
+     "type": "textbox"
+    },
+    {
+     "name": "6754a111fe0e413b65bf",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "69ac3ef37bab9331b6ac",
+     "type": "card"
+    },
+    {
+     "name": "6ba85149af5da1385d12",
+     "type": "textbox"
+    },
+    {
+     "name": "780c7e088978618610d2",
+     "type": "card"
+    },
+    {
+     "name": "781147f197ceb7f6bc75",
+     "type": "columnChart"
+    },
+    {
+     "name": "7ad395a4a359a7f799aa",
+     "type": "shape"
+    },
+    {
+     "name": "b2ef664ce31feef03162",
+     "type": "card"
+    },
+    {
+     "name": "b560988c52f66a149ecc",
+     "type": "slicer"
+    },
+    {
+     "name": "de88557941782e9cec75",
+     "type": "card"
+    },
+    {
+     "name": "e7835bdc0ab5eb84d76b",
+     "type": "clusteredBarChart"
+    },
+    {
+     "name": "fde31f87f70c4b4ca978",
+     "type": "actionButton",
+     "navigatesTo": "home"
+    }
+   ],
+   "texts": [
+    "BI Library",
+    "Expense breakdown",
+    "Finance",
+    "FinanceOverview",
+    "Financial Performance",
+    "Higher is better",
+    "Home",
+    "Lower is better",
+    "Marketing",
+    "MarketingOverview",
+    "Net profit margin %",
+    "Net profit margin by quarter",
+    "Operating cash flow",
+    "Operating expenses",
+    "Recent transactions (right-click a row > Drill through > P&L Detail)",
+    "Revenue",
+    "Revenue vs operating expenses",
+    "Revenue, profitability and cash",
+    "Sales",
+    "SalesOverview"
+   ]
+  },
+  {
+   "key": "pnl",
+   "id": "PnLDetail",
+   "displayName": "P&L Detail",
+   "type": "Drillthrough",
+   "hidden": true,
+   "width": 1280,
+   "height": 720,
+   "visuals": [
+    {
+     "name": "009cabe618d1af0a9dd1",
+     "type": "actionButton",
+     "navigatesTo": "sales"
+    },
+    {
+     "name": "0563004987c38a8ca5c1",
+     "type": "card"
+    },
+    {
+     "name": "0d0ad178a2214868396b",
+     "type": "actionButton",
+     "navigatesTo": "finance"
+    },
+    {
+     "name": "20f36c193867a0c00d03",
+     "type": "card"
+    },
+    {
+     "name": "5075c79a13f6fba3c41e",
+     "type": "actionButton",
+     "navigatesTo": "marketing"
+    },
+    {
+     "name": "582d2817b9ec649f7b1b",
+     "type": "slicer"
+    },
+    {
+     "name": "6565efb560d50806be8c",
+     "type": "actionButton"
+    },
+    {
+     "name": "708ad9545aaa66d26947",
+     "type": "card"
+    },
+    {
+     "name": "7c7e1abdb072a3b1bb14",
+     "type": "shape"
+    },
+    {
+     "name": "9d1a4d700790751cb4d7",
+     "type": "actionButton",
+     "navigatesTo": "home"
+    },
+    {
+     "name": "9eaa0b0a3907519fddfa",
+     "type": "card"
+    },
+    {
+     "name": "a570ce080711633e35b3",
+     "type": "tableEx"
+    },
+    {
+     "name": "b42b5b385df715f149b5",
+     "type": "textbox"
+    },
+    {
+     "name": "b621e418ebb5774ef08b",
+     "type": "card"
+    },
+    {
+     "name": "bf64b7c6772525ccb2a8",
+     "type": "pivotTable"
+    },
+    {
+     "name": "d8d1f68d81a5cbb6417e",
+     "type": "textbox"
+    },
+    {
+     "name": "e3258582fcf055ee7c54",
+     "type": "card"
+    },
+    {
+     "name": "e36bed0d972b709dc90b",
+     "type": "card"
+    },
+    {
+     "name": "f26696558aa69518a93a",
+     "type": "textbox"
+    },
+    {
+     "name": "fe03d2394679094ec0de",
+     "type": "card"
+    }
+   ],
+   "texts": [
+    "BI Library",
+    "Drill-through from Finance Overview, filtered to the selected category",
+    "Finance",
+    "FinanceOverview",
+    "Higher is better",
+    "Home",
+    "Ledger entries",
+    "Lower is better",
+    "Marketing",
+    "MarketingOverview",
+    "Net profit",
+    "Net profit margin %",
+    "Operating expenses",
+    "P&L Detail",
+    "P&L by account and month",
+    "Revenue",
+    "Sales",
+    "SalesOverview"
+   ]
+  }
+ ],
+ "bookmarks": [],
+ "icons": {},
+ "fields": {
+  "Dim_Account[AccountName]": {
+   "kind": "Column",
+   "pages": [
+    "pnl"
+   ]
+  },
+  "Dim_Account[AccountType]": {
+   "kind": "Column",
+   "pages": [
+    "pnl"
+   ]
+  },
+  "Dim_Account[ExpenseCategory]": {
+   "kind": "Column",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "Dim_Campaign[CampaignName]": {
+   "kind": "Column",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "Dim_Channel[Channel]": {
+   "kind": "Column",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "Dim_Customer[CustomerName]": {
+   "kind": "Column",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  },
+  "Dim_Date[Date]": {
+   "kind": "Column",
+   "pages": [
+    "campaign",
+    "finance",
+    "home",
+    "marketing",
+    "opportunity",
+    "pnl",
+    "sales"
+   ]
+  },
+  "Dim_Date[MonthLabel]": {
+   "kind": "Column",
+   "pages": [
+    "campaign",
+    "finance",
+    "home",
+    "marketing",
+    "sales"
+   ]
+  },
+  "Dim_Date[Month]": {
+   "kind": "Column",
+   "pages": [
+    "pnl"
+   ]
+  },
+  "Dim_Date[Quarter]": {
+   "kind": "Column",
+   "pages": [
+    "finance",
+    "sales"
+   ]
+  },
+  "Dim_FunnelStage[Stage]": {
+   "kind": "Column",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "Dim_Product[Category]": {
+   "kind": "Column",
+   "pages": [
+    "sales"
+   ]
+  },
+  "Dim_Rep[Rep]": {
+   "kind": "Column",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  },
+  "Fact_Finance[DateKey]": {
+   "kind": "Column",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "Fact_Finance[Description]": {
+   "kind": "Column",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "Fact_Finance[Status]": {
+   "kind": "Column",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "Fact_Marketing[ContentType]": {
+   "kind": "Column",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "Fact_Opportunity[AgeBucket]": {
+   "kind": "Column",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "Fact_Opportunity[CloseDate]": {
+   "kind": "Column",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  },
+  "Fact_Opportunity[CreatedDate]": {
+   "kind": "Column",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "Fact_Opportunity[PipelineStage]": {
+   "kind": "Column",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "Fact_Opportunity[Stage]": {
+   "kind": "Column",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  },
+  "_Finance[Net profit YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "pnl"
+   ]
+  },
+  "_Finance[Net profit YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "pnl"
+   ]
+  },
+  "_Finance[Net profit margin % YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "home",
+    "pnl"
+   ]
+  },
+  "_Finance[Net profit margin % YoY pp]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "home",
+    "pnl"
+   ]
+  },
+  "_Finance[Net profit margin %]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "home",
+    "pnl"
+   ]
+  },
+  "_Finance[Net profit]": {
+   "kind": "Measure",
+   "pages": [
+    "pnl"
+   ]
+  },
+  "_Finance[Operating cash flow YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "finance"
+   ]
+  },
+  "_Finance[Operating cash flow YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "finance"
+   ]
+  },
+  "_Finance[Operating cash flow]": {
+   "kind": "Measure",
+   "pages": [
+    "finance"
+   ]
+  },
+  "_Finance[Operating expenses YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "_Finance[Operating expenses YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "_Finance[Operating expenses]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "home",
+    "pnl"
+   ]
+  },
+  "_Finance[Revenue YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "_Finance[Revenue YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "_Finance[Revenue]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "home",
+    "pnl"
+   ]
+  },
+  "_Finance[Signed amount]": {
+   "kind": "Measure",
+   "pages": [
+    "finance",
+    "pnl"
+   ]
+  },
+  "_Home[Marketing CAC YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "home"
+   ]
+  },
+  "_Home[Marketing CAC YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "home"
+   ]
+  },
+  "_Home[Marketing CAC]": {
+   "kind": "Measure",
+   "pages": [
+    "home"
+   ]
+  },
+  "_Marketing[Attributed revenue]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "_Marketing[CPL YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "marketing"
+   ]
+  },
+  "_Marketing[CPL YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "marketing"
+   ]
+  },
+  "_Marketing[CPL]": {
+   "kind": "Measure",
+   "pages": [
+    "marketing"
+   ]
+  },
+  "_Marketing[Conversions]": {
+   "kind": "Measure",
+   "pages": [
+    "marketing"
+   ]
+  },
+  "_Marketing[Downloads]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[Engagements]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[Funnel value]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "_Marketing[Leads YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "_Marketing[Leads YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "_Marketing[Leads]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[MQL to SQL rate YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[MQL to SQL rate YoY pp]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[MQL to SQL rate]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[MQLs PY]": {
+   "kind": "Measure",
+   "pages": [
+    "marketing"
+   ]
+  },
+  "_Marketing[MQLs YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "home",
+    "marketing"
+   ]
+  },
+  "_Marketing[MQLs YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "home",
+    "marketing"
+   ]
+  },
+  "_Marketing[MQLs]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "home",
+    "marketing"
+   ]
+  },
+  "_Marketing[Marketing ROI % YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[Marketing ROI % YoY pp]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[Marketing ROI %]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign",
+    "marketing"
+   ]
+  },
+  "_Marketing[Spend YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "_Marketing[Spend YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "_Marketing[Spend]": {
+   "kind": "Measure",
+   "pages": [
+    "campaign"
+   ]
+  },
+  "_Sales[Average deal age (days)]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "_Sales[Average deal size YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "_Sales[Average deal size YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "_Sales[Average deal size]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "_Sales[Closed-won revenue PY]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[Closed-won revenue YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "home",
+    "sales"
+   ]
+  },
+  "_Sales[Closed-won revenue YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "home",
+    "sales"
+   ]
+  },
+  "_Sales[Closed-won revenue]": {
+   "kind": "Measure",
+   "pages": [
+    "home",
+    "sales"
+   ]
+  },
+  "_Sales[Deal amount]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  },
+  "_Sales[New customers YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[New customers YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[New customers]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[Open deals]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "_Sales[Open pipeline]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity"
+   ]
+  },
+  "_Sales[Quota attainment]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[Sales cycle (days) YoY %]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[Sales cycle (days) YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[Sales cycle (days)]": {
+   "kind": "Measure",
+   "pages": [
+    "sales"
+   ]
+  },
+  "_Sales[Win rate YoY Colour]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  },
+  "_Sales[Win rate YoY pp]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  },
+  "_Sales[Win rate]": {
+   "kind": "Measure",
+   "pages": [
+    "opportunity",
+    "sales"
+   ]
+  }
+ }
+}

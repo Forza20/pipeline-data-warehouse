@@ -1,0 +1,340 @@
+table _Marketing
+	lineageTag: d97b9d0e-18e6-5c2b-87fd-37841e9f5d30
+
+	column Placeholder
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: ea8a8d39-3fd4-52de-be63-8e82ae575e90
+		summarizeBy: none
+		sourceColumn: Placeholder
+
+	measure Leads = SUM ( Fact_Marketing[Leads] )
+		formatString: #,0
+		displayFolder: Marketing
+		lineageTag: 3dc16107-a16d-5198-bd8d-85d62ad6e5d9
+
+	measure 'Leads PY' =
+			CALCULATE (
+			    [Leads],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: #,0
+		displayFolder: Marketing
+		lineageTag: f851ffcc-f698-5879-8ff4-392c2b6cbeff
+
+	measure 'Leads YoY %' =
+			VAR _cur = [Leads]
+			VAR _py = [Leads PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: d7a246df-4db9-5d12-813b-d92f09388173
+
+	measure 'Leads YoY Status' =
+			VAR _d = [Leads YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Marketing
+		lineageTag: 287ee15f-73e2-5ee9-9df8-3b7cc8c8f6ed
+
+	measure 'Leads YoY Colour' =
+			SWITCH (
+			    [Leads YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Marketing
+		lineageTag: cceeb363-c61f-55f4-a5f4-3d939fc2b24c
+
+	measure MQLs = SUM ( Fact_Marketing[MQLs] )
+		formatString: #,0
+		displayFolder: Marketing
+		lineageTag: c53077bf-48f8-5ff1-abe8-496754633ec9
+
+	measure 'MQLs PY' =
+			CALCULATE (
+			    [MQLs],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: #,0
+		displayFolder: Marketing
+		lineageTag: ce5eff8c-8c71-5929-8ed2-af39495f2c6f
+
+	measure 'MQLs YoY %' =
+			VAR _cur = [MQLs]
+			VAR _py = [MQLs PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: 3530b21d-6734-567a-bdbf-cb1858df589f
+
+	measure 'MQLs YoY Status' =
+			VAR _d = [MQLs YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Marketing
+		lineageTag: a0367d1b-369f-5f67-bdbf-a87588467c96
+
+	measure 'MQLs YoY Colour' =
+			SWITCH (
+			    [MQLs YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Marketing
+		lineageTag: 9760e720-800e-5ced-b38a-86c426367e42
+
+	measure SQLs = SUM ( Fact_Marketing[SQLs] )
+		formatString: #,0
+		displayFolder: Marketing\Base
+		lineageTag: 0728269b-2c32-5b7c-8511-af331f5da686
+
+	measure 'MQL to SQL rate' = DIVIDE ( [SQLs], [MQLs] )
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: 4a8f2606-b181-5515-83d2-7d0045e7505b
+
+	measure 'MQL to SQL rate PY' =
+			CALCULATE (
+			    [MQL to SQL rate],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: a833efd4-9c30-5b26-88f1-811ade448e95
+
+	measure 'MQL to SQL rate YoY pp' =
+			VAR _cur = [MQL to SQL rate]
+			VAR _py = [MQL to SQL rate PY]
+			RETURN
+			    IF ( NOT ISBLANK ( _cur ) && NOT ISBLANK ( _py ), ( _cur - _py ) * 100 )
+		formatString: +0.0 \p\p;-0.0 \p\p;0.0 \p\p
+		displayFolder: Marketing
+		lineageTag: d1814aeb-c114-5f6b-85bb-c74163884f41
+
+	measure 'MQL to SQL rate YoY Status' =
+			VAR _d = [MQL to SQL rate YoY pp]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.5, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Marketing
+		lineageTag: e38f1c49-1df1-5045-96fe-52b9c781c88e
+
+	measure 'MQL to SQL rate YoY Colour' =
+			SWITCH (
+			    [MQL to SQL rate YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Marketing
+		lineageTag: 3c12ea10-e4b0-502f-a809-d7db59c07c2f
+
+	measure Spend = SUM ( Fact_Marketing[Spend] )
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Marketing
+		lineageTag: f9b854bc-6715-5c69-a0c0-ff13b3c735db
+
+	measure 'Spend PY' =
+			CALCULATE (
+			    [Spend],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Marketing
+		lineageTag: a47aaff6-c7bb-5d08-9ee4-7e1d89711d08
+
+	measure 'Spend YoY %' =
+			VAR _cur = [Spend]
+			VAR _py = [Spend PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: d37064dd-971f-5b56-b334-0439d656dbd7
+
+	measure 'Spend YoY Status' = "Neutral"
+		displayFolder: Marketing
+		lineageTag: 0376332f-96d2-5439-99fb-4f57e9b5fb9f
+
+	measure 'Spend YoY Colour' =
+			SWITCH (
+			    [Spend YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Marketing
+		lineageTag: 5343780f-7108-5c53-8a88-f4888d445077
+
+	measure CPL = DIVIDE ( [Spend], [Leads] )
+		formatString: \$#,0.00;-\$#,0.00;\$#,0.00
+		displayFolder: Marketing
+		lineageTag: 5acec0cd-e555-5f99-8108-edb385a83ec0
+
+	measure 'CPL PY' =
+			CALCULATE (
+			    [CPL],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0.00;-\$#,0.00;\$#,0.00
+		displayFolder: Marketing
+		lineageTag: 66456eaf-0023-5977-a6cf-e691125e6dcc
+
+	measure 'CPL YoY %' =
+			VAR _cur = [CPL]
+			VAR _py = [CPL PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: 2c2ce8ee-15d7-51d6-a76d-e12f808ae77e
+
+	measure 'CPL YoY Status' =
+			VAR _d = [CPL YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Bad",
+			        "Good"
+			    )
+		displayFolder: Marketing
+		lineageTag: c1496c1b-0180-552f-a80a-3b8bc263cf05
+
+	measure 'CPL YoY Colour' =
+			SWITCH (
+			    [CPL YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Marketing
+		lineageTag: 80323ba6-12d8-5c21-b9aa-1d9718783629
+
+	measure Conversions = SUM ( Fact_Marketing[Conversions] )
+		formatString: #,0
+		displayFolder: Marketing\Base
+		lineageTag: 22ca41cd-1f5e-5cf4-b520-f8717d6e550b
+
+	measure 'Attributed revenue' = SUM ( Fact_Marketing[AttributedRevenue] )
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Marketing\Base
+		lineageTag: 4dbef7d5-0f56-5312-8bbf-568aedd1deac
+
+	measure 'Marketing ROI %' =
+			VAR _spend = [Spend]
+			RETURN
+			    DIVIDE ( [Attributed revenue] - _spend, _spend )
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: 82affeb2-0f96-5a6d-a9b0-9f3bab4497a8
+
+	measure 'Marketing ROI % PY' =
+			CALCULATE (
+			    [Marketing ROI %],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Marketing
+		lineageTag: c1c57d9f-47ff-5270-be1f-ace4d4388294
+
+	measure 'Marketing ROI % YoY pp' =
+			VAR _cur = [Marketing ROI %]
+			VAR _py = [Marketing ROI % PY]
+			RETURN
+			    IF ( NOT ISBLANK ( _cur ) && NOT ISBLANK ( _py ), ( _cur - _py ) * 100 )
+		formatString: +0.0 \p\p;-0.0 \p\p;0.0 \p\p
+		displayFolder: Marketing
+		lineageTag: 2c33a12b-f702-55aa-93e4-d9f927e63353
+
+	measure 'Marketing ROI % YoY Status' =
+			VAR _d = [Marketing ROI % YoY pp]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.5, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Marketing
+		lineageTag: 9a50ab91-bc66-5344-9d18-9b48680afcb1
+
+	measure 'Marketing ROI % YoY Colour' =
+			SWITCH (
+			    [Marketing ROI % YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Marketing
+		lineageTag: 957f04d9-2a67-5581-8afb-f1d081efed31
+
+	measure Engagements = SUM ( Fact_Marketing[Engagements] )
+		formatString: #,0
+		displayFolder: Marketing\Base
+		lineageTag: 0ff66da2-9106-52c6-811a-162f5b71878c
+
+	measure Downloads = SUM ( Fact_Marketing[Downloads] )
+		formatString: #,0
+		displayFolder: Marketing\Base
+		lineageTag: bf6531ac-e2f1-5c52-90c3-a1449b9921ce
+
+	measure 'Funnel value' =
+			VAR _stage = SELECTEDVALUE ( Dim_FunnelStage[Stage] )
+			RETURN
+			    SWITCH (
+			        _stage,
+			        "Leads", [Leads],
+			        "MQLs", [MQLs],
+			        "SQLs", [SQLs],
+			        "Conversions", [Conversions]
+			    )
+		formatString: #,0
+		displayFolder: Marketing\Base
+		lineageTag: 49575233-4eb9-53ce-84c5-6605f91a62f4
+
+	partition _Marketing = m
+		mode: import
+		source =
+				let
+				    Source = #table(
+				        type table [Placeholder = Int64.Type],
+				        {
+				        { 1 }
+				        }
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

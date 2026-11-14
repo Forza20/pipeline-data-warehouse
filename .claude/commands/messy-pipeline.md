@@ -77,7 +77,8 @@ per call, 2–4 options each; the tool adds "Other" itself; the recommended opti
 questions whatever the dataset holds. When done, set `"questions_asked": "<timestamp>"`.
 
 **Layout (one call):**
-1. *Colours:* "Standard (Recommended)" · "Saved profile" (only if `profiles\default.json` exists; show its
+1. *Colours* (**always asked**, also when the medallion answers below are "use the recommendation" – only
+   the user knows their brand colours): "Standard (Recommended)" · "Saved profile" (only if `profiles\default.json` exists; show its
    name and colours) · "Hex codes" · "Screenshot of a website". For hex codes: take them from the answer or
    ask in chat, and map them to the keys in `.claude\skills\pbip-layout\colors.md`. For a screenshot: ask for
    the file path in chat (an image pasted into the chat has a path too), run

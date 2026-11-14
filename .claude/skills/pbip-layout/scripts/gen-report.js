@@ -5,15 +5,22 @@
 //   node gen-report.js "<Name.Report>" "<config.json>" [--preview <out.html>]
 //
 // config.json (profile.md and SKILL.md describe how it is filled):
-//   template   "adventureworks" (default)
+//   template   "adventureworks" (default) or "business" (Home + Marketing, Sales, Finance modules)
 //   pages      the page keys the user chose, e.g. ["exec", "map", "product", "customer", "tooltip"]
+//              (business: ["home", "marketing", "campaign", "sales", "opportunity", "finance", "pnl"])
 //   fields     { "<template field>": "Table[Field]" | null } for every field the chosen pages use
 //              (template.json → fields); null = the model has nothing for it: visuals using it are left out
 //   labels     { "<template field>": "text" } – display names (default: the model field's name, made readable)
 //   texts      { "<text in the template>": "new text" } – titles and text boxes
 //   title / subtitle / logo   top-left of the first page: title text, or a logo image (path to .png/.jpg)
+//   completeMonth  "Table[Column]" – a true/false column that is true for complete months (e.g.
+//              dim_date[is_complete_month]); the month KPI cards are filtered to it. Left out = a warning
 //   colors     colour keys (template.json → colors); left out = the template's own colours
 //   theme      false = do not register the template theme (other pages keep the report's theme)
+//
+// A template with modules (templates/<key>/modules.json): a module is chosen when one of its pages is; the
+// fields of a module that was not chosen are left out by themselves (no mapping needed), so its cards, tiles
+// and navigation buttons go, and the remaining cards re-flow (modules.json → reflow, onDrop).
 //
 // Never touches other pages, except: pages from an earlier run of this script (same ids) and the old
 // single-page layout (8d1e4c7a2b5f9e3d6c10) are replaced, and pages.json gets the new pages first.
@@ -23,6 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
+const { fixVisual: noDisplayUnits } = require('./display-units');
 
 const args = process.argv.slice(2);
 const pi = args.indexOf('--preview');
@@ -53,6 +61,23 @@ const chosen = T.pages.map((p) => p.key).filter((k) => (cfg.pages || []).include
 for (const k of cfg.pages || []) if (!byKey[k]) errors.push(`config.pages: unknown page "${k}" – template pages: ${T.pages.map((p) => p.key).join(', ')}`);
 if (!chosen.length) errors.push('config.pages: choose at least one page (ask the user – SKILL.md step 3)');
 if (chosen.length && chosen.every((k) => byKey[k].type === 'Tooltip')) errors.push('config.pages: a tooltip page alone has nothing to show it');
+// modules (templates/<key>/modules.json): pages and template tables per module
+const MODS = fs.existsSync(path.join(TPL_DIR, 'modules.json')) ? readJ(path.join(TPL_DIR, 'modules.json')) : null;
+const chosenModules = new Set();
+if (MODS) {
+  for (const [m, d] of Object.entries(MODS.modules)) if (d.pages.some((p) => chosen.includes(p))) chosenModules.add(m);
+  for (const [p, m] of Object.entries(MODS.requires || {})) if (chosen.includes(p) && !chosen.includes(m)) errors.push(`config.pages: "${p}" is a drillthrough page of "${m}" – choose "${m}" too, or leave "${p}" out`);
+  if (chosen.length && !chosenModules.size) errors.push(`config.pages: choose at least one module page (${Object.values(MODS.modules).map((d) => d.pages[0]).join(', ')}) – ${chosen.join(', ')} alone has nothing to show`);
+}
+// the modules a template field belongs to (all of them must be chosen); none = shared (date)
+function fieldModules(k) {
+  if (!MODS) return [];
+  if (MODS.fieldModules && MODS.fieldModules[k]) return MODS.fieldModules[k];
+  const t = k.slice(0, k.indexOf('['));
+  if (MODS.tableModules && MODS.tableModules[t]) return MODS.tableModules[t];
+  return Object.entries(MODS.modules).filter(([, d]) => (d.tables || []).includes(t)).map(([m]) => m);
+}
+const notChosenModule = (k) => fieldModules(k).some((m) => !chosenModules.has(m));
 const pageId = (key) => crypto.createHash('md5').update(`pbip-layout:${cfg.template || 'adventureworks'}:${key}`).digest('hex').slice(0, 20);
 const idMap = Object.fromEntries(T.pages.map((p) => [p.id, chosen.includes(p.key) ? pageId(p.key) : null]));
 
@@ -60,13 +85,23 @@ const idMap = Object.fromEntries(T.pages.map((p) => [p.id, chosen.includes(p.key
 const fieldMap = {}; // template field → { table, name } | null
 const needed = new Set();
 for (const [k, f] of Object.entries(T.fields)) if (f.pages.some((p) => chosen.includes(p))) needed.add(k);
+const leftOutByModule = [];
 for (const k of needed) {
+  if (notChosenModule(k)) { fieldMap[k] = null; leftOutByModule.push(k); continue; }
   if (!cfg.fields || !(k in cfg.fields)) { errors.push(`config.fields: "${k}" is missing (used on ${T.fields[k].pages.filter((p) => chosen.includes(p)).join(', ')}) – map it to Table[Field], or null to leave its visuals out`); continue; }
   const v = cfg.fields[k];
   if (v === null) { fieldMap[k] = null; continue; }
   const m = /^'?(.+?)'?\[(.+)\]$/.exec(String(v));
   if (!m) { errors.push(`config.fields["${k}"]: "${v}" – use Table[Field]`); continue; }
   fieldMap[k] = { table: m[1], name: m[2] };
+}
+// month KPIs (visual type kpi) show the latest complete month: a filter on a true/false column, e.g.
+// dim_date[is_complete_month] – without it the trend axis ends in an empty month and the card says "(Blank)"
+let completeMonth = null;
+if (cfg.completeMonth != null) {
+  const m = /^'?(.+?)'?\[(.+)\]$/.exec(String(cfg.completeMonth));
+  if (!m) errors.push(`config.completeMonth: "${cfg.completeMonth}" – use Table[Column], a true/false column that is true for complete months`);
+  else completeMonth = { table: m[1], name: m[2] };
 }
 if (errors.length) fail();
 // a template table maps to the table most of its fields went to (for From entries without a field)
@@ -90,6 +125,23 @@ function rewriteString(s) {
   // colour tokens
   out = out.replace(/\{\{([A-Za-z]+)\}\}/g, (m, k) => C[k] || m);
   return out;
+}
+
+// page ids that are not "ReportSection…" (e.g. "Home", "SalesOverview") are only rewritten where a page is
+// meant – a navigation target – never in a text (a button reads "Home")
+const plainIds = T.pages.map((p) => p.id).filter((id) => !/^ReportSection/.test(id));
+function remapPageRefs(node, inNav) {
+  if (Array.isArray(node)) { node.forEach((x, i) => { if (typeof x === 'string' && inNav) node[i] = remapId(x); else remapPageRefs(x, inNav); }); return; }
+  if (!node || typeof node !== 'object') return;
+  for (const [k, v] of Object.entries(node)) {
+    const nav = inNav || k === 'navigationSection' || k === 'activeSection';
+    if (typeof v === 'string') { if (nav) node[k] = remapId(v); } else remapPageRefs(v, nav);
+  }
+}
+function remapId(v) {
+  const m = /^'(.+)'$/.exec(v); const id = m ? m[1] : v;
+  if (!plainIds.includes(id) || !idMap[id]) return v;
+  return m ? `'${idMap[id]}'` : idMap[id];
 }
 
 // returns the template fields a JSON node refers to
@@ -156,6 +208,8 @@ function rewrite(node) {
   }
   return out;
 }
+function tplPosSafe(dir, name) { return fs.existsSync(path.join(dir, 'visuals', name, 'visual.json')); }
+
 // alias context: pass the alias map down so Source-based fields can be resolved
 function withAliases(node, ctx) {
   if (Array.isArray(node)) { node.forEach((x) => withAliases(x, ctx)); return; }
@@ -249,12 +303,42 @@ for (const key of chosen) {
   visuals = visuals.filter((v) => !drop.has(v.name));
   for (const g of visuals.filter((v) => v.json.visualGroup)) if (!visuals.some((v) => v.json.parentGroupName === g.name)) drop.add(g.name);
   visuals = visuals.filter((v) => !drop.has(v.name));
-  // 4. the remaining navigation buttons close up from the top, in their order
-  const navGroups = new Set(meta.visuals.filter((v) => v.navigatesTo && v.group).map((v) => v.group));
-  for (const g of navGroups) {
-    const slots = meta.visuals.filter((v) => v.navigatesTo && v.group === g).map((v) => readJ(path.join(dir, 'visuals', v.name, 'visual.json')).position.y).sort((a, b) => a - b);
-    visuals.filter((v) => v.json.parentGroupName === g && meta.visuals.find((m) => m.name === v.name && m.navigatesTo)).sort((a, b) => a.json.position.y - b.json.position.y)
+  // 4. the remaining navigation buttons close up from the top, in their order – per group, or per rail
+  //    (buttons without a group at the same x)
+  const tplPos = (name) => readJ(path.join(dir, 'visuals', name, 'visual.json')).position;
+  const railOf = (m) => (m.group ? `g:${m.group}` : `x:${Math.round(tplPos(m.name).x)}`);
+  const navMeta = meta.visuals.filter((v) => v.navigatesTo);
+  for (const r of new Set(navMeta.map(railOf))) {
+    const inRail = navMeta.filter((m) => railOf(m) === r);
+    if (inRail.length < 2) continue;
+    const slots = inRail.map((m) => tplPos(m.name).y).sort((a, b) => a - b);
+    visuals.filter((v) => inRail.some((m) => m.name === v.name)).sort((a, b) => a.json.position.y - b.json.position.y)
       .forEach((v, i) => { v.json.position.y = slots[i]; });
+  }
+  // 4b. modules: cards and tiles of the chosen modules re-flow over the row (modules.json → reflow), and
+  //     visuals take the place of a dropped one (onDrop)
+  if (MODS) {
+    const keptNames = new Set(visuals.map((v) => v.name));
+    const byName = Object.fromEntries(visuals.map((v) => [v.name, v]));
+    for (const row of (MODS.reflow || []).filter((r) => r.page === key)) {
+      const slots = row.slots.filter((sl) => keptNames.has(sl[0]));
+      if (!slots.length || slots.length === row.slots.length) continue;
+      const w = (row.to - row.from - row.gap * (slots.length - 1)) / slots.length;
+      slots.forEach((sl, i) => {
+        const p0 = tplPos(sl[0]); const nx = row.from + i * (w + row.gap);
+        for (const name of sl) {
+          const v = byName[name]; if (!v) continue;
+          const p = tplPos(name);
+          if (Math.round(p.x) === Math.round(p0.x) && Math.round(p.width) === Math.round(p0.width)) { v.json.position.x = nx; v.json.position.width = w; }
+          else v.json.position.x = nx + w - (p0.x + p0.width - p.x); // keeps its distance to the right edge
+        }
+      });
+      notes.push(`${key}: ${slots.length} of ${row.slots.length} ${row.name || 'slots'} re-flowed`);
+    }
+    for (const [gone, moves] of Object.entries(MODS.onDrop || {})) {
+      if (keptNames.has(gone) || !tplPosSafe(dir, gone)) continue;
+      for (const [name, pos] of Object.entries(moves)) if (byName[name]) Object.assign(byName[name].json.position, pos);
+    }
   }
   // 5. the tooltip page: without it the bar chart shows the default tooltip
   if (!chosen.includes('tooltip')) {
@@ -294,9 +378,10 @@ for (const key of chosen) {
     }
   }
   clearDataValues(page);
+  remapPageRefs(page, false);
   withAliases(page, {});
   const newPage = rewrite(page);
-  const newVisuals = visuals.map((v) => { clearDataValues(v.json); withAliases(v.json, {}); return { name: v.name, json: rewrite(v.json), logoFile: v.logoFile }; });
+  const newVisuals = visuals.map((v) => { clearDataValues(v.json); remapPageRefs(v.json, false); withAliases(v.json, {}); return { name: v.name, json: rewrite(v.json), logoFile: v.logoFile }; });
   pages.push({ key, id: idMap[meta.id], page: newPage, visuals: newVisuals });
 }
 
@@ -309,6 +394,13 @@ for (const key of chosen) {
   }
 }
 
+// module texts: a text naming every module names the chosen ones ("Headline KPIs across marketing and sales")
+if (MODS && MODS.moduleTexts) {
+  const names = Object.entries(MODS.modules).filter(([m]) => chosenModules.has(m)).map(([, d]) => d.label.toLowerCase());
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0] || '';
+  const auto = Object.fromEntries(Object.entries(MODS.moduleTexts).map(([a, b]) => [a, b.replace('{modules}', list)]));
+  cfg.texts = { ...auto, ...(cfg.texts || {}) };
+}
 // texts: titles and text boxes
 if (cfg.texts) {
   const pairs = Object.entries(cfg.texts).sort((a, b) => b[0].length - a[0].length);
@@ -376,11 +468,18 @@ function tintPng(buf, hex) {
 // The report gets the template's base theme (the source report's, e.g. CY23SU04), so the defaults the
 // template relies on are the same, and a custom theme with colours only (no other properties): the
 // series and slice colours start with the template's (dark, gold, teal, bad …) and follow a colour choice.
+// A template whose source report had its own custom theme (template.json → customTheme: fonts, text classes,
+// visual styles) gets that theme, with the colour keys filled in – a colour choice still changes colours only.
 function themeJson() {
+  if (T.customTheme) {
+    const ct = JSON.parse(fs.readFileSync(path.join(TPL_DIR, T.customTheme), 'utf8').replace(/\{\{([A-Za-z]+)\}\}/g, (m, k) => C[k] || m));
+    return { ...ct, name: 'pbip-layout-theme.json' };
+  }
   const base = readJ(path.join(TPL_DIR, 'base-theme.json'));
   const dc = Array.isArray(base.dataColors) ? [...base.dataColors] : [];
-  [C.dark, C.gold, C.teal, C.bad, C.muted, C.badDark].forEach((c, i) => { dc[i] = c; });
-  return { name: 'pbip-layout-theme.json', dataColors: dc, background: C.panel, foreground: C.axis, tableAccent: C.teal };
+  (T.themeDataColors || ['dark', 'gold', 'teal', 'bad', 'muted', 'badDark']).forEach((k, i) => { dc[i] = C[k]; });
+  const roles = T.themeRoles || { background: 'panel', foreground: 'axis', tableAccent: 'teal' };
+  return { name: 'pbip-layout-theme.json', dataColors: dc, ...Object.fromEntries(Object.entries(roles).map(([r, k]) => [r, C[k]])) };
 }
 
 // ---------- preview (a wireframe of the chosen pages; no report files are written) ----------
@@ -417,7 +516,7 @@ body{margin:0;padding:16px;background:#1b1b1f;color:#ddd;font-family:"Segoe UI",
 <p>Wireframe of the chosen pages: real positions, sizes and background colours; the visuals themselves are drawn by Power BI.</p>${html}
 <script>function fit(){document.querySelectorAll('.page').forEach(function(p){p.style.transform='scale('+(p.parentNode.clientWidth/+p.dataset.w)+')'})}addEventListener('resize',fit);fit();</script></body></html>`;
   fs.writeFileSync(PREVIEW, doc, 'utf8');
-  console.log(JSON.stringify({ ok: true, preview: PREVIEW, pages: pages.map((p) => `${p.key} (${p.visuals.length})`), dropped, warnings }, null, 1));
+  console.log(JSON.stringify({ ok: true, preview: PREVIEW, pages: pages.map((p) => `${p.key} (${p.visuals.length})`), ...(MODS ? { modules: [...chosenModules] } : {}), dropped, warnings }, null, 1));
   process.exit(0);
 }
 
@@ -431,6 +530,17 @@ for (const id of fs.readdirSync(pagesDir)) if (ours.has(id)) fs.rmSync(path.join
 // keep the report's own $schema versions where it has them
 const schemaOf = (file) => { for (const id of pagesJson.pageOrder || []) { if (ours.has(id)) continue; const d = path.join(pagesDir, id); const f = file === 'page.json' ? path.join(d, 'page.json') : null; if (f && fs.existsSync(f)) try { return readJ(f).$schema; } catch (_) { /* next */ } } return null; };
 const pageSchema = schemaOf('page.json');
+function onlyCompleteMonths(json) {
+  if (!completeMonth) { if (!warnings.includes(NO_COMPLETE)) warnings.push(NO_COMPLETE); return; }
+  const col = (src) => ({ Column: { Expression: { SourceRef: src }, Property: completeMonth.name } });
+  const fc = (json.filterConfig = json.filterConfig || {});
+  fc.filters = (fc.filters || []).filter((f) => f.name !== 'FilterCompleteMonth');
+  fc.filters.push({ name: 'FilterCompleteMonth', field: col({ Entity: completeMonth.table }), type: 'Categorical',
+    filter: { Version: 2, From: [{ Name: 'd', Entity: completeMonth.table, Type: 0 }],
+      Where: [{ Condition: { In: { Expressions: [col({ Source: 'd' })], Values: [[{ Literal: { Value: 'true' } }]] } } }] },
+    howCreated: 'User' });
+}
+const NO_COMPLETE = 'config.completeMonth is not set: the month KPI cards can end in an empty or half month ("(Blank)", -100 %) – map it to a true/false complete-month column';
 for (const p of pages) {
   const d = path.join(pagesDir, p.id);
   fs.mkdirSync(path.join(d, 'visuals'), { recursive: true });
@@ -438,6 +548,8 @@ for (const p of pages) {
   fs.writeFileSync(path.join(d, 'page.json'), JSON.stringify(p.page, null, 2) + '\n');
   for (const v of p.visuals) {
     fs.mkdirSync(path.join(d, 'visuals', v.name), { recursive: true });
+    noDisplayUnits(v.json); // never "tusind"/K/mio. - always the measure's own number format
+    if (v.json.visual && v.json.visual.visualType === 'kpi') onlyCompleteMonths(v.json);
     fs.writeFileSync(path.join(d, 'visuals', v.name, 'visual.json'), JSON.stringify(v.json, null, 2) + '\n');
   }
 }
@@ -519,4 +631,5 @@ if (!rr.items.length) pkgs.splice(pkgs.indexOf(rr), 1);
 fs.writeFileSync(rjPath, JSON.stringify(rj, null, 2) + (/\n$/.test(rjRaw) ? '\n' : ''));
 
 console.log(JSON.stringify({ ok: true, pages: pages.map((p) => ({ key: p.key, id: p.id, name: p.page.displayName, visuals: p.visuals.length })),
+  ...(MODS ? { modules: [...chosenModules], leftOutByModule: leftOutByModule.length } : {}),
   bookmarks: bookmarks.map((b) => b.json.displayName), dropped, notes, warnings }, null, 1));

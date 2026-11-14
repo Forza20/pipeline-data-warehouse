@@ -1,0 +1,47 @@
+{
+ "_about": "Data contract of the business template: every column its measures (DAX) and visuals use. config.contract maps each to Table[Column] in the model, or null. suggest-fields.js proposes the mapping from names (patterns compared lower case with every non-letter/digit as _; 'table' limits the tables, 'date' = the marked date table), gen-measures.js writes the measures and config.fields from it. 'values': the fixed text values the measures compare with – config.values maps them when the model uses others. 'derive': how to make the column in Power Query / the build spec when the source has the parts.",
+ "columns": {
+  "Dim_Date[Date]": { "module": "shared", "use": "time intelligence, date slicer", "required": true, "table": "date", "names": ["^date$", "^dato$"] },
+  "Dim_Date[Year]": { "module": "shared", "use": "filter contract of the PY measures", "table": "date", "names": ["^year$", "^aar$"] },
+  "Dim_Date[MonthLabel]": { "module": "shared", "use": "x-axis of every monthly trend (month and year)", "table": "date", "names": ["^month_?label$", "^month_?start$", "^year_?month$", "^maaned_?start$"] },
+  "Dim_Date[Month]": { "module": "shared", "use": "columns of the P&L matrix", "table": "date", "names": ["^month_?start$", "^month_?label$", "^month$"] },
+  "Dim_Date[Quarter]": { "module": "shared", "use": "x-axis of the quarterly charts", "table": "date", "names": ["^quarter$", "^kvartal$"] },
+
+  "Fact_Marketing[Leads]": { "module": "marketing", "use": "Leads, CPL, funnel", "table": "lead|marketing|campaign", "names": ["^leads?$", "^lead_?count$", "^leads_?count$", "^n_?leads$"] },
+  "Fact_Marketing[MQLs]": { "module": "marketing", "use": "MQLs, MQL to SQL rate", "table": "lead|marketing|campaign", "names": ["^mqls?$", "^mql_?count$", "^marketing_?qualified"] },
+  "Fact_Marketing[SQLs]": { "module": "marketing", "use": "MQL to SQL rate, funnel", "table": "lead|marketing|campaign", "names": ["^sqls?$", "^sql_?count$", "^sales_?qualified"] },
+  "Fact_Marketing[Conversions]": { "module": "marketing", "use": "campaign table, funnel", "table": "lead|marketing|campaign", "names": ["^conversions?$", "^converted$", "^won$"] },
+  "Fact_Marketing[Spend]": { "module": "marketing", "use": "Spend, CPL, ROI %, Marketing CAC", "table": "marketing|campaign|spend|cost", "names": ["^spend$", "^marketing_?spend$", "^ad_?spend$", "^cost$", "^budget_?spent$"] },
+  "Fact_Marketing[AttributedRevenue]": { "module": "marketing", "use": "Marketing ROI %", "table": "marketing|campaign", "names": ["^attributed_?revenue$", "^revenue$", "^campaign_?revenue$"] },
+  "Fact_Marketing[Engagements]": { "module": "marketing", "use": "content performance", "table": "marketing|campaign|content", "names": ["^engagements?$", "^interactions$", "^clicks$"] },
+  "Fact_Marketing[Downloads]": { "module": "marketing", "use": "content performance", "table": "marketing|campaign|content", "names": ["^downloads?$"] },
+  "Fact_Marketing[ContentType]": { "module": "marketing", "use": "content performance bars, content table", "names": ["^content_?type$", "^content$", "^asset_?type$"] },
+  "Dim_Campaign[CampaignName]": { "module": "marketing", "use": "campaign table, drillthrough to Campaign Detail", "names": ["^campaign_?name$", "^campaign$"] },
+  "Dim_Channel[Channel]": { "module": "marketing", "use": "leads by channel", "names": ["^channel$", "^channel_?name$", "^source$", "^lead_?source$", "^kanal$"] },
+  "Dim_FunnelStage[Stage]": { "module": "marketing", "use": "funnel on Campaign Detail", "make": "gen-measures.js makes the stage list (Leads, MQLs, SQLs, Conversions) – leave it unmapped" },
+
+  "Fact_Opportunity[Amount]": { "module": "sales", "use": "closed-won revenue, pipeline, deal size", "required": true, "table": "opportunit|deal|pipeline|sales", "names": ["^amount$", "^deal_?amount$", "^opportunity_?amount$", "^deal_?value$", "^value$"] },
+  "Fact_Opportunity[Stage]": { "module": "sales", "use": "won / lost / open", "required": true, "table": "opportunit|deal|pipeline|sales", "names": ["^stage$", "^deal_?stage$", "^status$", "^outcome$"], "values": ["Closed Won", "Closed Lost", "Open"] },
+  "Fact_Opportunity[CustomerKey]": { "module": "sales", "use": "New customers (distinct)", "table": "opportunit|deal|pipeline|sales", "names": ["^customer_?key$", "^customer_?id$", "^account_?id$", "^client_?id$"] },
+  "Fact_Opportunity[IsNewCustomer]": { "module": "sales", "use": "New customers, Marketing CAC", "table": "opportunit|deal|pipeline|sales", "names": ["^is_?new_?customer$", "^new_?customer$", "^is_?new$", "^first_?deal$"], "derive": "true on the customer's first won deal (Power Query: group by customer, earliest close date of a won deal)" },
+  "Fact_Opportunity[CycleDays]": { "module": "sales", "use": "Sales cycle (days)", "table": "opportunit|deal|pipeline|sales", "names": ["^cycle_?days$", "^sales_?cycle$", "^days_?to_?close$"], "derive": "close date - created date in days" },
+  "Fact_Opportunity[AgeDays]": { "module": "sales", "use": "Average deal age (days)", "table": "opportunit|deal|pipeline|sales", "names": ["^age_?days$", "^deal_?age$", "^days_?open$"], "derive": "today (or the data's last date) - created date in days, open deals" },
+  "Fact_Opportunity[AgeBucket]": { "module": "sales", "use": "deal-age columns on Opportunity Detail", "names": ["^age_?bucket$", "^age_?band$", "^age_?group$"], "derive": "AgeDays in bands: 0-30, 31-60, 61-90, 90+ (with a sort column)" },
+  "Fact_Opportunity[PipelineStage]": { "module": "sales", "use": "open pipeline funnel by stage", "names": ["^pipeline_?stage$", "^sales_?stage$", "^deal_?stage$", "^stage_?name$"] },
+  "Fact_Opportunity[CloseDate]": { "module": "sales", "use": "deal tables; active date relationship", "names": ["^close_?date$", "^closed_?date$", "^closed_?at$", "^won_?date$"] },
+  "Fact_Opportunity[CreatedDate]": { "module": "sales", "use": "deal tables (inactive date relationship)", "names": ["^created_?date$", "^created_?at$", "^create_?date$", "^open_?date$"] },
+  "Fact_SalesTarget[Quota]": { "module": "sales", "use": "quota attainment per rep", "names": ["^quota$", "^target$", "^sales_?target$", "^target_?amount$", "^budget$"] },
+  "Dim_Rep[Rep]": { "module": "sales", "use": "quota per rep, drillthrough to Opportunity Detail", "names": ["^rep$", "^rep_?name$", "^sales_?rep$", "^owner$", "^salesperson$", "^account_?manager$", "^saelger$"] },
+  "Dim_Customer[CustomerName]": { "module": "sales", "use": "deal tables, drillthrough", "names": ["^customer_?name$", "^company_?name$", "^account_?name$", "^kunde_?navn$"] },
+  "Dim_Product[Category]": { "module": "sales", "use": "revenue by category per quarter", "names": ["^category$", "^product_?category$", "^category_?name$", "^kategori$"] },
+
+  "Fact_Finance[Amount]": { "module": "finance", "use": "Revenue, Operating expenses, Net profit, Signed amount (stored positive)", "required": true, "table": "ledger|finance|gl|journal|transaction", "names": ["^amount$", "^gl_?amount$", "^value$", "^beloeb$"] },
+  "Dim_Account[AccountType]": { "module": "finance", "use": "sign and P&L lines", "required": true, "names": ["^account_?type$", "^type$", "^account_?class$", "^kontotype$"], "values": ["Revenue", "COGS", "OpEx", "Other"] },
+  "Fact_Finance[Status]": { "module": "finance", "use": "reversed entries are left out", "table": "ledger|finance|gl|journal|transaction", "names": ["^status$", "^entry_?status$"], "values": ["Confirmed", "Pending", "Reversed"] },
+  "Fact_Finance[OperatingCashMovement]": { "module": "finance", "use": "Operating cash flow", "table": "ledger|finance|gl|journal|transaction|cash", "names": ["^operating_?cash", "^cash_?movement$", "^cash_?flow$"] },
+  "Fact_Finance[DateKey]": { "module": "finance", "use": "date in the transaction tables", "table": "ledger|finance|gl|journal|transaction", "names": ["^date$", "^date_?key$", "^posting_?date$", "^entry_?date$", "^transaction_?date$", "^bogfoerings"] },
+  "Fact_Finance[Description]": { "module": "finance", "use": "transaction tables", "table": "ledger|finance|gl|journal|transaction", "names": ["^description$", "^text$", "^memo$", "^tekst$"] },
+  "Dim_Account[AccountName]": { "module": "finance", "use": "P&L matrix rows", "names": ["^account_?name$", "^account$", "^konto_?navn$"] },
+  "Dim_Account[ExpenseCategory]": { "module": "finance", "use": "expense breakdown, drillthrough to P&L Detail", "names": ["^expense_?category$", "^cost_?category$", "^category$"] }
+ }
+}

@@ -1,0 +1,72 @@
+table _Home
+	lineageTag: 46f5d190-0827-5f51-bbd0-6b06a720a3d3
+
+	column Placeholder
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 7a165d69-cc76-5eb0-bd38-468a5ffc5f7a
+		summarizeBy: none
+		sourceColumn: Placeholder
+
+	measure 'Marketing CAC' = DIVIDE ( [Spend], [New customers] )
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Home
+		lineageTag: 81405f1b-e50e-5c16-83d5-484b0e14ac62
+
+	measure 'Marketing CAC PY' =
+			CALCULATE (
+			    [Marketing CAC],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Home
+		lineageTag: 9c459c19-5f0a-5d85-a5d2-e65c2078a115
+
+	measure 'Marketing CAC YoY %' =
+			VAR _cur = [Marketing CAC]
+			VAR _py = [Marketing CAC PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Home
+		lineageTag: ba02c787-35db-5bfd-a4be-0c9dce499e01
+
+	measure 'Marketing CAC YoY Status' =
+			VAR _d = [Marketing CAC YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Bad",
+			        "Good"
+			    )
+		displayFolder: Home
+		lineageTag: e44c8f22-af51-5659-bda5-da2830391a05
+
+	measure 'Marketing CAC YoY Colour' =
+			SWITCH (
+			    [Marketing CAC YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Home
+		lineageTag: e2bd60ae-9fe3-5e22-943f-f78bdc535259
+
+	partition _Home = m
+		mode: import
+		source =
+				let
+				    Source = #table(
+				        type table [Placeholder = Int64.Type],
+				        {
+				        { 1 }
+				        }
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

@@ -1,13 +1,19 @@
 ---
 name: pbip-layout
-description: Builds the AdventureWorks report template (Exec Dashboard, Map, Product Detail, Customer Detail, Category Tooltip, Q&A, Decomposition Tree, Key Influencers – taken from adventureworks_report.pbix with its colours, navigation, bookmarks and layout) into a Power BI PBIP project and connects every page to the project's own measures and columns. The user always chooses which pages to include; colours can come from hex codes or a screenshot and change colours only. ALWAYS trigger when the user writes `apply "layout.md"` (also without quotes, e.g. "apply layout.md") together with a PBIP file/folder or a PBIP project open in Power BI Desktop, and when a pipeline agent (e.g. `layout-applier`) is asked to apply the layout – see "Pipeline mode".
+description: Builds one of two report templates into a Power BI PBIP project – AdventureWorks (Exec Dashboard, Map, Product Detail, Customer Detail, Category Tooltip, Q&A, Decomposition Tree, Key Influencers – taken from adventureworks_report.pbix with its colours, navigation, bookmarks and layout) or Business (Home + the Marketing, Sales and Finance modules, each with an overview and a drillthrough page; the template's measures are made from the model's own columns) and connects every page to the project's own measures and columns. The user always chooses which pages to include; colours can come from hex codes or a screenshot and change colours only. ALWAYS trigger when the user writes `apply "layout.md"` (also without quotes, e.g. "apply layout.md") together with a PBIP file/folder or a PBIP project open in Power BI Desktop, and when a pipeline agent (e.g. `layout-applier`) is asked to apply the layout – see "Pipeline mode".
 ---
 
 # Apply the report template to a PBIP project
 
-The template is a real report taken apart into [templates/adventureworks/](templates/adventureworks/)
-(pages, visuals, bookmarks, icons; every colour a colour key). [layout.md](layout.md) describes the
-pages and every template field with what it should be and its fallback. [scripts/gen-report.js](scripts/gen-report.js)
+There are two templates, both real reports taken apart into `templates/<key>/` (pages, visuals,
+bookmarks, icons; every colour a colour key):
+- **`adventureworks`** – the sales report. [layout.md](layout.md) describes the pages and every template
+  field with what it should be and its fallback.
+- **`business`** – Home + the Marketing, Sales and Finance modules (overview + drillthrough each).
+  [layout-business.md](layout-business.md): the modules, the data contract, the colours. Here *columns* are
+  mapped to a data contract, and [scripts/gen-measures.js](scripts/gen-measures.js) makes the template's
+  measures and the fields.
+ [scripts/gen-report.js](scripts/gen-report.js)
 builds the chosen pages from a config ([config.example.json](config.example.json)). Measures and
 parameters the pages need: [measures.md](measures.md). Colours: [colors.md](colors.md). Standing choices:
 a profile ([profile.md](profile.md)).
@@ -30,7 +36,16 @@ Work with the user in their language (English by default).
    measures and relationships (without MCP: read the TMDL, "Without powerbi-modeling-mcp"). Read the
    user's profile if there is one; say which choices come from it.
 
-3. **The pages – always ask, even with a profile.** Use AskUserQuestion with two multiSelect questions,
+3. **Template and pages – always ask, even with a profile.** First the template (one AskUserQuestion),
+   unless given (`config.template`, the profile's `template`, `run.json → layout_template`):
+   "AdventureWorks – sales report (orders, products, customers, map)" · "Business – Marketing, Sales and
+   Finance (Home + modules)". Recommend from the model: leads/campaigns, opportunities/pipeline or a
+   ledger with account types → Business; order lines with products and customers → AdventureWorks.
+   **Business:** one multiSelect "Which modules and pages should the report have?" – Home · Marketing
+   (+ Campaign Detail) · Sales (+ Opportunity Detail) · Finance (+ P&L Detail); the description says what the
+   model has or lacks for the module (layout-business.md → Required per module). A module gives both its
+   pages; ask about the drillthrough page separately only when the model cannot fill it.
+   **AdventureWorks:** use AskUserQuestion with two multiSelect questions,
    each option = a page, its description = what it shows and what the model has or lacks for it
    (layout.md → Pages):
    - "Which dashboard pages should the report have?" – Exec Dashboard, Map, Product Detail, Customer Detail
@@ -43,7 +58,8 @@ Work with the user in their language (English by default).
    - **A colour choice changes colours only.** Hex codes or a screenshot only fill `colors` (and `theme`)
      in config.json – pages, fields, texts, fonts, number formats and positions stay exactly as with
      *Standard*. The generator refuses unknown keys and anything that is not `#RRGGBB`;
-     `node "<skill folder>/tests/colors-only.test.js"` proves it – run it after changing `gen-report.js`.
+     `node "<skill folder>/tests/colors-only.test.js"` and `tests/business.test.js` prove it – run both after
+     changing `gen-report.js`. The business keys: layout-business.md → Colours (good/bad/neutral are fixed).
    - **Screenshot:** measure the colours instead of guessing:
      `powershell -NoProfile -ExecutionPolicy Bypass -File "<skill folder>/scripts/palette.ps1" -Path "<image>"`
      → `suggestion` has every colour key; mention `accentAdjusted`. The path of a pasted image is in the
@@ -52,7 +68,12 @@ Work with the user in their language (English by default).
    - At most 2 variants (e.g. *Standard* and *Brand*); they differ in colours only.
    *In pipeline mode:* the profile's colours, otherwise *Standard*.
 
-5. **Map the template fields.** Start with the suggestion:
+5. **Map the template fields.** *Business:* map the data contract instead and let `gen-measures.js` make
+   the measures and the fields (layout-business.md → Data contract → measures): `suggest-fields.js` proposes
+   `config.contract`, you check meanings and values (`config.values`), and
+   `node "<skill folder>/scripts/gen-measures.js" "<config.json>" --write-config --spec … | --tmdl …` writes the
+   measures and `config.fields`. Every `skipped` measure and every `derive` column is a decision (step 7).
+   Skip step 6. *AdventureWorks:* start with the suggestion:
    `node "<skill folder>/scripts/suggest-fields.js" "<.SemanticModel folder>" --config "<config.json>"`
    (config.json with `template` and `pages`; it fills `fields` by name from `templates/<key>/field-hints.json`
    and prints `how` per field – name, fallback, `make: <recipe>` or none – and the `decisions` a fallback
@@ -91,7 +112,8 @@ Work with the user in their language (English by default).
    description, then 1–3 alternatives with their effect; the user can always write their own ("Other").
    Apply the answers to config.json (or measures) before building.
 
-8. **config.json** (scratchpad) like [config.example.json](config.example.json): `template`, `pages`,
+8. **config.json** (scratchpad) like [config.example.json](config.example.json) (Business:
+   [config.example-business.json](config.example-business.json) – also `contract`, `values`, `currencyFormat`): `template`, `pages`,
    `fields` (`Table[Field]` or `null`), `labels`, `texts`, `reverseScales` (template fields whose colour
    scales run the other way), `title`/`subtitle` or `logo`, `colors`, `theme`.
    Save a copy as `<project folder>/docs/layout-config.json` (create `docs/`), so pbip-catalog can tag the
@@ -140,6 +162,7 @@ Work with the user in their language (English by default).
 When a subagent runs the skill (`layout-applier` in `/messy-pipeline`, a pipeline-power-bi run) or the task
 says "pipeline mode":
 
+- **Template:** `run.json` → `layout_template` (`adventureworks` when missing).
 - **Pages:** the orchestrator asked the user before the run – the pages are in `run.json` → `layout_pages`
   (or the task). **No pages given: do not choose them yourself** – finish with status `waiting_for_user`
   and the reason "pages not chosen"; the orchestrator asks.
@@ -178,6 +201,9 @@ says "pipeline mode":
 ## Making a template from another report
 
 `node "<skill folder>/scripts/extract-template.js" "<Name.Report>" "<skill folder>/templates/<key>"` turns
-a report saved as PBIP (PBIR) into a template. It stops on a colour it has no key for (add it to
-`classify()`), removes per-value formatting and the logo, and writes template.json (pages, fields, texts,
+a report saved as PBIP (PBIR) into a template. `--keys <set>` picks the colour keys, page keys, the
+theme's series colours and fixes to the source report (`KEYSETS` in the script; `business` for the Business
+template). It stops on a colour it has no key for (add it to the set's `classify()`; `'fixed'` = the colour
+stays as it is), keeps the hand-written files (`field-hints.json`, `modules.json`, `contract.json`,
+`measures/`), removes per-value formatting and the logo, and writes template.json (pages, fields, texts,
 colours, icons). Then describe its pages and fields in layout.md and run the test.

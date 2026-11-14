@@ -1,0 +1,333 @@
+table _Sales
+	lineageTag: cc948a5a-d5ac-5172-a4c2-f354059c1340
+
+	column Placeholder
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 5d86f514-a590-577c-ae66-66ed4ef37921
+		summarizeBy: none
+		sourceColumn: Placeholder
+
+	measure 'Closed-won revenue' =
+			CALCULATE (
+			    SUM ( Fact_Opportunity[Amount] ),
+			    Fact_Opportunity[Stage] = "Closed Won"
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Sales
+		lineageTag: ff0867a1-89d9-59f3-9099-4e991501ae9d
+
+	measure 'Closed-won revenue PY' =
+			CALCULATE (
+			    [Closed-won revenue],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Sales
+		lineageTag: 3527b867-dc78-55ea-b22f-da504849119c
+
+	measure 'Closed-won revenue YoY %' =
+			VAR _cur = [Closed-won revenue]
+			VAR _py = [Closed-won revenue PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Sales
+		lineageTag: d79c9aa4-75ff-5d51-ad89-cb187f0913e8
+
+	measure 'Closed-won revenue YoY Status' =
+			VAR _d = [Closed-won revenue YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Sales
+		lineageTag: 72d32e44-0a10-5d0b-b1c4-4e04b0118308
+
+	measure 'Closed-won revenue YoY Colour' =
+			SWITCH (
+			    [Closed-won revenue YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Sales
+		lineageTag: faeb418e-45b7-51b3-aef6-782b74772bd1
+
+	measure 'Won deals' =
+			CALCULATE (
+			    COUNTROWS ( Fact_Opportunity ),
+			    Fact_Opportunity[Stage] = "Closed Won"
+			)
+		formatString: #,0
+		displayFolder: Sales\Base
+		lineageTag: e4cbcac8-8189-5f99-bc89-cf89e80ba4b5
+
+	measure 'Closed deals' =
+			CALCULATE (
+			    COUNTROWS ( Fact_Opportunity ),
+			    Fact_Opportunity[Stage] IN { "Closed Won", "Closed Lost" }
+			)
+		formatString: #,0
+		displayFolder: Sales\Base
+		lineageTag: e8332625-d7e7-5f5f-8654-f3604678b644
+
+	measure 'Win rate' = DIVIDE ( [Won deals], [Closed deals] )
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Sales
+		lineageTag: 40d96ffd-4aee-5a30-9b89-031c97d87ece
+
+	measure 'Win rate PY' =
+			CALCULATE (
+			    [Win rate],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Sales
+		lineageTag: c3a7238e-ab70-5a63-af67-7a2a6aef54c3
+
+	measure 'Win rate YoY pp' =
+			VAR _cur = [Win rate]
+			VAR _py = [Win rate PY]
+			RETURN
+			    IF ( NOT ISBLANK ( _cur ) && NOT ISBLANK ( _py ), ( _cur - _py ) * 100 )
+		formatString: +0.0 \p\p;-0.0 \p\p;0.0 \p\p
+		displayFolder: Sales
+		lineageTag: b2b3ea21-4833-5289-a34f-3dfc6b2873a3
+
+	measure 'Win rate YoY Status' =
+			VAR _d = [Win rate YoY pp]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.5, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Sales
+		lineageTag: d507487f-ae9c-5d75-8eb5-25c6ce9e49d6
+
+	measure 'Win rate YoY Colour' =
+			SWITCH (
+			    [Win rate YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Sales
+		lineageTag: 4853b324-f345-5b73-85ad-94a5dcd555ad
+
+	measure 'New customers' =
+			CALCULATE (
+			    DISTINCTCOUNT ( Fact_Opportunity[CustomerKey] ),
+			    Fact_Opportunity[Stage] = "Closed Won",
+			    Fact_Opportunity[IsNewCustomer] = TRUE ()
+			)
+		formatString: #,0
+		displayFolder: Sales
+		lineageTag: 8ea54220-8517-5eb3-b678-c04cf22d4daf
+
+	measure 'New customers PY' =
+			CALCULATE (
+			    [New customers],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: #,0
+		displayFolder: Sales
+		lineageTag: 369f56be-b631-52c1-a6a4-090362560b7f
+
+	measure 'New customers YoY %' =
+			VAR _cur = [New customers]
+			VAR _py = [New customers PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Sales
+		lineageTag: c4b1ab91-94a3-5295-86bf-174c989bd6bb
+
+	measure 'New customers YoY Status' =
+			VAR _d = [New customers YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Sales
+		lineageTag: 0a3631cd-4c2d-52d1-a090-62cf4feb9822
+
+	measure 'New customers YoY Colour' =
+			SWITCH (
+			    [New customers YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Sales
+		lineageTag: f7d9a84c-c55c-5073-ac5c-dafa9c5a1f58
+
+	measure 'Sales cycle (days)' =
+			CALCULATE (
+			    AVERAGE ( Fact_Opportunity[CycleDays] ),
+			    Fact_Opportunity[Stage] = "Closed Won"
+			)
+		formatString: 0.0
+		displayFolder: Sales
+		lineageTag: 4a5c8707-1fe3-5ecb-8a27-613a097bb8ed
+
+	measure 'Sales cycle (days) PY' =
+			CALCULATE (
+			    [Sales cycle (days)],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: 0.0
+		displayFolder: Sales
+		lineageTag: dfc9c2dd-dddc-5216-bbdf-8f2ed28001de
+
+	measure 'Sales cycle (days) YoY %' =
+			VAR _cur = [Sales cycle (days)]
+			VAR _py = [Sales cycle (days) PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Sales
+		lineageTag: 80955df3-43f5-5102-abbb-1a59cb64b279
+
+	measure 'Sales cycle (days) YoY Status' =
+			VAR _d = [Sales cycle (days) YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Bad",
+			        "Good"
+			    )
+		displayFolder: Sales
+		lineageTag: 4a03fd8f-d7cd-5d05-a889-bc5c3b1c1fa2
+
+	measure 'Sales cycle (days) YoY Colour' =
+			SWITCH (
+			    [Sales cycle (days) YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Sales
+		lineageTag: 6ee06589-1c41-59fe-99e7-e043a24bc4e0
+
+	measure 'Average deal size' = DIVIDE ( [Closed-won revenue], [Won deals] )
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Sales
+		lineageTag: d0b5c8c7-65f0-5919-9e80-6b53899d9ec5
+
+	measure 'Average deal size PY' =
+			CALCULATE (
+			    [Average deal size],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Sales
+		lineageTag: 751baaa3-8def-5a0b-b3f5-9d7a54c03140
+
+	measure 'Average deal size YoY %' =
+			VAR _cur = [Average deal size]
+			VAR _py = [Average deal size PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Sales
+		lineageTag: dec45c14-9368-517b-a92d-0e1920668def
+
+	measure 'Average deal size YoY Status' =
+			VAR _d = [Average deal size YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Sales
+		lineageTag: 7f4760a6-3a59-51ad-9c6c-73a654245ec5
+
+	measure 'Average deal size YoY Colour' =
+			SWITCH (
+			    [Average deal size YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Sales
+		lineageTag: 0137a0c9-d65e-5657-b931-55225ed9bdc1
+
+	measure 'Deal amount' = SUM ( Fact_Opportunity[Amount] )
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Sales\Base
+		lineageTag: 88d704dc-e0fe-5780-9a4d-dccc8eca0f78
+
+	measure 'Open pipeline' =
+			CALCULATE (
+			    SUM ( Fact_Opportunity[Amount] ),
+			    Fact_Opportunity[Stage] = "Open"
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Sales\Base
+		lineageTag: 7157815a-8888-5196-9bf5-48a72b225dab
+
+	measure 'Open deals' =
+			CALCULATE (
+			    COUNTROWS ( Fact_Opportunity ),
+			    Fact_Opportunity[Stage] = "Open"
+			)
+		formatString: #,0
+		displayFolder: Sales\Base
+		lineageTag: 700196f8-4361-5995-ac95-776ba67ad6b4
+
+	measure 'Average deal age (days)' =
+			CALCULATE (
+			    AVERAGE ( Fact_Opportunity[AgeDays] ),
+			    Fact_Opportunity[Stage] = "Open"
+			)
+		formatString: 0.0
+		displayFolder: Sales\Base
+		lineageTag: 5cbb346f-0847-505d-9cb1-3e8b1e820e33
+
+	measure Quota = SUM ( Fact_SalesTarget[Quota] )
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Sales\Base
+		lineageTag: 9757ff88-788a-5d5d-80f4-f8f25e962fd9
+
+	measure 'Quota attainment' = DIVIDE ( [Closed-won revenue], [Quota] )
+		formatString: 0%;-0%;0%
+		displayFolder: Sales
+		lineageTag: 5f2adade-c0fe-57ff-abe2-2b6ba63f0f48
+
+	partition _Sales = m
+		mode: import
+		source =
+				let
+				    Source = #table(
+				        type table [Placeholder = Int64.Type],
+				        {
+				        { 1 }
+				        }
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

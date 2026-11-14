@@ -507,6 +507,47 @@ if (!QUICK) {
           gr.status === 0 && gj.ok && (gj.pages || []).length > 0 && cf.status === 0 && cj.ok && cj.checked > 0,
           (sg.stdout + sg.stderr).slice(0, 300) + ' | ' + (gr.stdout + gr.stderr).slice(0, 300) + ' | ' + cf.stdout.slice(0, 300));
       }
+      // integration: pbip-layout's business template (Home + Sales + Marketing) – data contract → gen-measures.js
+      // writes the measures and the funnel list into the spec → build → gen-report → every field exists
+      {
+        const LAYOUT = path.join(SKILL, '..', 'pbip-layout', 'scripts');
+        const br = path.join(TMP, 'business');
+        fs.mkdirSync(br);
+        const cb = JSON.parse(fs.readFileSync(path.join(sr, 'choices.json'), 'utf8'));
+        const fact = (cb.build.tables || []).find((t) => t.kind === 'fact') || {};
+        const col = (re) => ((fact.columns || []).find((c) => re.test(c.name)) || {}).name;
+        const amount = col(/bel|amount/); const cust = col(/kunde|customer/); const stage = col(/kanal|channel|region/);
+        const F = (c) => `${fact.name}[${c}]`;
+        fs.writeFileSync(path.join(br, 'choices.json'), JSON.stringify(cb));
+        const cfgFile = path.join(br, 'layout-config.json');
+        fs.writeFileSync(cfgFile, JSON.stringify({ template: 'business', pages: ['home', 'sales', 'opportunity', 'marketing', 'campaign'], contract: {
+          'Dim_Date[Date]': 'dim_date[date]', 'Dim_Date[Year]': 'dim_date[year]', 'Dim_Date[MonthLabel]': 'dim_date[month_start]', 'Dim_Date[Quarter]': 'dim_date[quarter]',
+          'Fact_Opportunity[Amount]': F(amount), 'Fact_Opportunity[Stage]': F(stage), 'Fact_Opportunity[CustomerKey]': F(cust),
+          'Fact_Marketing[Leads]': F(amount), 'Fact_Marketing[MQLs]': F(amount), 'Fact_Marketing[SQLs]': F(amount), 'Fact_Marketing[Conversions]': F(amount), 'Fact_Marketing[Spend]': F(amount) },
+        values: { 'Fact_Opportunity[Stage]': { 'Closed Won': 'Web' } } }));
+        const gm = spawnSync('node', [path.join(LAYOUT, 'gen-measures.js'), cfgFile, '--spec', path.join(br, 'choices.json'), '--write-config'], { encoding: 'utf8' });
+        let gmj = {};
+        try { gmj = JSON.parse(gm.stdout); } catch { /* reported below */ }
+        const bb2 = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), br], { encoding: 'utf8' });
+        const smDir = path.join(br, 'pbip', `${cb.build.name || 'Test'}.SemanticModel`);
+        const td = path.join(smDir, 'definition', 'tables');
+        const rd = (f) => (fs.existsSync(path.join(td, f)) ? fs.readFileSync(path.join(td, f), 'utf8') : '');
+        const rep = path.join(br, 'pbip', 'Test.Report');
+        fs.mkdirSync(path.join(rep, 'definition', 'pages'), { recursive: true });
+        fs.writeFileSync(path.join(rep, 'definition', 'pages', 'pages.json'), JSON.stringify({ pageOrder: [] }));
+        fs.writeFileSync(path.join(rep, 'definition', 'report.json'), JSON.stringify({ themeCollection: { baseTheme: { name: 'CY24SU10', type: 'SharedResources' } } }));
+        const gr = spawnSync('node', [path.join(LAYOUT, 'gen-report.js'), rep, cfgFile], { encoding: 'utf8' });
+        let gj = {};
+        try { gj = JSON.parse(gr.stdout); } catch { /* reported below */ }
+        const cf = spawnSync('node', [path.join(LAYOUT, 'check-fields.js'), rep, smDir], { encoding: 'utf8' });
+        let cj = {};
+        try { cj = JSON.parse(cf.stdout); } catch { /* reported below */ }
+        check('pbip-layout business template: gen-measures writes snake_case measures and the funnel list into the spec, the model builds, Finance is left out by itself, every field exists',
+          gm.status === 0 && gmj.made > 20 && /measure closed_won_revenue_yoy_pct/.test(rd('_measures.tmdl')) && /"Web"/.test(rd('_measures.tmdl')) &&
+          /\("Leads", 1\)/.test(rd('funnel_stage.tmdl')) && /sortByColumn: funnel_stage_order/.test(rd('funnel_stage.tmdl')) && bb2.status === 0 &&
+          gr.status === 0 && gj.ok && (gj.pages || []).length === 5 && !(gj.modules || []).includes('finance') && gj.leftOutByModule > 0 && cf.status === 0 && cj.ok && cj.checked > 0,
+          `${fact.name}: ${amount}/${cust}/${stage} | ` + (gm.stdout + gm.stderr).slice(0, 300) + ' | ' + (bb2.stdout + bb2.stderr).slice(0, 300) + ' | ' + (gr.stdout + gr.stderr).slice(0, 300) + ' | ' + cf.stdout.slice(0, 300));
+      }
       cp.build.parameters = [{ kind: 'fields', name: 'bad_selection', items: [{ label: 'X', measure: 'no_such_measure' }] }];
       fs.writeFileSync(path.join(pr, 'choices.json'), JSON.stringify(cp));
       const bb = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), pr], { encoding: 'utf8' });

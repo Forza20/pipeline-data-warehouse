@@ -52,7 +52,9 @@ its recommended option, and nothing more is asked until the hand-over. Only thes
 - the path of the files when none was given (the report name is not asked: `--name`, else the folder name);
 - a run folder that already exists (step 1.4), and Power BI Desktop being open (step 8);
 - installing a missing program (step 0) – never install without a yes;
-- which AdventureWorks template pages the dashboard gets (step 6 – the dashboard is always built).
+- which dashboard the report gets – the AdventureWorks template or the Business template (Marketing, Sales,
+  Finance) – which of its pages, and its colours – Standard, a saved profile, hex codes or a screenshot
+  (step 6, one AskUserQuestion call; the dashboard is always built).
 
 What each step does instead of asking:
 
@@ -65,7 +67,7 @@ What each step does instead of asking:
 | 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
 | 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
 | 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
-| 6 | Dashboard (pbip-layout, the AdventureWorks template), catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. The dashboard uses *Standard* colours and title, but the pages are **always asked** (pbip-layout step 3; `extras.layout: true`, the chosen keys in `extras.layout_pages`) – a report with only the empty default page is never handed over. No Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. |
+| 6 | Dashboard (pbip-layout), catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. The template, the pages and the colours are **always asked**, in one AskUserQuestion call (the template question and the page question(s) of pbip-layout step 3 – the recommended template first, from the model –, plus the colour question of `/messy-pipeline` section 2b: Standard · saved profile · hex codes · screenshot; `extras.layout: true`, `extras.layout_template`, the chosen keys in `extras.layout_pages`; Business: the contract mapping takes each recommendation, the open ones go into `layout-decisions.json`) – a report with only the empty default page is never handed over. The colours go into a pbip-layout profile (`runs/<run-id>/layout-profile.json`, `extras.layout_profile`); the title is the Standard one. No Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. |
 | 8.6 | Governance's PII audit asks nothing: a visible column flagged as personal data stays as it is and goes into the hand-over as an open point (hide it later with `--resume`). |
 | 7 | Show the review summary as a record of the choices, then build without asking. |
 | 8.9 | Draft 3 grounded questions from the measures and dimensions yourself. |
@@ -118,7 +120,7 @@ runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
   },
   "model": { "relationships": ["Sales[customer_id] -> Customer[customer_id]"], "date_table": true,
              "incomplete_month": "flag", "measures": ["Total amount", "Orders"] },
-  "extras": { "layout": false, "catalog": false, "desktop": true },
+  "extras": { "layout": false, "layout_template": "adventureworks", "catalog": false, "desktop": true },
   "status": { "profile": "done", "questions": "done", "build": "pending", "verify": "pending" }
 }
 ```
@@ -369,11 +371,24 @@ The run always ends with an **overview page** (`overview.html`, step 8.7) and a 
 (`checks.dax`) – they are part of the hand-over, not extras. Ask about the rest (two questions, max 4
 options each, recommended ones first):
 
-1. *Report and documentation* (multiSelect): "Report pages from the AdventureWorks template – the
-  **pbip-layout** skill (Recommended)" – then **always** ask which pages (two multiSelect questions:
-  Exec Dashboard · Map · Product Detail · Customer Detail, and Category Tooltip · Q&A · Decomposition Tree ·
-  Key Influencers; pbip-layout `layout.md` → Pages) and its colour and title questions as in
-  `/messy-pipeline` section 2b; the page keys go to `choices.json → extras.layout_pages` ·
+1. *Report and documentation* (multiSelect): "Dashboard pages – the **pbip-layout** skill (Recommended)" –
+  then **always** ask which template (pbip-layout step 3; recommend from the model: leads/campaigns,
+  opportunities or a ledger with account types → Business, order lines with products and customers →
+  AdventureWorks) and which pages:
+  - **AdventureWorks** (two multiSelect questions): Exec Dashboard · Map · Product Detail · Customer Detail,
+    and Category Tooltip · Q&A · Decomposition Tree · Key Influencers (pbip-layout `layout.md` → Pages);
+  - **Business** (one multiSelect): Home · Marketing (+ Campaign Detail) · Sales (+ Opportunity Detail) ·
+    Finance (+ P&L Detail), each with what the model has or lacks for it (pbip-layout `layout-business.md` →
+    Required per module; a module without its required columns is not recommended);
+  and its colour and title questions as in `/messy-pipeline` section 2b (the colours are asked in fast mode
+  too); the template goes to `choices.json → extras.layout_template`, the page keys to
+  `extras.layout_pages`, the colours and title to a pbip-layout profile (`runs/<run-id>/layout-profile.json`,
+  `extras.layout_profile`). **Business in the build (step 8):** before `rebuild.js`, map the data contract
+  (`suggest-fields.js … --config runs/<run-id>/layout-config.json`, check the values with the profile's
+  distinct values) and run `gen-measures.js runs/<run-id>/layout-config.json --spec runs/<run-id>/choices.json
+  --write-config` – the template's measures (snake_case, folders Marketing/Sales/Finance/Home) and the
+  funnel stages (`parameters[]`, kind `list`) go into the spec, never by hand into TMDL; a missing column the
+  source has the parts for (cycle days, new-customer flag) is a cleaning step, decided like any other ·
   "Data catalog, lineage page and dbdiagram model – the **pbip-catalog** skill (Recommended)" (needs
   Python + openpyxl) · "Governance and handover – the **pbip-governance** skill (Recommended)": PII
   audit (visible personal data), RLS inventory, data sources, handover Markdown and an Azure DevOps wiki

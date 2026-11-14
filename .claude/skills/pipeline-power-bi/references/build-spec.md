@@ -126,14 +126,17 @@ same rows in a test query before the measure is saved. `snake-names.js` renames 
 ```json
 "parameters": [
   { "kind": "whatIf", "name": "price_adjustment_pct", "min": -1, "max": 1, "step": 0.1, "default": 0, "format": "0%" },
-  { "kind": "fields", "name": "product_metric_selection", "items": [ { "label": "Orders", "measure": "orders" }, { "label": "Revenue", "measure": "total_sales" } ] }
+  { "kind": "fields", "name": "product_metric_selection", "items": [ { "label": "Orders", "measure": "orders" }, { "label": "Revenue", "measure": "total_sales" } ] },
+  { "kind": "list", "name": "funnel_stage", "items": ["Leads", "MQLs", "SQLs", "Conversions"] }
 ]
 ```
 - `whatIf`: a table `<name>` with one column `<name>` (GENERATESERIES(min, max, step)) and the measure
   `<name>_value` (`<name> Value` without snake_case) = the selected value, or `default`.
 - `fields`: a field parameter – `<name>` (the slicer), `<name>_fields` and `<name>_order` (hidden;
   `<name> Fields` / `<name> Order` without snake_case); every `items[].measure` must be in `measures[]`.
-- Both are written to `tables/<name>.tmdl` with descriptions; `snake-names.js` renames them (no prefix).
+- `list`: a fixed list in its order – `<name>` sorted by `<name>_order` (hidden; `<name> Order` without
+  snake_case); pbip-layout's Business template uses it for the funnel stages (`gen-measures.js --spec`).
+- All are written to `tables/<name>.tmdl` with descriptions; `snake-names.js` renames them (no prefix).
 
 ## After a change
 

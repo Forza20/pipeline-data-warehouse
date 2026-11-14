@@ -348,6 +348,8 @@ function measuresTmdl(list) {
 //     → a table with one column of GENERATESERIES values and a <name>_value measure (SELECTEDVALUE)
 //   { "kind": "fields", "name": "product_metric_selection", "items": [{ "label": "Orders", "measure": "orders" }, …] }
 //     → a field parameter: <name>, <name>_fields (hidden) and <name>_order (hidden)
+//   { "kind": "list", "name": "funnel_stage", "items": ["Leads", "MQLs", "SQLs", "Conversions"] }
+//     → a fixed list in its order: <name> (sorted by) <name>_order (hidden) – e.g. pbip-layout's funnel stages
 const PARAMS = B.parameters || [];
 const pcol = (p, suffix) => (SNAKE ? `${p.name}_${suffix}` : `${p.name} ${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`);
 const pid = () => g().replace(/-/g, '');
@@ -373,11 +375,20 @@ function parameterTmdl(p) {
       `\t/// Sort order of the choices.\n\tcolumn ${q(pcol(p, 'order'))}\n\t\tisHidden\n\t\tformatString: 0\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: sum\n\t\tsourceColumn: [Value3]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n` +
       `\tpartition ${q(p.name)} = calculated\n\t\tmode: import\n\t\tsource =\n\t\t\t\t{\n${rows}\n\t\t\t\t}\n`;
   }
-  errors.push(`parameter ${p.name}: unknown kind ${p.kind} (whatIf, fields)`);
+  if (p.kind === 'list') {
+    const rows = (p.items || []).map((it, i) => `\t\t\t\t    (${JSON.stringify(String(it))}, ${i + 1})`).join(',\n');
+    return `/// ${p.description || `Fixed list ${p.name}: ${(p.items || []).join(', ')}, in this order.`}\n` +
+      `table ${q(p.name)}\n\tlineageTag: ${g()}\n\n` +
+      `\t/// The item.\n\tcolumn ${q(p.name)}\n\t\tdataType: string\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tsourceColumn: [Value1]\n\t\tsortByColumn: ${q(pcol(p, 'order'))}\n\n\t\tannotation SummarizationSetBy = Automatic\n\n` +
+      `\t/// Sort order of the items.\n\tcolumn ${q(pcol(p, 'order'))}\n\t\tdataType: int64\n\t\tisHidden\n\t\tformatString: 0\n\t\tlineageTag: ${g()}\n\t\tsummarizeBy: none\n\t\tsourceColumn: [Value2]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n` +
+      `\tpartition ${q(p.name)} = calculated\n\t\tmode: import\n\t\tsource =\n\t\t\t\t{\n${rows}\n\t\t\t\t}\n`;
+  }
+  errors.push(`parameter ${p.name}: unknown kind ${p.kind} (whatIf, fields, list)`);
   return '';
 }
 for (const p of PARAMS) {
-  if (!['whatIf', 'fields'].includes(p.kind)) errors.push(`parameter ${p.name}: unknown kind ${p.kind} (whatIf, fields)`);
+  if (!['whatIf', 'fields', 'list'].includes(p.kind)) errors.push(`parameter ${p.name}: unknown kind ${p.kind} (whatIf, fields, list)`);
+  if (p.kind === 'list' && !(Array.isArray(p.items) && p.items.length)) errors.push(`parameter ${p.name}: a list needs items[]`);
   if (p.kind === 'fields') for (const it of p.items || []) if (!(B.measures || []).some((m) => m.name === it.measure)) errors.push(`parameter ${p.name}: measure ${it.measure} is not in measures[]`);
   if (p.kind === 'whatIf' && [p.min, p.max, p.step].some((x) => typeof x !== 'number')) errors.push(`parameter ${p.name}: min, max and step must be numbers`);
 }

@@ -1,0 +1,287 @@
+table _Finance
+	lineageTag: 7da4ee27-072e-5a15-8d1f-72ae618f6982
+
+	column Placeholder
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 6226ebea-1041-5daf-b854-f4f1e7208f7b
+		summarizeBy: none
+		sourceColumn: Placeholder
+
+	measure Revenue =
+			CALCULATE (
+			    SUM ( Fact_Finance[Amount] ),
+			    Dim_Account[AccountType] = "Revenue",
+			    Fact_Finance[Status] <> "Reversed"
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: 6fde8ea4-66ae-59d5-95bd-470d94a66c2a
+
+	measure 'Revenue PY' =
+			CALCULATE (
+			    [Revenue],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: 6bc56c07-815f-547b-8d83-de3d46036b19
+
+	measure 'Revenue YoY %' =
+			VAR _cur = [Revenue]
+			VAR _py = [Revenue PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Finance
+		lineageTag: 05e20227-37ee-5f5b-9f77-fbaf990af8a9
+
+	measure 'Revenue YoY Status' =
+			VAR _d = [Revenue YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Finance
+		lineageTag: c5476b84-d3a4-58d3-85ca-73c5731556f5
+
+	measure 'Revenue YoY Colour' =
+			SWITCH (
+			    [Revenue YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Finance
+		lineageTag: 2b6d492d-7d72-55de-82d9-f6cabd0c06ae
+
+	measure 'Operating expenses' =
+			CALCULATE (
+			    SUM ( Fact_Finance[Amount] ),
+			    Dim_Account[AccountType] = "OpEx",
+			    Fact_Finance[Status] <> "Reversed"
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: 358a686e-3f4e-5788-b386-dc39a2d1230d
+
+	measure 'Operating expenses PY' =
+			CALCULATE (
+			    [Operating expenses],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: 2dd54204-72e3-5900-81fa-a7a927293b2d
+
+	measure 'Operating expenses YoY %' =
+			VAR _cur = [Operating expenses]
+			VAR _py = [Operating expenses PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Finance
+		lineageTag: e36b1267-75d8-5855-b9ef-373f52d37785
+
+	measure 'Operating expenses YoY Status' =
+			VAR _d = [Operating expenses YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Bad",
+			        "Good"
+			    )
+		displayFolder: Finance
+		lineageTag: e25780cb-7f34-52d1-b124-f480b3c21edd
+
+	measure 'Operating expenses YoY Colour' =
+			SWITCH (
+			    [Operating expenses YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Finance
+		lineageTag: 39287b3c-4655-531c-b517-107b9334efa1
+
+	measure 'Net profit' =
+			VAR _costs =
+			    CALCULATE (
+			        SUM ( Fact_Finance[Amount] ),
+			        Dim_Account[AccountType] IN { "COGS", "OpEx", "Other" },
+			        Fact_Finance[Status] <> "Reversed"
+			    )
+			RETURN
+			    [Revenue] - _costs
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: 275fa426-51d1-57a5-97aa-86d832957905
+
+	measure 'Net profit PY' =
+			CALCULATE (
+			    [Net profit],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: 070596b9-a35e-53ae-8a40-592e201c3ba9
+
+	measure 'Net profit YoY %' =
+			VAR _cur = [Net profit]
+			VAR _py = [Net profit PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Finance
+		lineageTag: a8637321-d592-5a7a-8b02-35933b7b26d0
+
+	measure 'Net profit YoY Status' =
+			VAR _d = [Net profit YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Finance
+		lineageTag: e27e1ab7-18df-5135-83c6-43107111c21f
+
+	measure 'Net profit YoY Colour' =
+			SWITCH (
+			    [Net profit YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Finance
+		lineageTag: dea6d4e9-3152-535d-a648-2de0c73f7d09
+
+	measure 'Net profit margin %' = DIVIDE ( [Net profit], [Revenue] )
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Finance
+		lineageTag: 7c51c07e-bca8-5b0b-b215-67d7f4680cd4
+
+	measure 'Net profit margin % PY' =
+			CALCULATE (
+			    [Net profit margin %],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Finance
+		lineageTag: a3c19c37-553f-5953-b752-13707bd948ad
+
+	measure 'Net profit margin % YoY pp' =
+			VAR _cur = [Net profit margin %]
+			VAR _py = [Net profit margin % PY]
+			RETURN
+			    IF ( NOT ISBLANK ( _cur ) && NOT ISBLANK ( _py ), ( _cur - _py ) * 100 )
+		formatString: +0.0 \p\p;-0.0 \p\p;0.0 \p\p
+		displayFolder: Finance
+		lineageTag: b93b16f4-7917-5a70-96ce-29e238fbe554
+
+	measure 'Net profit margin % YoY Status' =
+			VAR _d = [Net profit margin % YoY pp]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.5, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Finance
+		lineageTag: d85fd187-e249-5713-bdd7-b74fcdd4b482
+
+	measure 'Net profit margin % YoY Colour' =
+			SWITCH (
+			    [Net profit margin % YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Finance
+		lineageTag: 0c71dc01-a94e-5f5f-a927-db42dd49beb0
+
+	measure 'Operating cash flow' = SUM ( Fact_Finance[OperatingCashMovement] )
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: 2aee3c58-ffbb-5e33-bd96-961d43860da5
+
+	measure 'Operating cash flow PY' =
+			CALCULATE (
+			    [Operating cash flow],
+			    REMOVEFILTERS ( Dim_Date ),
+			    SAMEPERIODLASTYEAR ( Dim_Date[Date] )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance
+		lineageTag: e3c3f0a6-e0d0-5da0-8b2e-319abcd81ba6
+
+	measure 'Operating cash flow YoY %' =
+			VAR _cur = [Operating cash flow]
+			VAR _py = [Operating cash flow PY]
+			RETURN
+			    DIVIDE ( _cur - _py, _py )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Finance
+		lineageTag: 374c8c72-1d72-5c99-b104-913e313bb198
+
+	measure 'Operating cash flow YoY Status' =
+			VAR _d = [Operating cash flow YoY %]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( _d ), "Neutral",
+			        ABS ( _d ) <= 0.005, "Neutral",
+			        _d > 0, "Good",
+			        "Bad"
+			    )
+		displayFolder: Finance
+		lineageTag: dbf4fa4d-1554-5471-9ba4-7b29dd34b2b0
+
+	measure 'Operating cash flow YoY Colour' =
+			SWITCH (
+			    [Operating cash flow YoY Status],
+			    "Good", "#197A4C",
+			    "Bad", "#C0392B",
+			    "#6B7280"
+			)
+		displayFolder: Finance
+		lineageTag: d84f1d5d-83d8-58ec-a879-80c0221e1b06
+
+	measure 'Signed amount' =
+			SUMX (
+			    Fact_Finance,
+			    Fact_Finance[Amount] * IF ( RELATED ( Dim_Account[AccountType] ) = "Revenue", 1, -1 )
+			)
+		formatString: \$#,0;-\$#,0;\$#,0
+		displayFolder: Finance\Base
+		lineageTag: 9eec79e4-aa27-5c80-a9b2-aa586d6f311f
+
+	partition _Finance = m
+		mode: import
+		source =
+				let
+				    Source = #table(
+				        type table [Placeholder = Int64.Type],
+				        {
+				        { 1 }
+				        }
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

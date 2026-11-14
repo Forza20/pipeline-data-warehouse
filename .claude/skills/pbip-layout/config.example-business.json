@@ -1,0 +1,39 @@
+{
+ "template": "business",
+ "pages": ["home", "sales", "opportunity", "finance", "pnl"],
+ "contract": {
+  "Dim_Date[Date]": "dim_date[date]",
+  "Dim_Date[Year]": "dim_date[year]",
+  "Dim_Date[MonthLabel]": "dim_date[month_start]",
+  "Dim_Date[Month]": "dim_date[month_start]",
+  "Dim_Date[Quarter]": "dim_date[quarter]",
+  "Fact_Opportunity[Amount]": "fact_opportunity[amount]",
+  "Fact_Opportunity[Stage]": "fact_opportunity[stage]",
+  "Fact_Opportunity[CustomerKey]": "fact_opportunity[customer_id]",
+  "Fact_Opportunity[IsNewCustomer]": "fact_opportunity[is_new_customer]",
+  "Fact_Opportunity[CycleDays]": "fact_opportunity[cycle_days]",
+  "Fact_Opportunity[AgeDays]": null,
+  "Fact_Opportunity[AgeBucket]": null,
+  "Fact_Opportunity[PipelineStage]": "fact_opportunity[stage]",
+  "Fact_Opportunity[CloseDate]": "fact_opportunity[close_date]",
+  "Fact_Opportunity[CreatedDate]": "fact_opportunity[created_date]",
+  "Fact_SalesTarget[Quota]": "fact_sales_target[quota]",
+  "Dim_Rep[Rep]": "dim_rep[rep_name]",
+  "Dim_Customer[CustomerName]": "dim_customer[customer_name]",
+  "Dim_Product[Category]": "dim_product[category]",
+  "Fact_Finance[Amount]": "fact_gl[amount]",
+  "Fact_Finance[Status]": "fact_gl[status]",
+  "Fact_Finance[OperatingCashMovement]": null,
+  "Fact_Finance[DateKey]": "fact_gl[posting_date]",
+  "Fact_Finance[Description]": "fact_gl[description]",
+  "Dim_Account[AccountType]": "dim_account[account_type]",
+  "Dim_Account[AccountName]": "dim_account[account_name]",
+  "Dim_Account[ExpenseCategory]": "dim_account[expense_category]"
+ },
+ "values": {
+  "Fact_Opportunity[Stage]": { "Closed Won": "Won", "Closed Lost": "Lost", "Open": "Open" }
+ },
+ "currencyFormat": "#,0 \"kr.\"",
+ "colors": { "primary": "#0B3D5C", "secondary": "#F2A900" },
+ "texts": { "BI Library": "Forza BI", "Business Overview": "Business overview" }
+}

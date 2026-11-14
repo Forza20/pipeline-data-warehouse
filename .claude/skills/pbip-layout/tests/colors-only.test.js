@@ -4,6 +4,8 @@
 //   the palette scripts/palette.ps1 measures in a screenshot build the same pages – visuals, positions,
 //   sizes, fields, fonts, number formats, texts, bookmarks – once every #RRGGBB value is masked
 // - Standard is the template: its colours are exactly the template's colour keys
+// - display units are None on every visual, so numbers keep the measure's own format
+// - completeMonth filters the month KPI cards to complete months; left out = a warning
 // - every chosen colour reaches the pages, the icons are recoloured, the theme holds colours only
 // - pages: only the chosen ones are built; navigation to a page that was left out goes
 // - fields: a missing mapping stops the build; null leaves the field (or its visual) out
@@ -69,6 +71,15 @@ check('Standard: the pages use exactly the template colours', [...stdColours].ev
 const pj = JSON.parse(fs.readFileSync(path.join(std.dir, 'definition', 'pages', 'pages.json'), 'utf8'));
 check('Standard: template pages first, the own page kept last', pj.pageOrder.length === 9 && pj.pageOrder[8] === 'own0000000000000001');
 const rj = JSON.parse(fs.readFileSync(path.join(std.dir, 'definition', 'report.json'), 'utf8'));
+const units = Object.values(stdText).flatMap((t) => [...t.matchAll(/"\w*[dD]isplayUnits": \{\s*"expr": \{\s*"Literal": \{\s*"Value": "([^"]+)"/g)].map((m) => m[1]));
+check('Standard: display units are None (1D) everywhere – never "tusind", K or mio.', units.length > 20 && units.every((u) => u === '1D'), units.filter((u) => u !== '1D').join(','));
+check('Standard without completeMonth: a warning, no filter', (std.out.warnings || []).some((w) => /completeMonth/.test(w)) && !Object.values(stdText).some((s) => /FilterCompleteMonth/.test(s)));
+const cm = build('completemonth', { completeMonth: 'Calendar Lookup[Is Complete Month]' });
+const kpis = Object.entries(textFiles(cm.dir)).filter(([k]) => k.endsWith("visual.json")).map(([, s]) => s).filter((s) => /"visualType": "kpi"/.test(s));
+check('completeMonth: every month KPI card is filtered to complete months', cm.r.status === 0 && kpis.length === 3 &&
+  kpis.every((s) => /"name": "FilterCompleteMonth"/.test(s) && /"Property": "Is Complete Month"/.test(s)) && !(cm.out.warnings || []).some((w) => /completeMonth/.test(w)), `kpis=${kpis.length} filtered=${kpis.filter((s) => /FilterCompleteMonth/.test(s)).length} ${JSON.stringify(cm.out.warnings)}`);
+const bad3 = build('badcomplete', { completeMonth: 'is_complete_month' });
+check('completeMonth that is not Table[Column] stops the build', bad3.r.status === 2 && /completeMonth/.test(bad3.r.stdout));
 check('Standard: base theme is the template\'s', rj.themeCollection.baseTheme.name === TPL.baseTheme);
 check('Standard: no data of the source report left (names, products, selections)', !Object.values(stdText).some((s) => /Ruben Suarez|Water Bottle|'Bikes'|'Very High'|AdventureWorks_Logo/.test(s)));
 

@@ -1,0 +1,34 @@
+{
+ "_about": "Modules of the business template (gen-report.js). A module is chosen when one of its pages is. Template fields of a module that was not chosen are left out by themselves: tables[] says which template tables belong to a module, fieldModules[] names fields that need several modules. requires: a drillthrough page needs its overview page. reflow: Home's KPI cards and module tiles spread over the row when some are gone (slot = [main visual, visuals that move with it]). onDrop: when a visual is gone, others take its place. moduleTexts: {modules} = the chosen modules.",
+ "modules": {
+  "marketing": { "label": "Marketing", "pages": ["marketing", "campaign"], "tables": ["_Marketing", "Fact_Marketing", "Dim_Campaign", "Dim_Channel", "Dim_FunnelStage"] },
+  "sales": { "label": "Sales", "pages": ["sales", "opportunity"], "tables": ["_Sales", "Fact_Opportunity", "Fact_SalesTarget", "Dim_Rep", "Dim_Customer", "Dim_Product"] },
+  "finance": { "label": "Finance", "pages": ["finance", "pnl"], "tables": ["_Finance", "Fact_Finance", "Dim_Account"] }
+ },
+ "shared": { "pages": ["home"], "tables": ["Dim_Date"] },
+ "tableModules": { "_Home": ["marketing", "sales"] },
+ "requires": { "campaign": "marketing", "opportunity": "sales", "pnl": "finance" },
+ "reflow": [
+  { "page": "home", "name": "KPI cards", "from": 176, "to": 1264, "gap": 12, "slots": [
+   ["4aa95a5e819e7e49a062", "62093f7ee0241a00e566"],
+   ["688149cb54280b768f4d", "a41d212ad79ffbd0303f"],
+   ["f747b33d2a2a19bce519", "508e097dddd7260bf9f5"],
+   ["9d3aa4574dda9eacc469", "fa8c15023a7579255349"]
+  ] },
+  { "page": "home", "name": "module tiles", "from": 176, "to": 1264, "gap": 12, "slots": [
+   ["72b715e29d23d947051e", "24c5cda4149ad1e7e901"],
+   ["a51c3afb5bcddc0e2a5f", "a9986c86d856e93f6bcf"],
+   ["3c1a4943b7493b115988", "119fd1d32ce0a28e42cb"]
+  ] }
+ ],
+ "onDrop": {
+  "e4ccd183bfafba8d41ba": {
+   "72b715e29d23d947051e": { "y": 200, "height": 452 },
+   "a51c3afb5bcddc0e2a5f": { "y": 200, "height": 452 },
+   "3c1a4943b7493b115988": { "y": 200, "height": 452 }
+  }
+ },
+ "moduleTexts": {
+  "Headline KPIs across marketing, sales and finance": "Headline KPIs across {modules}"
+ }
+}
