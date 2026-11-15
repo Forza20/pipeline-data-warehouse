@@ -1,0 +1,7 @@
+table;column;type
+dim_region;region_name;string
+dim_region;region_code;string
+fact_sales;sale_id;id
+fact_sales;sale_date;date
+fact_sales;region_code;string
+fact_sales;amount;decimal

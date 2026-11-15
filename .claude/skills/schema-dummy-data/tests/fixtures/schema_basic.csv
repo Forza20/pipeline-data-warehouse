@@ -1,0 +1,16 @@
+table,column,type
+dim_customer,customer_id,id
+dim_customer,customer_name,string
+dim_customer,email,string
+dim_customer,city,string
+dim_customer,country,string
+dim_product,product_id,id
+dim_product,product_name,string
+dim_product,category,string
+fact_orders,order_id,id
+fact_orders,order_date,date
+fact_orders,customer_id,int
+fact_orders,product_id,int
+fact_orders,quantity,int
+fact_orders,amount,decimal
+fact_orders,status,string
