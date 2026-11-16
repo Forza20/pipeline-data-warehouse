@@ -71,8 +71,9 @@ row's city; every other one is its own city, the same as the first 40 % of the t
 
 ## Sample rows (sheet-per-table input)
 
-Rows under the header row are the client's examples. They are **kept as the first rows** of
-their table, exactly as written (a blank key is filled in), unless `-ExcludeSampleRows`. A date
+Rows under the header row are the client's examples. They are **removed from the output**
+(inspiration only). With `-KeepSampleRows` they are kept as the first rows of their table,
+exactly as written (a blank key is filled in). A date
 table ignores them (it is always a calendar). Per column, first rule that hits:
 
 | Samples look like | Kind | Generates |
@@ -101,8 +102,8 @@ with the month of the latest sample date and starts with the month of the earlie
 span ≥ 60 days; otherwise two years back. `periodFrom` in the JSON says which.
 
 **Keys**: a primary key continues the samples' format and numbering – integers (`1001` →
-`1007` ...) or prefix + digits (`ORD00008` → `ORD00009`, same width). With `-ExcludeSampleRows`
-it starts where the samples start. A one-value `example` on a key works the same way.
+`1007` ...) or prefix + digits (`ORD00008` → `ORD00009`, same width). Without `-KeepSampleRows`
+(default) it starts where the samples start. A one-value `example` on a key works the same way.
 
 **sampleWarnings**: a sample row whose foreign key or name-link value is not in the referenced
 table (an order for `Unknown Ltd` when the customer sheet has no such customer).

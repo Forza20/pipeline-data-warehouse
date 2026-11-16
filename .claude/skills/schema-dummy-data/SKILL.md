@@ -39,9 +39,9 @@ If the user asks what to send the client, give them this text (translate as need
 > values – not real customers or orders. Where a column has a fixed set of values, write them all
 > separated by | (e.g. Enterprise|Mid-Market|SMB).
 
-**The client's rows go into the output as they are**, as the first rows of each table. If they
-might be real data, say so before generating and offer `-ExcludeSampleRows` (they are then only
-used as inspiration).
+**The client's rows are removed from the output.** They are only inspiration for the generated
+rows (same values, ranges, formats, period). Keys start where the samples start. Pass
+`-KeepSampleRows` only when the user asks to keep them as the first rows of each table.
 
 ## Step 2 – Ask locale, then run
 
@@ -51,7 +51,7 @@ column names are clearly in one language (international cities, English labels),
 one instead and say why. Then run:
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\schema-dummy-data\scripts\New-DummyData.ps1 -SchemaPath "<path>" -OutDir "<folder>" -Locale da|en [-Seed <n>] [-EndDate yyyy-MM-dd] [-RowsFact <n>] [-RowsDim <n>] [-Rows "table=n,table2=n2"] [-Format xlsx|csv|both] [-OutName <file.xlsx>] [-ExcludeSampleRows] [-PlanOnly]
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\schema-dummy-data\scripts\New-DummyData.ps1 -SchemaPath "<path>" -OutDir "<folder>" -Locale da|en [-Seed <n>] [-EndDate yyyy-MM-dd] [-RowsFact <n>] [-RowsDim <n>] [-Rows "table=n,table2=n2"] [-Format xlsx|csv|both] [-OutName <file.xlsx>] [-KeepSampleRows] [-PlanOnly]
 ```
 
 Default `-OutDir`: the user's Downloads folder (`%USERPROFILE%\Downloads`, "Overførsler"), so the

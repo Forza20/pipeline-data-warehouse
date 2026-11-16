@@ -268,7 +268,7 @@ $wideXlsx = Join-Path $work 'wide_samples.xlsx'
 New-TestXlsx $wideXlsx @(@{ Name = 'CUST_MASTER'; Rows = $custRows }, @{ Name = 'ORDERS_2026'; Rows = $ordRows })
 
 $out12 = Join-Path $work 'wide'
-$r12 = Run-Generator $wideXlsx $out12 @{ Seed = 21; Locale = 'en'; RowsFact = 300; RowsDim = 25; Format = 'both' }
+$r12 = Run-Generator $wideXlsx $out12 @{ Seed = 21; Locale = 'en'; RowsFact = 300; RowsDim = 25; Format = 'both'; KeepSampleRows = $true }
 $tc = $r12.tables | Where-Object { $_.table -eq 'CUST_MASTER' }
 $to = $r12.tables | Where-Object { $_.table -eq 'ORDERS_2026' }
 Assert ($r12.inputShape -eq 'sheet-per-table') "a workbook without table/column headers should be read as one sheet per table, got '$($r12.inputShape)'"
@@ -319,17 +319,17 @@ Assert (([regex]::Matches($s2, '<row ')).Count -eq 301) "the ORDERS_2026 sheet s
 Assert ($s2 -match '<c r="F2" s="3"><v>46037\.4375</v></c>') "OrderDate should be a real Excel date+time cell (serial 46037.4375 = 2026-01-15 10:30)"
 Assert ($s2 -match '<c r="J2"><v>1250\.5</v></c>') "OrderTotal should be a number cell, not text"
 $out12b = Join-Path $work 'wide_b'
-Run-Generator $wideXlsx $out12b @{ Seed = 21; Locale = 'en'; RowsFact = 300; RowsDim = 25; Format = 'xlsx' } | Out-Null
+Run-Generator $wideXlsx $out12b @{ Seed = 21; Locale = 'en'; RowsFact = 300; RowsDim = 25; Format = 'xlsx'; KeepSampleRows = $true } | Out-Null
 Assert ((Get-FileHash $xlsxOut).Hash -eq (Get-FileHash (Join-Path $out12b 'wide_samples_dummy.xlsx')).Hash) "same seed should give a byte-identical XLSX"
 Assert (@(Get-ChildItem $out12b -Filter '*.csv').Count -eq 0) "Format xlsx (the default) should write no CSV files"
 
-# -- Test 14: -ExcludeSampleRows - inspiration only, none of the client's rows --
+# -- Test 14: default - inspiration only, none of the client's rows --
 $out14 = Join-Path $work 'wide_exclude'
-Run-Generator $wideXlsx $out14 @{ Seed = 21; Locale = 'en'; RowsFact = 50; RowsDim = 10; ExcludeSampleRows = $true } | Out-Null
+Run-Generator $wideXlsx $out14 @{ Seed = 21; Locale = 'en'; RowsFact = 50; RowsDim = 10 } | Out-Null
 $cust14 = @(Import-Csv (Join-Path $out14 'CUST_MASTER.csv') -Encoding UTF8)
 $ord14 = @(Import-Csv (Join-Path $out14 'ORDERS_2026.csv') -Encoding UTF8)
 Assert ($cust14[0].CustomerID -eq '1001' -and $ord14[0].OrderID -eq 'ORD00001') "without sample rows the key format should start where the samples start (1001, ORD00001)"
-Assert (@($cust14 | Where-Object { @('Meridian Group', 'Cascade Industries', 'Nova Retail') -contains $_.CustomerName }).Count -eq 0 -and $cust14.Count -eq 10) "-ExcludeSampleRows should leave out the client's rows"
+Assert (@($cust14 | Where-Object { @('Meridian Group', 'Cascade Industries', 'Nova Retail') -contains $_.CustomerName }).Count -eq 0 -and $cust14.Count -eq 10) "by default the skill should leave out the client's rows"
 
 # -- Test 15: headers only (no sample rows) behaves like a schema without examples --
 $headersOnly = Join-Path $work 'headers_only.xlsx'

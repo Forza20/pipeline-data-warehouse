@@ -12,8 +12,8 @@ Schema input, two shapes (detected automatically):
        example | eksempel   (optional: "A|B|C" = pick from these values; one value = a
                              number range, a date, or a code pattern like "DK-1234")
   B) Sheet per table (XLSX: every sheet; CSV: one table named after the file): row 1 =
-     column names, any further rows = the client's sample rows. Sample rows are kept as
-     the first rows of the output (unless -ExcludeSampleRows) and are the inspiration for
+     column names, any further rows = the client's sample rows. Sample rows are removed
+     from the output (kept as the first rows only with -KeepSampleRows) and are the inspiration for
      the rest: recurring values -> same list and frequencies, numbers -> same range,
      codes/ids -> same format continued, dates -> the period, empty share -> kept.
      No sample rows -> the column names alone decide (same as a long list without examples).
@@ -39,7 +39,7 @@ param(
     [string]$EndDate = '',
     [ValidateSet('xlsx', 'csv', 'both')][string]$Format = 'xlsx',
     [string]$OutName = '',
-    [switch]$ExcludeSampleRows,
+    [switch]$KeepSampleRows,
     [switch]$PlanOnly
 )
 
@@ -759,7 +759,7 @@ function Get-ClosedListSize($m) {
 # a generated calendar); the row count never drops below them.
 $keptSamples = @{}
 foreach ($table in $tableNames) {
-    $keptSamples[$table] = if ($ExcludeSampleRows -or $meta[$table].IsDateDim) { 0 } else { [int]$sampleCountByTable[$table] }
+    $keptSamples[$table] = if (-not $KeepSampleRows -or $meta[$table].IsDateDim) { 0 } else { [int]$sampleCountByTable[$table] }
 }
 
 $rowCountByTable = @{}
