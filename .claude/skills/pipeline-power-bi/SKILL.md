@@ -1,6 +1,7 @@
 ---
 name: pipeline-power-bi
-description: Turn CSV files and Excel workbooks (.xlsx/.xlsm – every sheet or Excel table becomes a table) the user attaches into a cleaned Power BI project (PBIP with TMDL) without manual Power Query work. Also takes the user's own Power BI project (.pbip, or a .pbix saved as .pbip) and cleans the CSV/Excel files it reads, or adds dashboard, catalog and governance to it; without own data it offers the demo files or a new messy dataset. Profiles every file and sheet, proposes the cleaning steps per table (title lines, total rows, spaces, "N/A" text, case variants, mixed date/number/boolean/id formats, duplicates, anomalies, wide month columns, orphan keys, data types, clean snake_case names) and lets the user switch each one on or off before it writes the Power Query steps, relationships, date table and measures. Optional dashboard layout and data catalog. No database, no Supabase, no GitHub. Use it when the user wants a Power BI report from CSV or Excel files, asks to clean CSV or Excel data for Power BI, wants Power Query steps written for them, or types /pipeline-power-bi.
+description: Turn CSV files and Excel workbooks (.xlsx/.xlsm) the user attaches into a cleaned Power BI project (PBIP with TMDL). Also takes the user's own Power BI project (.pbip, or a .pbix saved as .pbip) and cleans the CSV/Excel files it reads, or adds dashboard, catalog and governance to it; without own data it offers the demo files or a new messy dataset. Profiles every file and sheet, proposes the cleaning steps per table (title lines, total rows, spaces, "N/A" text, case variants, mixed date/number/boolean/id formats, duplicates, anomalies, wide month columns, orphan keys, data types, clean snake_case names) and lets the user switch each one on or off before it writes the Power Query steps, relationships, date table and measures. Optional dashboard layout and data catalog. No database, no Supabase, no GitHub. Use it when the user wants a Power BI report from CSV or Excel files, asks to clean CSV or Excel data for Power BI, wants Power Query steps written for them, or types /pipeline-power-bi.
+disable-model-invocation: true
 ---
 
 # pipeline-power-bi – from CSV and Excel files to a cleaned Power BI project
@@ -45,41 +46,11 @@ Arguments: file paths or a folder – CSV, Excel, a `.pbip` project or a `.pbix`
 
 ## Fast mode (`--fast`)
 
-For a demo or a first look. With `--fast` in the arguments, or when the user picks "Accept all
-recommended in every step" in step 1, the user has made one choice for the whole run: every question takes
-its recommended option, and nothing more is asked until the hand-over. Only these are still asked:
+With `--fast` in the arguments, or when the user picks "Accept all recommended in every step" in step 1:
+read [references/fast-mode.md](references/fast-mode.md) – what is still asked, and what each step does
+instead of asking.
 
-- the path of the files when none was given (the report name is not asked: `--name`, else the folder name);
-- a run folder that already exists (step 1.4), and Power BI Desktop being open (step 8);
-- installing a missing program (step 0) – never install without a yes;
-- which dashboard the report gets – the AdventureWorks template or the Business template (Marketing, Sales,
-  Finance) – which of its pages, and its colours – Standard, a saved profile, hex codes or a screenshot
-  (step 6, one AskUserQuestion call; the dashboard is always built).
-
-What each step does instead of asking:
-
-| Step | Fast mode |
-|---|---|
-| 0 | Run `Check-Tools.ps1 -Catalog` (Node, the report CLI, Desktop, and Python + openpyxl for the catalog and governance). Python missing and not installed: skip both and say so in the hand-over. |
-| 1 | Copy the files into the run folder. |
-| 2 | Include the recommended sheets; append F21 pairs. Show the overview table, no questions. |
-| 3 | The first (recommended) language and number format; proposed names; clean snake_case column names. |
-| 4 | Every `recommended: true` finding at its default variant. F28 without names keeps the codes. Skip reading fix-catalog.md – the profile's `recommended` and `variant` are enough. |
-| 4b | The proposed star schema. Review points are drafted and left **open** (they go into the hand-over). |
-| 5 | Relationships with `preferred: true` and ≥ 95 % match, the date table, the default M01 variant, the recommended measures, glossary drafted from the formulas. |
-| 6 | Dashboard (pbip-layout), catalog (pbip-catalog) and governance (pbip-governance) always, with AI descriptions written without asking. The template, the pages and the colours are **always asked**, in one AskUserQuestion call (the template question and the page question(s) of pbip-layout step 3 – the recommended template first, from the model –, plus the colour question of `/messy-pipeline` section 2b: Standard · saved profile · hex codes · screenshot; `extras.layout: true`, `extras.layout_template`, the chosen keys in `extras.layout_pages`; Business: the contract mapping takes each recommendation, the open ones go into `layout-decisions.json`) – a report with only the empty default page is never handed over. The colours go into a pbip-layout profile (`runs/<run-id>/layout-profile.json`, `extras.layout_profile`); the title is the Standard one. No Desktop check or publishing, unless the user named them in the same message. The overview page and `checks.dax` are always made. |
-| 8.6 | Governance's PII audit asks nothing: a visible column flagged as personal data stays as it is and goes into the hand-over as an open point (hide it later with `--resume`). |
-| 7 | Show the review summary as a record of the choices, then build without asking. |
-| 8.9 | Draft 3 grounded questions from the measures and dimensions yourself. |
-| 8.11 | List the model-health warnings in the hand-over; do not rebuild. |
-| 9 | Give `checks.dax` and `grounded-answers.dax` to run in Desktop. |
-
-Work in few tool calls: write `choices.json` once after step 5 (not after every table); write the build spec
-and `checks[]` in one turn, scaffold the report, then run `rebuild.js` once (it runs build-model, build-docs,
-build-context, model health, the grounded answers, the handover and the overview in order); load
-`pbip-catalog` and `pbip-governance` in one turn (parallel Skill calls) and run the catalog's
-`--missing-only` and governance's `parse_pbip.py` + wiki bundle in one command. The hand-over says the
-run used fast mode and how to change a choice: `/pipeline-power-bi --resume <run-id>`.
+## Asking
 
 Ask with AskUserQuestion: at most 4 questions per call, 2–4 options per question (the tool adds "Other"),
 each question understandable on its own (name the table and column in it). Use `multiSelect` where
@@ -89,41 +60,9 @@ option such as "I'll type them" comes back with no text, because typing is only 
 
 ## Files
 
-```
-runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
-    data/                          # copies of the CSV/Excel files (unless the user keeps them in place)
-    profile.json                   # Profile-Sources.ps1 output (reads CSV and Excel)
-    choices.json                   # every answer – the single source for the build
-    cleaning-log.md                # table → step → rows → choice (written at the build)
-    expected-values.md             # rows and totals to check the report against
-    checks.dax                     # the same checks as one DAX query (Desktop → DAX query view)
-    overview.html                  # project overview page (build-overview.js)
-    layout-mapping.md              # from pbip-layout (when the dashboard is chosen)
-    checks-basis.json              # what the model looked like when checks[] were computed (build-docs.js)
-    governance/                    # model.json, <Name>_azdo_wiki.zip (pbip-governance), handover.md (build_handover.py)
-    pbip/<Name>.pbip, <Name>.Report/, <Name>.SemanticModel/
-```
-
-`choices.json`:
-```json
-{
-  "run_id": "2026-11-06_pbi_sales", "name": "Sales", "source_folder": "runs/2026-11-06_pbi_sales/data/",
-  "copy_files": true, "report_culture": "en-US", "currency": "USD", "report_language": "en",
-  "tables": {
-    "fact_orders": { "include": true, "source": { "kind": "csv", "file": "fact_orders.csv" },
-      "table_name": "Sales", "role": "fact", "mode": "one-by-one",
-      "fixes": [ { "fix": "F08", "column": "order_date", "keep": true, "variant": "day-first" },
-                 { "fix": "F14", "column": "amount", "check": "Zero values", "keep": false } ] },
-    "tblKunder": { "include": true, "source": { "kind": "excel table", "file": "salg.xlsx", "sheet": "Kunder", "item": "tblKunder" },
-      "table_name": "Customer", "role": "dimension", "mode": "recommended", "fixes": [] },
-    "Noter": { "include": false, "source": { "kind": "sheet", "file": "salg.xlsx", "sheet": "Noter", "item": "Noter" } }
-  },
-  "model": { "relationships": ["Sales[customer_id] -> Customer[customer_id]"], "date_table": true,
-             "incomplete_month": "flag", "measures": ["Total amount", "Orders"] },
-  "extras": { "layout": false, "layout_template": "adventureworks", "catalog": false, "desktop": true },
-  "status": { "profile": "done", "questions": "done", "build": "pending", "verify": "pending" }
-}
-```
+Every run lives in `runs/<yyyy-MM-dd>_pbi_<name>/` (git-ignored); every answer goes into its
+`choices.json`, the single source for the build. The folder layout and the `choices.json` shape are in
+[references/run-files.md](references/run-files.md) – read it before step 1 writes the first file.
 
 ## Step 0 – Check the tools (show a short status line after the check)
 
@@ -372,23 +311,13 @@ The run always ends with an **overview page** (`overview.html`, step 8.7) and a 
 options each, recommended ones first):
 
 1. *Report and documentation* (multiSelect): "Dashboard pages – the **pbip-layout** skill (Recommended)" –
-  then **always** ask which template (pbip-layout step 3; recommend from the model: leads/campaigns,
-  opportunities or a ledger with account types → Business, order lines with products and customers →
-  AdventureWorks) and which pages:
-  - **AdventureWorks** (two multiSelect questions): Exec Dashboard · Map · Product Detail · Customer Detail,
-    and Category Tooltip · Q&A · Decomposition Tree · Key Influencers (pbip-layout `layout.md` → Pages);
-  - **Business** (one multiSelect): Home · Marketing (+ Campaign Detail) · Sales (+ Opportunity Detail) ·
-    Finance (+ P&L Detail), each with what the model has or lacks for it (pbip-layout `layout-business.md` →
-    Required per module; a module without its required columns is not recommended);
-  and its colour and title questions as in `/messy-pipeline` section 2b (the colours are asked in fast mode
-  too); the template goes to `choices.json → extras.layout_template`, the page keys to
-  `extras.layout_pages`, the colours and title to a pbip-layout profile (`runs/<run-id>/layout-profile.json`,
-  `extras.layout_profile`). **Business in the build (step 8):** before `rebuild.js`, map the data contract
-  (`suggest-fields.js … --config runs/<run-id>/layout-config.json`, check the values with the profile's
-  distinct values) and run `gen-measures.js runs/<run-id>/layout-config.json --spec runs/<run-id>/choices.json
-  --write-config` – the template's measures (snake_case, folders Marketing/Sales/Finance/Home) and the
-  funnel stages (`parameters[]`, kind `list`) go into the spec, never by hand into TMDL; a missing column the
-  source has the parts for (cycle days, new-customer flag) is a cleaning step, decided like any other ·
+  then **always** ask which template and which pages with pbip-layout's step 3 questions (recommend the
+  template from the model: leads/campaigns, opportunities or a ledger with account types → Business, order
+  lines with products and customers → AdventureWorks), and its colour and title questions as in
+  `/messy-pipeline` section 2b (the colours are asked in fast mode too). Save the template to
+  `extras.layout_template`, the page keys to `extras.layout_pages`, the colours and title to a pbip-layout
+  profile (`runs/<run-id>/layout-profile.json`, `extras.layout_profile`). The Business template's build
+  steps are in build-steps.md, step 8.6 ·
   "Data catalog, lineage page and dbdiagram model – the **pbip-catalog** skill (Recommended)" (needs
   Python + openpyxl) · "Governance and handover – the **pbip-governance** skill (Recommended)": PII
   audit (visible personal data), RLS inventory, data sources, handover Markdown and an Azure DevOps wiki
@@ -485,59 +414,32 @@ Delete (every step is named after its fix). Where to point the files: Transform 
 → `SourceFolder`. For Excel: the queries find sheets and Excel tables by name, so renaming a sheet or
 table in the workbook breaks the refresh – keep the names, or tell the skill on a `--resume`.
 
+## Self-improvement
+
+This skill is never finished. Improve it as you use it.
+
+- When the user corrects how a step was done, update the reference file that step reads (or this
+  SKILL.md) so the correction sticks – not only for this run. A correction to a cleaning step goes into
+  `references/fix-catalog.md`; to the design, `references/modeling-guide.md`; to the build,
+  `references/build-steps.md`.
+- When a correction is a hard rule ("always X", "never Y"), add it to Principles above.
+- Keep the skill small: when you add something, cut whatever no longer changes what the agent does.
+
 ## Reference files
 
-- [references/fix-catalog.md](references/fix-catalog.md) – every fix: recommended or not, variants, the
-  M step, and whether it changes the numbers. Read before step 4.
-- [references/modeling-guide.md](references/modeling-guide.md) – how to turn cleaned tables into a star
-  schema: grain, line-level and process facts, flat dimensions, junk and role-playing dimensions,
-  surrogate keys, what to leave out, security, date, staging, review checklist. Read before step 4b.
-- [references/build-steps.md](references/build-steps.md) – step 8 in full (commands, flags, the other skills,
-  overview colours, grounded answers, model context and health) and the drift check for new files. Read
-  before step 8 and before a `--resume` that rebuilds.
-- [references/model-review.md](references/model-review.md) – the six review points of step 4b.5 and the
-  evidence to measure for each.
-- [references/source-model.md](references/source-model.md) – folder parameter, the four parse functions, the
-  CSV and Excel table/partition templates, staging queries and star-schema patterns (section 2c), date
-  table and DAX checks. Read before step 8.
-- [scripts/Profile-Sources.ps1](scripts/Profile-Sources.ps1) – the read-only profiler for CSV and Excel (Windows
-  PowerShell 5.1; Excel need not be installed).
-- [scripts/build-model.js](scripts/build-model.js) + [references/build-spec.md](references/build-spec.md) –
-  the model generator and its spec (choices.json → `build`). Read the spec reference before step 8.
-- [scripts/pbip_sources.py](scripts/pbip_sources.py) – the CSV/Excel files behind the user's own Power BI
-  project (step 1), read-only; refuses a `.pbix` with how to save it as `.pbip`.
-- [scripts/Check-Tools.ps1](scripts/Check-Tools.ps1) – step 0's checks of Node, the report CLI, Desktop and
-  Python in one call (JSON); installs nothing.
-- [scripts/build-docs.js](scripts/build-docs.js) – `cleaning-log.md`, `expected-values.md` and `checks.dax`
-  from the profile, the choices, `checks[]` and the generated model (step 8.4); marks checks made stale by a
-  later design change (`checks-basis.json`, `--checks-updated`).
-- [scripts/build_handover.py](scripts/build_handover.py) – `governance/handover.md` from the model and the
-  choices (step 8.6), with pbip-governance's PII heuristic and role parser.
-- [scripts/build-overview.js](scripts/build-overview.js) – the overview page (and optional Obsidian note)
-  from the run folder.
-- [scripts/rebuild.js](scripts/rebuild.js) – the run's scripts in order after a change (model → docs →
-  context → health → grounded answers → handover → overview), stopping at the first failure; one JSON result.
-- [scripts/snake-names.js](scripts/snake-names.js) – renames a build spec to snake_case (`dim_`/`fact_`
-  tables, columns, measures) and rewrites every reference; `rebuild.js` runs it when `naming` is `snake_case`.
-- [scripts/descriptions.py](scripts/descriptions.py) – fills every missing `///` description from the
-  catalog's AI drafts (`--apply`) and writes `pbip/docs/descriptions.xlsx` (with a Review column for
-  descriptions that rest on an assumption); `--redo` replaces named fields' descriptions; refuses to write a
-  file whose change is more than `///` lines (exit 2); exit 1 lists fields still missing.
-- [scripts/measure-test.js](scripts/measure-test.js) – a DAX query view test of a new or changed measure
-  before it is saved (`DEFINE` + its checks and filter contract + a per-member breakdown);
-  [scripts/filter-checks.js](scripts/filter-checks.js) turns a measure's `filters` into checks for it and
-  for `checks.dax`.
-- [scripts/model_health.py](scripts/model_health.py) – model size and DAX rules (TODAY/NOW, `/` without
-  DIVIDE, unknown references, typed-in results).
-- [scripts/run-summary.js](scripts/run-summary.js) – the compact summary of a run's choices for `--resume`,
-  step 1.4 and step 7 (Markdown, or `--json`).
-- Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
-- [tests/run-tests.js](tests/run-tests.js) – 149 checks of the profiler, the model generator, the hand-over files (build-docs, stale checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview
-  page on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). **After changing any
-  script of this skill, or `parse_pbip.py`/`build_catalog.py`, run** `node .claude\skills\pipeline-power-bi\tests\run-tests.js`
-  (and `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` runs 99
-  of the 136 checks in about half the time (no drift or Python checks) for use while working; a change is
-  only done when the full run passes.
-- `../supabase-medallion-powerbi/references/tmdl-templates.md` – shared PBIP/TMDL templates (sections
-  1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` for PBIP/TMDL load
-  errors.
+| Step | Read |
+|---|---|
+| 1 | [references/run-files.md](references/run-files.md) – run folder and `choices.json` |
+| Fast mode | [references/fast-mode.md](references/fast-mode.md) |
+| 4 | [references/fix-catalog.md](references/fix-catalog.md) – every fix: recommended or not, variants, the M step, whether it changes the numbers |
+| 4b | [references/modeling-guide.md](references/modeling-guide.md) – star schema rules and checklist; [references/model-review.md](references/model-review.md) – the six review points and their evidence |
+| 8 | [references/build-steps.md](references/build-steps.md) – commands, flags, the other skills, drift check (also before a `--resume` that rebuilds); [references/build-spec.md](references/build-spec.md) – the `build` spec; [references/source-model.md](references/source-model.md) – parse functions, CSV/Excel templates, staging, date table, DAX checks |
+| Any script | [references/scripts.md](references/scripts.md) – what each script does |
+| PBIP/TMDL load errors | `../supabase-medallion-powerbi/references/tmdl-templates.md` (sections 1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` |
+
+Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
+
+**After changing any script of this skill, or `parse_pbip.py`/`build_catalog.py`, run**
+`node .claude\skills\pipeline-power-bi\tests\run-tests.js` (and
+`python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` is for use
+while working; a change is only done when the full run passes.

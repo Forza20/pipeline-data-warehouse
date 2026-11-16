@@ -96,6 +96,12 @@ close it).
      run folder** (page → template field → model field → value → fallback → open points). The measures and
      parameters the pages need (its `measures.md`) go into `choices.json → build.measures[]` and
      `build.parameters[]`, then `rebuild.js` – so a later rebuild keeps them. Do this after the model validates.
+     **Business template:** before `rebuild.js`, map the data contract (`suggest-fields.js … --config
+     runs/<run-id>/layout-config.json`, check the values with the profile's distinct values) and run
+     `gen-measures.js runs/<run-id>/layout-config.json --spec runs/<run-id>/choices.json --write-config` – the
+     template's measures (snake_case, folders Marketing/Sales/Finance/Home) and the funnel stages
+     (`parameters[]`, kind `list`) go into the spec, never by hand into TMDL; a missing column the source has
+     the parts for (cycle days, new-customer flag) is a cleaning step, decided like any other.
    - **pbip-catalog**: `build_catalog.py <pbip> --missing-only` (its fast path: only the list of missing
      descriptions, in about a second), then AI descriptions for every missing field (its step 3, with keys
      described from the relationships) and **one** full run with `--ai-descriptions … --html`. Report: counts,
