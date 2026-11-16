@@ -23,6 +23,9 @@ column come out like that?" is answered by reading the plan.
 6. **Type hint** from the optional `type`/`datatype` column.
 7. Placeholder – flagged in `unmatchedColumns`.
 
+With a sheet-per-table input, **sample rows** refine the kind from steps 4–7 (see "Sample rows"
+below); keys, lookups and derived numbers (steps 1–3) still win.
+
 ## Name patterns
 
 | Tokens matched | Kind | Generates |
@@ -61,6 +64,49 @@ Within one row the person, city and product are chosen once, so `email` matches 
 `country`/`region`/`postal` match the city, and `product_category` matches the product name.
 In a dimension the person/product/company/city of a "store"-like table is distinct per row.
 
+**Several city columns in a row** (`CustomerCity`, `ShipToCity`, `BillToCity`): the first is the
+row's city; every other one is its own city, the same as the first 40 % of the time. A
+`country`/`region`/`postal` column follows the city column with the same prefix
+(`ship_country` → `ship_city`), else the row's city.
+
+## Sample rows (sheet-per-table input)
+
+Rows under the header row are the client's examples. They are **kept as the first rows** of
+their table, exactly as written (a blank key is filled in), unless `-ExcludeSampleRows`. A date
+table ignores them (it is always a calendar). Per column, first rule that hits:
+
+| Samples look like | Kind | Generates |
+|---|---|---|
+| empty in every row, and ≥ 3 sample rows | blank | empty – the client leaves it empty |
+| any cell holds `A\|B\|C` | sample list | those values, skewed like other closed lists; other empty sample cells are *not* an empty share |
+| name kind is row-bound (email, phone, city, country, postal, address, first/last name, date parts, currency, bool; region when the table has a city) | name kind | unchanged – keeps the row consistent |
+| all `yyyy-MM-dd[ HH:mm[:ss]]`, or Excel date cells | date | the period comes from them (below); with a time of day → `yyyy-MM-dd HH:mm:ss`, 08:00–18:00 |
+| all numbers, ≤ 12 distinct values each seen ≥ 2 times (≥ 4 values), or a leading zero | sample list | the same codes with the same frequencies (`OrderChannel` 10/20/30/40) |
+| all numbers otherwise | sample range | min..max of the samples, log-uniform if max/min > 4, the samples' decimals (≤ 4); amount/quantity/percent keep their kind (so derived totals still work) but use this range; one number → 50–150 % of it |
+| text, ≤ 12 distinct values each seen ≥ 2 times | sample list | the sample values with their frequencies (`Segment`, `Status`, `AccountManager`) |
+| every value has a space and at least half end in a company word (Group, Holdings, Inc., ApS, A/S, Partners, Trading, Retail, ...) | company | word bank + the samples' own suffixes, distinct in a dimension and never one of the samples' names |
+| all hex, ≥ 16 chars | sample hex | random hex of the same length and case |
+| all `<same prefix><digits>` (`SAP-200000`, `ORD00001`) | sample code | a dimension continues the numbering after the highest sample (`SAP-200006`); a fact gets random digits of the same width |
+| name kind `fullname` | fullname | unchanged |
+| average length > 25, or a description column | sample text | the sample sentences (one distinct sentence → mixed with the locale's filler sentences) |
+| one distinct value, closed-list name kind (status, segment, channel, ...) | name kind | standard list kept; reported in `hints` |
+| generic/entity/category/status/... | sample list | the sample values; one distinct value → every row gets it, reported in `hints` |
+
+**Empty share**: with ≥ 3 sample rows, a column that is empty in some of them is empty in the
+same share of generated rows (`OrderNotes` filled in 5 of 8 → about 38 % empty). Keys and lookups
+are never blanked.
+
+**Period**: without `-EndDate`, sample dates (fact tables first, else any table) set it – it ends
+with the month of the latest sample date and starts with the month of the earliest one when they
+span ≥ 60 days; otherwise two years back. `periodFrom` in the JSON says which.
+
+**Keys**: a primary key continues the samples' format and numbering – integers (`1001` →
+`1007` ...) or prefix + digits (`ORD00008` → `ORD00009`, same width). With `-ExcludeSampleRows`
+it starts where the samples start. A one-value `example` on a key works the same way.
+
+**sampleWarnings**: a sample row whose foreign key or name-link value is not in the referenced
+table (an order for `Unknown Ltd` when the customer sheet has no such customer).
+
 ## Primary and foreign keys
 
 **Primary key** of a table, first rule that hits:
@@ -76,6 +122,13 @@ Otherwise the table has no primary key (`primaryKey: null`) but still gets an in
 name (`customer_id` → `dim_customer` even if its key is just `id`). **Self-reference**:
 `manager_id`, `parent_id`, `leder_id`, `reports_to`, `parent_<base>_id` on a table with a key –
 the first 3 rows are the top (empty), every later row points to one of the earlier top rows.
+
+**Name link**: a fact with no key to a dimension, but a column with the same name as one of the
+dimension's columns – a name column with ≥ 2 tokens (`CustomerName`, `kunde_navn`) or a
+company/person/product/store column – gets a hidden key to that dimension. The shared column (and
+any other shared column) is then a lookup through it, so every name in the fact exists in the
+dimension. The hidden key is never written; the JSON shows the link as
+`{ column: CustomerName, references: CUST_MASTER, via: name }`.
 
 Foreign keys are sampled with a skew (`index = random² × n`) over a **shuffled popularity order**
 that is shared by every table pointing at the same dimension – the same few customers and
@@ -106,8 +159,15 @@ adding, removing or reordering a column leaves the values of the other columns u
   `example` (`Privat|Erhverv`) to get real labels.
 - Entity names without a known context (`campaign_name`, `project_name`) get `<Word> <n>`
   and are flagged unmatched – an `example` fixes those too.
-- Only the first sheet of an XLSX schema is read. CSV delimiter: comma, semicolon or tab
-  (whichever splits the header into most fields).
+- Input shape: if the first sheet's header has `table`/`tabel` and `column`/`kolonne`, only that
+  sheet is read as a long list; otherwise every sheet is a table. CSV delimiter: comma, semicolon
+  or tab (whichever splits the header into most fields).
 - A business key is only linked when the dimension's column is named after its table
   (`region_code` on `dim_region`); a code column with an unrelated name stays unlinked.
-- Runtime is PowerShell 5.1: ~4 s for 1 000 fact rows, ~8 s for 5 000.
+- Sample cities, regions and countries are not added to the word bank: city/region/country stay
+  row-consistent from the locale's list, so a client's `Tokyo` does not appear in generated rows.
+- The client's sample rows are copied as they are, including odd values (`TEST` as an account
+  manager) – that value can then also be picked for generated rows when the column is a sample list.
+- Output: XLSX with inline strings (no shared strings table); every column gets one type – all
+  numbers → number cells, all `yyyy-MM-dd[ HH:mm:ss]` → date cells, anything mixed → text.
+- Runtime is PowerShell 5.1: ~7 s for 1 000 fact rows with XLSX output, ~6 s with CSV only.

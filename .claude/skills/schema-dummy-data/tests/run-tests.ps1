@@ -24,7 +24,8 @@ function Assert([bool]$condition, [string]$message) {
 }
 
 function Run-Generator([string]$schemaPath, [string]$outDir, [hashtable]$extraParams = @{}) {
-    $callParams = @{ SchemaPath = $schemaPath; OutDir = $outDir }
+    # CSV unless a test asks for XLSX: the older tests read the CSV files directly
+    $callParams = @{ SchemaPath = $schemaPath; OutDir = $outDir; Format = 'csv' }
     foreach ($k in $extraParams.Keys) { $callParams[$k] = $extraParams[$k] }
     $json = & $script @callParams
     return ($json -join "`n") | ConvertFrom-Json
@@ -201,6 +202,142 @@ Run-Generator $schemaPlus $outP @{ Seed = 7; RowsFact = 15; RowsDim = 5 } | Out-
 $amountsA = (Import-Csv (Join-Path $outA 'fact_orders.csv') | ForEach-Object { $_.amount }) -join ','
 $amountsP = (Import-Csv (Join-Path $outP 'fact_orders.csv') | ForEach-Object { $_.amount }) -join ','
 Assert ($amountsA -eq $amountsP) "adding a column to dim_customer must not change fact_orders.amount for the same seed"
+
+# -- Test 12-15: sheet-per-table XLSX with the client's sample rows ----------
+# Built here (no binary fixture): inline strings, plain numbers and a date+time cell
+# stored the way Excel stores it (serial number + date style), so the reader's date
+# conversion is tested too. All values are made up.
+function New-TestXlsx([string]$path, $sheetDefs) {
+    Add-Type -AssemblyName System.IO.Compression
+    $ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Create)
+    $zip = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create)
+    function Add-Part([string]$name, [string]$text) { $st = $zip.CreateEntry($name).Open(); $b = $enc.GetBytes($text); $st.Write($b, 0, $b.Length); $st.Dispose() }
+    $over = ''; $sheetsXml = ''; $relsXml = ''
+    for ($s = 1; $s -le $sheetDefs.Count; $s++) {
+        $over += "<Override PartName=`"/xl/worksheets/sheet$s.xml`" ContentType=`"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml`"/>"
+        $sheetsXml += "<sheet name=`"$($sheetDefs[$s - 1].Name)`" sheetId=`"$s`" r:id=`"rId$s`"/>"
+        $relsXml += "<Relationship Id=`"rId$s`" Type=`"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet`" Target=`"worksheets/sheet$s.xml`"/>"
+    }
+    Add-Part '[Content_Types].xml' "<Types xmlns=`"http://schemas.openxmlformats.org/package/2006/content-types`"><Default Extension=`"rels`" ContentType=`"application/vnd.openxmlformats-package.relationships+xml`"/><Default Extension=`"xml`" ContentType=`"application/xml`"/><Override PartName=`"/xl/workbook.xml`" ContentType=`"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml`"/><Override PartName=`"/xl/styles.xml`" ContentType=`"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml`"/>$over</Types>"
+    Add-Part '_rels/.rels' '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'
+    Add-Part 'xl/workbook.xml' "<workbook xmlns=`"$ns`" xmlns:r=`"http://schemas.openxmlformats.org/officeDocument/2006/relationships`"><sheets>$sheetsXml</sheets></workbook>"
+    Add-Part 'xl/_rels/workbook.xml.rels' "<Relationships xmlns=`"http://schemas.openxmlformats.org/package/2006/relationships`">$relsXml<Relationship Id=`"rId99`" Type=`"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles`" Target=`"styles.xml`"/></Relationships>"
+    Add-Part 'xl/styles.xml' "<styleSheet xmlns=`"$ns`"><cellXfs count=`"2`"><xf numFmtId=`"0`"/><xf numFmtId=`"22`" applyNumberFormat=`"1`"/></cellXfs></styleSheet>"
+    for ($s = 1; $s -le $sheetDefs.Count; $s++) {
+        $rowsXml = ''; $rn = 0
+        foreach ($rowVals in $sheetDefs[$s - 1].Rows) {
+            $rn++; $rowsXml += "<row r=`"$rn`">"
+            for ($j = 0; $j -lt $rowVals.Count; $j++) {
+                $v = $rowVals[$j]; $ref = [string][char](65 + $j) + $rn
+                if ($null -eq $v -or $v -eq '') { continue }
+                if ($v -is [datetime]) { $rowsXml += "<c r=`"$ref`" s=`"1`"><v>$($v.ToOADate().ToString('R', [cultureinfo]::InvariantCulture))</v></c>" }
+                elseif ($v -is [double] -or $v -is [int]) { $rowsXml += "<c r=`"$ref`"><v>$(([double]$v).ToString('R', [cultureinfo]::InvariantCulture))</v></c>" }
+                else { $rowsXml += "<c r=`"$ref`" t=`"inlineStr`"><is><t>$([System.Security.SecurityElement]::Escape([string]$v))</t></is></c>" }
+            }
+            $rowsXml += '</row>'
+        }
+        Add-Part "xl/worksheets/sheet$s.xml" "<worksheet xmlns=`"$ns`"><sheetData>$rowsXml</sheetData></worksheet>"
+    }
+    $zip.Dispose(); $fs.Dispose()
+}
+
+$hex = @('40181c6e9a8cfa3c5283aac7bc0a6a5d', 'd248a9a7ac1aa554c3c75611ffe3fa49', '7135f221a6c9537f84dad06a7872bdeb', '5913f9d3785299f4175ba98df8140102', '6961929e546e035a292bd156db946570', '0964fbbf8cd321b0c2b01cfdd045dd1c')
+$custRows = @(
+    , @('CustomerID', 'CustomerName', 'Segment', 'AccountManager', 'PaymentTerms', 'hash_key', 'source_id')
+    , @(1001, 'Meridian Group', 'Enterprise', 'Sarah Lin', 'Net 30', $hex[0], 'SAP-200000')
+    , @(1002, 'Cascade Industries', 'Mid-Market', 'Tom Reyes', 'Net 60', $hex[1], 'SAP-200001')
+    , @(1003, 'Nova Retail', 'SMB', 'Mei Chen', 'Net 15', $hex[2], 'SAP-200002')
+    , @(1004, 'Atlas Holdings', 'Mid-Market', 'Sarah Lin', 'Prepaid', $hex[3], 'SAP-200003')
+    , @(1005, 'Zenith Partners', 'Enterprise', 'Tom Reyes', 'Net 30', $hex[4], 'SAP-200004')
+    , @(1006, 'Apex Trading', 'Mid-Market', 'Mei Chen', 'Net 30', $hex[5], 'SAP-200005')
+)
+$ordRows = @(
+    , @('OrderID', 'CustomerName', 'CustomerCity', 'RegionName', 'ShipToCity', 'OrderDate', 'OrderChannel', 'Status', 'Priority', 'OrderTotal', 'OrderNotes', 'GiftMessage')
+    , @('ORD00001', 'Meridian Group', 'London', 'Europe', 'Paris', (Get-Date '2026-01-15 10:30:00'), 10, 'Delivered', 'Standard|Express', 1250.5, 'Fragile items, add extra padding and mark the box.', '')
+    , @('ORD00002', 'Nova Retail', 'Berlin', 'Europe', 'Berlin', (Get-Date '2026-02-03 14:05:00'), 20, 'Shipped', '', 980, '', '')
+    , @('ORD00003', 'Atlas Holdings', 'Toronto', 'North America', 'Chicago', (Get-Date '2026-03-21 09:12:00'), 10, 'Delivered', '', 15000.75, 'Customer asked for delivery before noon.', '')
+    , @('ORD00004', 'Meridian Group', 'London', 'Europe', 'London', (Get-Date '2026-04-09 16:45:00'), 10, 'Processing', '', 4300.2, '', '')
+    , @('ORD00005', 'Zenith Partners', 'Sydney', 'Asia Pacific', 'Sydney', (Get-Date '2026-05-30 11:00:00'), 20, 'Delivered', '', 2210, 'Fragile items, add extra padding and mark the box.', '')
+    , @('ORD00006', 'Apex Trading', 'Madrid', 'Europe', 'Madrid', (Get-Date '2026-07-14 13:20:00'), 10, 'Shipped', '', 7600.4, 'Customer asked for delivery before noon.', '')
+    , @('ORD00007', 'Cascade Industries', 'Paris', 'Europe', 'Amsterdam', (Get-Date '2026-08-02 08:50:00'), 20, 'Delivered', '', 3150, 'Fragile items, add extra padding and mark the box.', '')
+    , @('ORD00008', 'Unknown Ltd', 'Chicago', 'North America', 'Chicago', (Get-Date '2026-09-20 15:35:00'), 10, 'Delivered', '', 5400, '', '')
+)
+$wideXlsx = Join-Path $work 'wide_samples.xlsx'
+New-TestXlsx $wideXlsx @(@{ Name = 'CUST_MASTER'; Rows = $custRows }, @{ Name = 'ORDERS_2026'; Rows = $ordRows })
+
+$out12 = Join-Path $work 'wide'
+$r12 = Run-Generator $wideXlsx $out12 @{ Seed = 21; Locale = 'en'; RowsFact = 300; RowsDim = 25; Format = 'both' }
+$tc = $r12.tables | Where-Object { $_.table -eq 'CUST_MASTER' }
+$to = $r12.tables | Where-Object { $_.table -eq 'ORDERS_2026' }
+Assert ($r12.inputShape -eq 'sheet-per-table') "a workbook without table/column headers should be read as one sheet per table, got '$($r12.inputShape)'"
+Assert ($tc.role -eq 'dimension' -and $to.role -eq 'fact') "CUST_MASTER should be a dimension and ORDERS_2026 a fact, got '$($tc.role)' / '$($to.role)'"
+Assert ($tc.sampleRows -eq 6 -and $to.sampleRows -eq 8 -and $tc.rows -eq 25 -and $to.rows -eq 300) "sample rows 6/8 and row counts 25/300 expected, got $($tc.sampleRows)/$($to.sampleRows) and $($tc.rows)/$($to.rows)"
+$nameFk = @($to.foreignKeys)[0]
+Assert ($nameFk.column -eq 'CustomerName' -and $nameFk.references -eq 'CUST_MASTER' -and $nameFk.via -eq 'name') "ORDERS_2026 has no CustomerID, so CustomerName should link to CUST_MASTER by name"
+Assert ($r12.period -eq '2026-01-01 .. 2026-09-30' -and $r12.periodFrom -eq 'sample rows') "the period should come from the sample order dates (Jan-Sep 2026), got '$($r12.period)' from '$($r12.periodFrom)'"
+Assert (@($r12.sampleWarnings | Where-Object { $_ -like '*Unknown Ltd*' }).Count -eq 1) "a sample order whose customer is not in CUST_MASTER should be reported, got: $($r12.sampleWarnings -join ' / ')"
+Assert (@($r12.files | Where-Object { $_ -like '*wide_samples_dummy.xlsx' }).Count -eq 1) "Format both should write <schema>_dummy.xlsx, got: $($r12.files -join ', ')"
+
+$cust = @(Import-Csv (Join-Path $out12 'CUST_MASTER.csv') -Encoding UTF8)
+$ord = @(Import-Csv (Join-Path $out12 'ORDERS_2026.csv') -Encoding UTF8)
+Assert ($cust[0].CustomerName -eq 'Meridian Group' -and $cust[5].source_id -eq 'SAP-200005' -and $ord[0].OrderID -eq 'ORD00001' -and $ord[0].Priority -eq 'Standard|Express') "the client's sample rows should be the first rows, exactly as written"
+Assert ($ord[0].OrderDate -eq '2026-01-15 10:30:00') "a date+time cell stored as an Excel serial should be read back as '2026-01-15 10:30:00', got '$($ord[0].OrderDate)'"
+$genCust = @($cust | Select-Object -Skip 6); $genOrd = @($ord | Select-Object -Skip 8)
+Assert ($genCust[0].CustomerID -eq '1007' -and @($cust | Select-Object -ExpandProperty CustomerID -Unique).Count -eq 25) "generated CustomerIDs should continue after the samples (1007 ...) and stay unique"
+Assert ($genCust[0].source_id -eq 'SAP-200006' -and @($cust | Select-Object -ExpandProperty source_id -Unique).Count -eq 25) "source_id should continue the sample numbering (SAP-200006 ...) and stay unique"
+Assert (@($genCust | Where-Object { $_.hash_key -notmatch '^[0-9a-f]{32}$' }).Count -eq 0) "hash_key should be 32 lower-case hex characters like the samples"
+Assert (@($cust | Select-Object -ExpandProperty CustomerName -Unique).Count -eq 25) "customer names should be distinct, including against the sample names"
+Assert (@($genCust | Where-Object { $_.CustomerName -notmatch ' (Group|Industries|Retail|Holdings|Partners|Trading)( \d+)?$' }).Count -eq 0) "generated company names should reuse the samples' suffixes (Group, Holdings ...)"
+Assert (@($genCust | Where-Object { @('Enterprise', 'Mid-Market', 'SMB') -notcontains $_.Segment }).Count -eq 0) "Segment should only use the sample values"
+Assert ($genOrd[0].OrderID -eq 'ORD00009' -and @($ord | Select-Object -ExpandProperty OrderID -Unique).Count -eq 300) "OrderID should continue the sample format (ORD00009 ...) and stay unique, got '$($genOrd[0].OrderID)'"
+$custNames = @{}; foreach ($c in $cust) { $custNames[$c.CustomerName] = $true }
+Assert (@($genOrd | Where-Object { -not $custNames.ContainsKey($_.CustomerName) }).Count -eq 0) "every generated order's CustomerName should exist in CUST_MASTER (name link)"
+Assert (@($genOrd | Where-Object { $_.OrderDate -notmatch '^2026-0[1-9]-\d{2} (0[89]|1[0-7]):\d{2}:\d{2}$' }).Count -eq 0) "generated OrderDate should be Jan-Sep 2026 with a working-hours time, like the samples"
+Assert (@($genOrd | Where-Object { @('10', '20') -notcontains $_.OrderChannel }).Count -eq 0) "OrderChannel should only use the sample codes 10/20"
+Assert (@($genOrd | Where-Object { @('Standard', 'Express') -notcontains $_.Priority }).Count -eq 0) "Priority should use the 'Standard|Express' list, never empty"
+Assert (@($genOrd | Where-Object { @('Delivered', 'Shipped', 'Processing') -notcontains $_.Status }).Count -eq 0) "Status should only use the sample values"
+Assert (@($genOrd | Where-Object { [double]::Parse($_.OrderTotal, $inv) -lt 980 -or [double]::Parse($_.OrderTotal, $inv) -gt 15000.75 }).Count -eq 0) "OrderTotal should stay within the sample range 980..15000.75"
+Assert (@($ord | Where-Object { $_.GiftMessage }).Count -eq 0) "GiftMessage is empty in every sample row, so it should stay empty"
+$emptyNotes = @($genOrd | Where-Object { -not $_.OrderNotes }).Count
+Assert ($emptyNotes -gt 0 -and $emptyNotes -lt $genOrd.Count) "OrderNotes is empty in 3 of 8 samples, so some (not all) generated notes should be empty, got $emptyNotes of $($genOrd.Count)"
+Assert (@($genOrd | Where-Object { $_.ShipToCity -ne $_.CustomerCity }).Count -gt 0) "ShipToCity should not always equal CustomerCity"
+$regionOf = @{ 'London' = 'Europe'; 'Berlin' = 'Europe'; 'New York' = 'North America'; 'Chicago' = 'North America'; 'Sydney' = 'Asia Pacific'; 'Toronto' = 'North America' }
+Assert (@($genOrd | Where-Object { $regionOf.ContainsKey($_.CustomerCity) -and $regionOf[$_.CustomerCity] -ne $_.RegionName }).Count -eq 0) "RegionName should follow CustomerCity (the row's first city), not ShipToCity"
+Assert (@(Get-ChildItem $out12 -Filter '*.csv' | Where-Object { (Get-Content $_.FullName -TotalCount 1) -like '*__link*' }).Count -eq 0) "the hidden name-link key must not be written out"
+
+# -- Test 13: the XLSX itself - one sheet per table, typed cells, deterministic --
+$xlsxOut = Join-Path $out12 'wide_samples_dummy.xlsx'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$z = [System.IO.Compression.ZipFile]::OpenRead($xlsxOut)
+function Get-ZipText($zp, $name) { $sr = New-Object System.IO.StreamReader($zp.GetEntry($name).Open()); try { $sr.ReadToEnd() } finally { $sr.Dispose() } }
+$wbText = Get-ZipText $z 'xl/workbook.xml'; $s2 = Get-ZipText $z 'xl/worksheets/sheet2.xml'
+$z.Dispose()
+Assert ($wbText -match 'name="CUST_MASTER"' -and $wbText -match 'name="ORDERS_2026"') "the XLSX should have a sheet per table, named after the table"
+Assert (([regex]::Matches($s2, '<row ')).Count -eq 301) "the ORDERS_2026 sheet should have 1 header + 300 rows"
+Assert ($s2 -match '<c r="F2" s="3"><v>46037\.4375</v></c>') "OrderDate should be a real Excel date+time cell (serial 46037.4375 = 2026-01-15 10:30)"
+Assert ($s2 -match '<c r="J2"><v>1250\.5</v></c>') "OrderTotal should be a number cell, not text"
+$out12b = Join-Path $work 'wide_b'
+Run-Generator $wideXlsx $out12b @{ Seed = 21; Locale = 'en'; RowsFact = 300; RowsDim = 25; Format = 'xlsx' } | Out-Null
+Assert ((Get-FileHash $xlsxOut).Hash -eq (Get-FileHash (Join-Path $out12b 'wide_samples_dummy.xlsx')).Hash) "same seed should give a byte-identical XLSX"
+Assert (@(Get-ChildItem $out12b -Filter '*.csv').Count -eq 0) "Format xlsx (the default) should write no CSV files"
+
+# -- Test 14: -ExcludeSampleRows - inspiration only, none of the client's rows --
+$out14 = Join-Path $work 'wide_exclude'
+Run-Generator $wideXlsx $out14 @{ Seed = 21; Locale = 'en'; RowsFact = 50; RowsDim = 10; ExcludeSampleRows = $true } | Out-Null
+$cust14 = @(Import-Csv (Join-Path $out14 'CUST_MASTER.csv') -Encoding UTF8)
+$ord14 = @(Import-Csv (Join-Path $out14 'ORDERS_2026.csv') -Encoding UTF8)
+Assert ($cust14[0].CustomerID -eq '1001' -and $ord14[0].OrderID -eq 'ORD00001') "without sample rows the key format should start where the samples start (1001, ORD00001)"
+Assert (@($cust14 | Where-Object { @('Meridian Group', 'Cascade Industries', 'Nova Retail') -contains $_.CustomerName }).Count -eq 0 -and $cust14.Count -eq 10) "-ExcludeSampleRows should leave out the client's rows"
+
+# -- Test 15: headers only (no sample rows) behaves like a schema without examples --
+$headersOnly = Join-Path $work 'headers_only.xlsx'
+New-TestXlsx $headersOnly @(@{ Name = 'CUST_MASTER'; Rows = @(, $custRows[0]) }, @{ Name = 'ORDERS_2026'; Rows = @(, $ordRows[0]) })
+$r15 = Run-Generator $headersOnly (Join-Path $work 'headers_only') @{ Seed = 2; Locale = 'en'; RowsFact = 40; RowsDim = 8; PlanOnly = $true }
+$cols15 = @(($r15.tables | Where-Object { $_.table -eq 'ORDERS_2026' }).columns)
+Assert ((@($cols15 | Where-Object { $_.name -eq 'OrderDate' })[0].kind) -eq 'date' -and (@($cols15 | Where-Object { $_.name -eq 'Status' })[0].kind) -eq 'status') "with headers only, kinds come from the column names (OrderDate=date, Status=status)"
+Assert (@($r15.tables | Where-Object { $_.sampleRows -ne 0 }).Count -eq 0) "a headers-only workbook has no sample rows"
 
 Write-Host ""
 Write-Host "=== Results: $passed passed, $failed failed ==="
