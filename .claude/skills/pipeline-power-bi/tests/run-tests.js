@@ -483,7 +483,7 @@ if (!QUICK) {
   check('rebuild: next names the TMDL validation', (rb.next || []).some((x) => /ConnectFolder/.test(x)));
   // build-dax-guide.js: the run's own guide (mandatory hand-over), its numbers from checks.dax, copied with --downloads
   {
-    const gf = path.join(run, 'dax-checks-guide.html');
+    const gf = path.join(run, 'checks.dax_grounded-answers.dax guide.html');
     const gtxt = fs.existsSync(gf) ? fs.readFileSync(gf, 'utf8') : '';
     const nChecks = (fs.readFileSync(path.join(run, 'checks.dax'), 'utf8').match(/^\s*\(\s*"/gm) || []).length;
     check('dax guide: written by rebuild, names the run and the number of checks, no questions yet',
@@ -494,7 +494,7 @@ if (!QUICK) {
     try { gj = JSON.parse(gr.stdout); } catch { /* reported below */ }
     const dtxt = fs.existsSync(gf) ? fs.readFileSync(gf, 'utf8') : '';
     check('dax guide: --lang da --downloads copies guide + checks.dax, Danish text names the Downloads paths',
-      gr.status === 0 && gj.lang === 'da' && (gj.downloads || []).some((f) => /dax-checks-guide_.+\.html$/.test(f) && fs.existsSync(f)) &&
+      gr.status === 0 && gj.lang === 'da' && (gj.downloads || []).some((f) => f.endsWith('checks.dax_grounded-answers.dax guide.html') && fs.existsSync(f)) &&
       fs.existsSync(path.join(dl, 'checks.dax')) && dtxt.includes('Sådan bruger du') && dtxt.includes(path.join(dl, 'checks.dax')), gr.stdout.slice(0, 400) + gr.stderr);
     fs.rmSync(dl, { recursive: true, force: true });
   }

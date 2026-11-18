@@ -4,9 +4,9 @@
 //   node build-dax-guide.js runs/<run-id> [--lang da|en] [--downloads [<dir>]]
 //
 // Reads the run folder: choices.json (name, run_id, checks[], dax_guide), checks.dax, questions.json,
-// cleaning-log.md. Writes runs/<run-id>/dax-checks-guide.html with the run's own numbers: number of
+// cleaning-log.md. Writes runs/<run-id>/checks.dax_grounded-answers.dax guide.html with the run's own numbers: number of
 // checks, the key expected values and why, every grounded question with its expected answer.
-// --downloads copies the guide (as dax-checks-guide_<run-id>.html), checks.dax and grounded-answers.dax
+// --downloads copies the guide (same name), checks.dax and grounded-answers.dax
 // to the Downloads folder (default ~/Downloads) and the guide then names those paths.
 //
 // Optional text from Claude in the user's language, choices.json → dax_guide:
@@ -63,7 +63,7 @@ const steps = (log.match(/\|\s*kept\s*\|/g) || []).length;
 // ---- downloads
 const dlFlag = args.includes('--downloads');
 const dlDir = dlFlag ? (opt('--downloads') || path.join(os.homedir(), 'Downloads')) : null;
-const guideName = `dax-checks-guide_${RUN}.html`;
+const guideName = 'checks.dax_grounded-answers.dax guide.html';
 const fileRef = (f) => dlDir ? path.join(dlDir, f) : `runs/${RUN}/${f}`;
 
 // ---- formatting
@@ -233,7 +233,7 @@ ${qRows}
 </html>
 `;
 
-const out = path.join(runDir, 'dax-checks-guide.html');
+const out = path.join(runDir, guideName);
 fs.writeFileSync(out, html, 'utf8');
 const downloads = [];
 if (dlDir) {
