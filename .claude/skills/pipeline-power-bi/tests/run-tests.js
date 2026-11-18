@@ -322,7 +322,7 @@ fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify(anChoices));
 res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run], { encoding: 'utf8' });
 const psum = res.stdout || '';
 check('summary: dashboard plan shows template, visual → KPI, KPI definitions and left-out pages', res.status === 0 &&
-  psum.includes('- Dashboard plan (approved): adventureworks – exec') &&
+  psum.includes('- Dashboard plan (approved): Generic layout – exec') &&
   psum.includes('  - exec: KPI tile 1 (Total Revenue) → Revenue · KPI tile 4 (Return Rate) → – no returns') &&
   psum.includes('  - KPI Revenue: sum of orders.amount, paid only (vs previous month)') &&
   psum.includes('  - Left out: map – no location column'), psum.slice(0, 900));
