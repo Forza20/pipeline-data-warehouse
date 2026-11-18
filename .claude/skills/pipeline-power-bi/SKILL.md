@@ -48,7 +48,8 @@ Arguments: file paths or a folder – CSV, Excel, a `.pbip` project or a `.pbix`
 
 With `--fast` in the arguments, or when the user picks "Accept all recommended in every step" in step 1:
 read [references/fast-mode.md](references/fast-mode.md) – what is still asked, and what each step does
-instead of asking.
+instead of asking. Fast mode never decides the dashboard colours: template colours, hex codes or a
+screenshot are always the user's choice.
 
 ## Asking
 
@@ -334,8 +335,9 @@ options each, recommended ones first):
   longer fill (a dropped KPI or dimension) leaves the plan with its reason. Then show the **final plan**
   (per page: visual → KPI → measure) in the page question's `preview`. Without a plan (declined), recommend
   the template from the model: leads/campaigns, opportunities or a ledger with account types → Business,
-  order lines with products and customers → AdventureWorks. Ask its colour and title questions as in
-  `/messy-pipeline` section 2b (the colours are asked in fast mode too). Save the template to
+  order lines with products and customers → AdventureWorks. **Always ask the colours, also in fast mode**
+  (fast-mode.md: template colours · saved profile · hex codes · screenshot, with the follow-up in chat),
+  and the title as in `/messy-pipeline` section 2b. Save the template to
   `extras.layout_template`, the page keys to `extras.layout_pages`, the colours and title to a pbip-layout
   profile (`runs/<run-id>/layout-profile.json`, `extras.layout_profile`). The Business template's build
   steps are in build-steps.md, step 8.6 ·

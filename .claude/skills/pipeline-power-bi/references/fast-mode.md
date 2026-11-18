@@ -14,8 +14,14 @@ more is asked until the hand-over. Only these are still asked:
   (`dashboard_plan.status: "drafted"`), the plan is shown as text, and the drafted points are asked at the
   hand-over;
 - which dashboard the report gets – the AdventureWorks template or the Business template (Marketing, Sales,
-  Finance) – which of its pages, and its colours – Standard, a saved profile, hex codes or a screenshot
-  (step 6, one AskUserQuestion call; the dashboard is always built).
+  Finance) – which of its pages (step 6, one AskUserQuestion call; the dashboard is always built);
+- **the dashboard colours – always, never a default.** A question of its own in the same call, single-select:
+  "The template's own colours (AdventureWorks / Business) (Recommended)" · "Saved profile" (only when
+  `pbip-layout/profiles/default.json` exists – name and colours in the description) · "My hex codes" ·
+  "A screenshot of a website or brand". Hex codes: ask for them in a chat message right after and wait;
+  map them with pbip-layout's `colors.md` ("From hex codes") and check the contrast. Screenshot: ask for
+  the file path in chat and wait, run pbip-layout's `palette.ps1`, show the palette it found. Either way,
+  show the mapped colours (key → hex) before the build. Colours change colours only (pbip-layout step 4).
 
 ## What each step does instead of asking
 
