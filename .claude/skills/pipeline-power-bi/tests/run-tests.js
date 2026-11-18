@@ -297,7 +297,7 @@ res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run, '--
 let sj = {};
 try { sj = JSON.parse(res.stdout); } catch { /* reported below */ }
 check('summary --json: same content as data', sj.run === 'test' && sj.sources.length === 1 && sj.review.open.length === 1 && sj.measures.length === 2, res.stdout.slice(0, 300));
-check('summary: no analysis line without analysis', !sum.includes('**Analysis:**') && sj.analysis === null);
+check('summary: without analysis it says step 2b is still to run', sum.includes('**Analysis:** not planned yet – run step 2b (analysis-planning)') && sj.analysis === null);
 // analysis-planning (step 2b) writes choices.json → analysis; the summary shows it first
 const anChoices = JSON.parse(fs.readFileSync(path.join(run, 'choices.json'), 'utf8'));
 anChoices.analysis = { purpose: 'Monthly revenue per region', audience: 'sales managers',
@@ -312,6 +312,20 @@ check('summary: analysis shows purpose, numbers, split, time, questions and draf
   asum.includes('- Numbers: Revenue, Orders · split by: customers.region · time: month, previous month') &&
   asum.includes('- Questions: Revenue in Nord last complete month?') && asum.includes('(1 drafted, not asked)') &&
   asum.indexOf('**Analysis:**') < asum.indexOf('**Star schema'), asum.slice(0, 600));
+check('summary: analysis without a dashboard plan asks for step 2b', asum.includes('- Dashboard plan: none yet – run step 2b (analysis-planning)'));
+// the dashboard plan (analysis-planning's last part): pages with visual → KPI, the KPIs and what is left out
+anChoices.analysis.dashboard_plan = { status: 'approved', template: 'adventureworks',
+  pages: [{ key: 'exec', visuals: [{ visual: 'KPI tile 1 (Total Revenue)', kpi: 'Revenue' }, { visual: 'KPI tile 4 (Return Rate)', kpi: null, note: 'no returns' }] }],
+  kpis: [{ name: 'Revenue', definition: 'sum of orders.amount, paid only', dax: 'SUM ( orders[amount] )', comparison: 'previous month' }],
+  left_out: [{ page: 'map', reason: 'no location column' }] };
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify(anChoices));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run], { encoding: 'utf8' });
+const psum = res.stdout || '';
+check('summary: dashboard plan shows template, visual → KPI, KPI definitions and left-out pages', res.status === 0 &&
+  psum.includes('- Dashboard plan (approved): adventureworks – exec') &&
+  psum.includes('  - exec: KPI tile 1 (Total Revenue) → Revenue · KPI tile 4 (Return Rate) → – no returns') &&
+  psum.includes('  - KPI Revenue: sum of orders.amount, paid only (vs previous month)') &&
+  psum.includes('  - Left out: map – no location column'), psum.slice(0, 900));
 const py = process.env.PYTHON || 'python';
 if (!QUICK) {
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });

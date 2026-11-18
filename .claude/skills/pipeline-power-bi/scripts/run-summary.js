@@ -39,7 +39,13 @@ const S = {
   analysis: a && { purpose: a.purpose || '', audience: a.audience || '', kpis: (a.kpis || []).map(label),
     dimensions: (a.dimensions || []).map(label), timeGrain: a.time_grain || '', comparisons: a.comparisons || [],
     questions: (a.questions || []).map(label),
-    drafted: ['kpis', 'dimensions', 'questions'].reduce((n, k) => n + (a[k] || []).filter((x) => x && x.source === 'drafted').length, 0) },
+    drafted: ['kpis', 'dimensions', 'questions'].reduce((n, k) => n + (a[k] || []).filter((x) => x && x.source === 'drafted').length, 0),
+    plan: a.dashboard_plan ? {
+      status: a.dashboard_plan.status || '', template: a.dashboard_plan.template || '',
+      pages: (a.dashboard_plan.pages || []).map((p) => ({ key: p.key, visuals: (p.visuals || []).map((v) => ({ visual: v.visual, kpi: v.kpi || null, note: v.note || '' })) })),
+      kpis: (a.dashboard_plan.kpis || []).map((k) => ({ name: k.name, definition: k.definition || '', comparison: k.comparison || '' })),
+      leftOut: (a.dashboard_plan.left_out || []).map((x) => ({ page: x.page || x.visual || '', reason: x.reason || '' })),
+    } : null },
   design: { facts: (d.facts || []).map((f) => ({ name: f.name, grain: f.grain, sources: f.sources || [] })),
     dimensions: (d.dimensions || []).map((x) => ({ name: x.name, sources: x.sources || [] })),
     stagingOnly: d.staging_only || [], leftOut: (d.left_out || []).map((x) => (typeof x === 'string' ? { table: x } : x)), roles: names(d.roles) },
@@ -56,7 +62,21 @@ if (S.analysis) {
   L.push(`- Numbers: ${A.kpis.join(', ') || '–'} · split by: ${A.dimensions.join(', ') || '–'} · time: ${[A.timeGrain, ...A.comparisons].filter(Boolean).join(', ') || '–'}`);
   if (A.questions.length) L.push(`- Questions: ${A.questions.join(' · ')}`);
   if (A.drafted) L.push(`(${A.drafted} drafted, not asked)`);
+  if (A.plan) {
+    const P = A.plan;
+    L.push(`- Dashboard plan (${P.status || '–'}): ${P.template || '–'} – ${P.pages.map((p) => p.key).join(', ') || 'no pages'}`);
+    for (const p of P.pages) {
+      const v = p.visuals.map((x) => `${x.visual} → ${x.kpi || `– ${x.note || 'empty'}`}`);
+      if (v.length) L.push(`  - ${p.key}: ${v.join(' · ')}`);
+    }
+    for (const k of P.kpis) L.push(`  - KPI ${k.name}: ${k.definition || '–'}${k.comparison ? ` (vs ${k.comparison})` : ''}`);
+    for (const x of P.leftOut) L.push(`  - Left out: ${x.page} – ${x.reason || '–'}`);
+  } else {
+    L.push('- Dashboard plan: none yet – run step 2b (analysis-planning) before going on');
+  }
   L.push('');
+} else {
+  L.push('**Analysis:** not planned yet – run step 2b (analysis-planning) before going on', '');
 }
 if (S.design.facts.length || S.design.dimensions.length) {
   L.push(`**Star schema: ${S.design.facts.length} facts, ${S.design.dimensions.length} dimensions**`);
