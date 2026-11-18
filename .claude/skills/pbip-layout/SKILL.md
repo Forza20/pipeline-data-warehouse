@@ -38,9 +38,11 @@ Work with the user in their language (English by default).
 
 3. **Template and pages – always ask, even with a profile.** First the template (one AskUserQuestion),
    unless given (`config.template`, the profile's `template`, `run.json → layout_template`):
-   "AdventureWorks – sales report (orders, products, customers, map)" · "Business – Marketing, Sales and
+   "Generic layout – sales report (orders, products, customers, map)" · "Business – Marketing, Sales and
    Finance (Home + modules)". Recommend from the model: leads/campaigns, opportunities/pipeline or a
-   ledger with account types → Business; order lines with products and customers → AdventureWorks.
+   ledger with account types → Business; order lines with products and customers → Generic layout.
+   In every question, preview and summary shown to the user, the AdventureWorks template is called
+   **Generic layout** and its own colours **Generic colors** – the key stays `adventureworks`.
    **Business:** one multiSelect "Which modules and pages should the report have?" – Home · Marketing
    (+ Campaign Detail) · Sales (+ Opportunity Detail) · Finance (+ P&L Detail); the description says what the
    model has or lacks for the module (layout-business.md → Required per module). A module gives both its
@@ -54,7 +56,8 @@ Work with the user in their language (English by default).
    fill (a map without a location column). The answer is `config.pages`. Nothing chosen: stop and ask again.
 
 4. **Colours (only with a user present).** Ask whether the user has colour codes (hex, a `.md` file) or a
-   screenshot of a website or brand. With neither: *Standard* – the template's own colours.
+   screenshot of a website or brand. With neither: *Standard* – the template's own colours, shown to the
+   user as "Generic colors".
    - **A colour choice changes colours only.** Hex codes or a screenshot only fill `colors` (and `theme`)
      in config.json – pages, fields, texts, fonts, number formats and positions stay exactly as with
      *Standard*. The generator refuses unknown keys and anything that is not `#RRGGBB`;

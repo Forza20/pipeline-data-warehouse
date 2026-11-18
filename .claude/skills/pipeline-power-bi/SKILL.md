@@ -335,7 +335,8 @@ options each, recommended ones first):
   longer fill (a dropped KPI or dimension) leaves the plan with its reason. Then show the **final plan**
   (per page: visual → KPI → measure) in the page question's `preview`. Without a plan (declined), recommend
   the template from the model: leads/campaigns, opportunities or a ledger with account types → Business,
-  order lines with products and customers → AdventureWorks. **Always ask the colours, also in fast mode**
+  order lines with products and customers → Generic layout (the AdventureWorks template – always called
+  "Generic layout" in questions and previews, its colours "Generic colors"). **Always ask the colours, also in fast mode**
   (fast-mode.md: template colours · saved profile · hex codes · screenshot, with the follow-up in chat),
   and the title as in `/messy-pipeline` section 2b. Save the template to
   `extras.layout_template`, the page keys to `extras.layout_pages`, the colours and title to a pbip-layout
@@ -426,11 +427,12 @@ flags and details of the eleven parts below, and the drift check for new files. 
   with you (not the report language): put `choices.json` → `dax_guide` = `{ "lang": "da"|"en",
   "why": { "<check name>": "<why this number, plain words>" }, "questions": { "1": "<short question>" } }`
   (the why/questions text in that language, for the key checks), then run
-  **`node .claude\skills\pipeline-power-bi\scripts\build-dax-guide.js runs\<run-id> --downloads`**. It writes
-  `runs/<run-id>/checks.dax_grounded-answers.dax guide.html` and copies it, `checks.dax` and
-  `grounded-answers.dax` to Downloads. Give the full Downloads path of the guide in the hand-over. Run it
-  again after every rebuild that changes a check or a question (`rebuild.js` refreshes the run-folder copy
-  only).
+  **`node .claude\skills\pipeline-power-bi\scripts\build-dax-guide.js runs\<run-id>`**. It writes
+  `runs/<run-id>/checks.dax_grounded-answers.dax guide.html` next to `checks.dax`, `grounded-answers.dax` and
+  the run's other files. **No copy to Downloads** (never pass `--downloads`) – all three stay in the run
+  folder. Give the full path of the guide in the run folder in the hand-over. Run it
+  again after every rebuild that changes a check or a question (`rebuild.js` refreshes
+  it in the run folder as well).
 - Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
   explain at once: follow the **reconcile** skill (`.claude/skills/reconcile/SKILL.md`) – split it by the
   dimensions until it sits in one slice and name the rows behind it. After a fix: rebuild, refresh, run
@@ -449,7 +451,7 @@ pbip-layout's `gen-report.js`) runs again before the hand-over text. A point tha
 
 What was built and the result of the check; links relative to the repository root to
 `runs/<run-id>/pbip/<Name>.pbip`, `overview.html` (or its published link), `checks.dax`, the DAX guide
-(always – its full Downloads path, step 9),
+(always – its full path in the run folder, step 9),
 `grounded-answers.md` (with the open review points from `design.review`), `model-context.md`,
 `model-health.md` (and what the user chose to remove),
 `cleaning-log.md`, `expected-values.md`, and what the chosen skills made (`layout-mapping.md`,

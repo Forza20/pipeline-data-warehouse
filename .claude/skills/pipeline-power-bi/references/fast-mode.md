@@ -13,10 +13,10 @@ more is asked until the hand-over. Only these are still asked:
   number, the main split – from the analysis-planning skill; the rest and the dashboard plan are drafted
   (`dashboard_plan.status: "drafted"`), the plan is shown as text, and the drafted points are asked at the
   hand-over;
-- which dashboard the report gets – the AdventureWorks template or the Business template (Marketing, Sales,
+- which dashboard the report gets – the Generic layout (the AdventureWorks template, key `adventureworks`) or the Business template (Marketing, Sales,
   Finance) – which of its pages (step 6, one AskUserQuestion call; the dashboard is always built);
 - **the dashboard colours – always, never a default.** A question of its own in the same call, single-select:
-  "The template's own colours (AdventureWorks / Business) (Recommended)" · "Saved profile" (only when
+  "Generic colors (Recommended)" (the template's own colours) · "Saved profile" (only when
   `pbip-layout/profiles/default.json` exists – name and colours in the description) · "My hex codes" ·
   "A screenshot of a website or brand". Hex codes: ask for them in a chat message right after and wait;
   map them with pbip-layout's `colors.md` ("From hex codes") and check the contrast. Screenshot: ask for
@@ -46,7 +46,7 @@ more is asked until the hand-over. Only these are still asked:
 Write `choices.json` once after step 5 (not after every table); write the build spec and `checks[]` in one
 turn, scaffold the report, then run `rebuild.js` once (it runs build-model, build-docs, build-context,
 model health, the grounded answers, the DAX guide, the handover and the overview in order); the DAX guide
-goes to Downloads in fast mode too (`build-dax-guide.js … --downloads`, step 9 – never skipped); load `pbip-catalog` and
+is written to the run folder in fast mode too (`build-dax-guide.js runs\<run-id>`, no `--downloads`, step 9 – never skipped); load `pbip-catalog` and
 `pbip-governance` in one turn (parallel Skill calls) and run the catalog's `--missing-only` and
 governance's `parse_pbip.py` + wiki bundle in one command. The hand-over says the run used fast mode and
 how to change a choice: `/pipeline-power-bi --resume <run-id>`.
