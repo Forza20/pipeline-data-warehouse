@@ -409,10 +409,17 @@ flags and details of the eleven parts below, and the drift check for new files. 
 - Run `grounded-answers.dax` the same way, then confirm each role row once with Modeling → **View as** →
   the role + *Other user*. Fill in "In Power BI" in `grounded-answers.md`. A question with a difference is
   handled like any other difference (below).
-- Offer the guide (AskUserQuestion, single-select): "Get an HTML guide on how to use `checks.dax` and
-  `grounded-answers.dax`?" · "Yes – copy it to Downloads (Recommended)" · "No". With yes, copy
-  [references/dax-checks-guide.html](references/dax-checks-guide.html) to the user's Downloads folder and
-  give its full path.
+- **The DAX guide is always handed over – never ask, never skip.** It is the run's own guide to `checks.dax`
+  and `grounded-answers.dax`: the report name, run id, the number of checks, the key expected numbers and
+  why, and every grounded question with its expected answer. Write it in the language the user speaks
+  with you (not the report language): put `choices.json` → `dax_guide` = `{ "lang": "da"|"en",
+  "why": { "<check name>": "<why this number, plain words>" }, "questions": { "1": "<short question>" } }`
+  (the why/questions text in that language, for the key checks), then run
+  **`node .claude\skills\pipeline-power-bi\scripts\build-dax-guide.js runs\<run-id> --downloads`**. It writes
+  `runs/<run-id>/dax-checks-guide.html` and copies it (`dax-checks-guide_<run-id>.html`), `checks.dax` and
+  `grounded-answers.dax` to Downloads. Give the full Downloads path of the guide in the hand-over. Run it
+  again after every rebuild that changes a check or a question (`rebuild.js` refreshes the run-folder copy
+  only).
 - Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
   explain at once: follow the **reconcile** skill (`.claude/skills/reconcile/SKILL.md`) – split it by the
   dimensions until it sits in one slice and name the rows behind it. Write the result into
@@ -430,7 +437,8 @@ pbip-layout's `gen-report.js`) runs again before the hand-over text. A point tha
 (not a choice) stays a note.
 
 What was built and the result of the check; links relative to the repository root to
-`runs/<run-id>/pbip/<Name>.pbip`, `overview.html` (or its published link), `checks.dax`,
+`runs/<run-id>/pbip/<Name>.pbip`, `overview.html` (or its published link), `checks.dax`, the DAX guide
+(always – its full Downloads path, step 9),
 `grounded-answers.md` (with the open review points from `design.review`), `model-context.md`,
 `model-health.md` (and what the user chose to remove),
 `cleaning-log.md`, `expected-values.md`, and what the chosen skills made (`layout-mapping.md`,

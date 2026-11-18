@@ -384,7 +384,7 @@ if (!QUICK) {
   res = spawnSync('node', [path.join(SKILL, 'scripts', 'rebuild.js'), run], { encoding: 'utf8', env: { ...process.env, PYTHON: py } });
   let rb = {};
   try { rb = JSON.parse(res.stdout); } catch { /* reported below */ }
-  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,model-health,grounded-answers,handover,overview', res.stdout.slice(0, 800) + res.stderr);
+  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,model-health,grounded-answers,dax-guide,handover,overview', res.stdout.slice(0, 800) + res.stderr);
   // descriptions.py: every table, column and measure has a /// description after a rebuild, and the Excel list exists
   {
     const dr = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'descriptions.py'), path.join(run, 'pbip'), '--warn-only'], { encoding: 'utf8' });
@@ -481,6 +481,23 @@ if (!QUICK) {
   check('rebuild: grounded answers skipped without questions.json, handover run (governance folder)', ((rb.steps || []).find((x) => x.step === 'grounded-answers') || {}).skipped === 'no questions.json yet (step 8.9)' &&
     ((rb.steps || []).find((x) => x.step === 'handover') || {}).ok && !((rb.steps || []).find((x) => x.step === 'handover') || {}).skipped);
   check('rebuild: next names the TMDL validation', (rb.next || []).some((x) => /ConnectFolder/.test(x)));
+  // build-dax-guide.js: the run's own guide (mandatory hand-over), its numbers from checks.dax, copied with --downloads
+  {
+    const gf = path.join(run, 'dax-checks-guide.html');
+    const gtxt = fs.existsSync(gf) ? fs.readFileSync(gf, 'utf8') : '';
+    const nChecks = (fs.readFileSync(path.join(run, 'checks.dax'), 'utf8').match(/^\s*\(\s*"/gm) || []).length;
+    check('dax guide: written by rebuild, names the run and the number of checks, no questions yet',
+      gtxt.includes('<code>test</code>') && gtxt.includes(`in ${nChecks} rows`) && gtxt.includes('step 8.9'), gtxt.slice(0, 300));
+    const dl = fs.mkdtempSync(path.join(os.tmpdir(), 'daxguide-'));
+    const gr = spawnSync('node', [path.join(SKILL, 'scripts', 'build-dax-guide.js'), run, '--lang', 'da', '--downloads', dl], { encoding: 'utf8' });
+    let gj = {};
+    try { gj = JSON.parse(gr.stdout); } catch { /* reported below */ }
+    const dtxt = fs.existsSync(gf) ? fs.readFileSync(gf, 'utf8') : '';
+    check('dax guide: --lang da --downloads copies guide + checks.dax, Danish text names the Downloads paths',
+      gr.status === 0 && gj.lang === 'da' && (gj.downloads || []).some((f) => /dax-checks-guide_.+\.html$/.test(f) && fs.existsSync(f)) &&
+      fs.existsSync(path.join(dl, 'checks.dax')) && dtxt.includes('Sådan bruger du') && dtxt.includes(path.join(dl, 'checks.dax')), gr.stdout.slice(0, 400) + gr.stderr);
+    fs.rmSync(dl, { recursive: true, force: true });
+  }
   // snake-names.js + naming snake_case: every table, column and measure in the model is snake_case,
   // DAX and relationships follow, a second run changes nothing, and a non-snake name stops the build
   {
