@@ -22,14 +22,17 @@ runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
 
 ## `choices.json`
 
-`analysis` is written by the analysis-planning skill in step 2b – its SKILL.md has the full shape.
+`analysis` is written by the analysis-planning skill in step 2b, always – its SKILL.md has the full shape,
+including `analysis.dashboard_plan` (template, pages with visual → KPI, KPIs with definition and DAX draft,
+left out, status).
 
 ```json
 {
   "run_id": "2026-11-06_pbi_sales", "name": "Sales", "source_folder": "runs/2026-11-06_pbi_sales/data/",
   "copy_files": true, "report_culture": "en-US", "currency": "USD", "report_language": "en",
   "analysis": { "purpose": "…", "audience": "sales managers", "questions": [], "kpis": [], "dimensions": [],
-                "time_grain": "month", "comparisons": [], "tables": [], "template_hint": "adventureworks", "asked": 6 },
+                "time_grain": "month", "comparisons": [], "tables": [], "template_hint": "adventureworks", "asked": 6,
+                "dashboard_plan": { "status": "approved", "template": "adventureworks", "pages": [], "kpis": [], "left_out": [] } },
   "tables": {
     "fact_orders": { "include": true, "source": { "kind": "csv", "file": "fact_orders.csv" },
       "table_name": "Sales", "role": "fact", "mode": "one-by-one",

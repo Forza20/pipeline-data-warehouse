@@ -125,8 +125,8 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
      "Clean its source files and build a new, cleaned project (Recommended)" – the files go into step 1.2
      and the run continues as usual; the user's own project is never changed · "Keep my model, only add
      dashboard, catalog, governance and model health" – copy the project folder into `runs/<run-id>/pbip/`
-     (the original stays untouched), skip steps 2–5, 7 and 8.1–8.4, and run step 6, step 8.5 (validate),
-     8.6 and 8.11 on the copy; there is no build spec, so no overview page, `checks.dax` or model context.
+     (the original stays untouched), skip steps 2–5 (but **not** 2b – the analysis planning runs on the
+     copied model), 7 and 8.1–8.4, and run step 6, step 8.5 (validate), 8.6 and 8.11 on the copy; there is no build spec, so no overview page, `checks.dax` or model context.
      A model with both files and database sources: profile the files and name the other tables in the
      hand-over as not cleaned.
 2. Show per file: name, size, and ask the report name if `--name` is missing (proposal: the folder or
@@ -140,6 +140,7 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
    output and ask "Continue that run" · "Start again (the old folder is kept as …_old)" · "Stop".
    **`--resume <run-id>`** (or "Continue") always starts with `run-summary.js` – settings, design, cleaning per
    source, model, extras, open and settled review points, status – shown as it prints, then step 7's question.
+   A run without `analysis.dashboard_plan` (made before 2b had it) runs step 2b first.
 
 ## Step 2 – Profile
 
@@ -159,12 +160,16 @@ step, and the Power Query step carries the same name; the full list is in refere
 this to the user the first time you show an F-code) · proposed role (fact = the table other tables do not point at, with dates and amounts;
 dimension = a table others point at; other).
 
-**Step 2b – Plan the analysis.** Right after the overview, load the **analysis-planning** skill (Skill
-call) and follow it: 5–7 questions, one at a time, about purpose, audience, business questions, KPIs,
-split and time, each with 3 options from the profile plus free text (fast mode: one call). It writes
-`choices.json` → `analysis`. From here on, `analysis` decides which options are recommended – its table
-in analysis-planning's SKILL.md says how per step. Skipped on the "Keep my model" path, except for the
-dashboard template and pages in step 6.
+**Step 2b – Plan the analysis (always, on every path).** Right after the overview, load the
+**analysis-planning** skill (Skill call – never imitate it) and follow it: 5–7 questions, one at a time,
+about purpose, audience, business questions, KPIs, split and time, each with 3 options from the profile plus
+free text (fast mode: one call), then the **dashboard plan** the user approves – template pages, which KPI
+in which template visual, and each KPI's definition and DAX draft. It writes `choices.json` → `analysis`
+(with `dashboard_plan`). It runs in fast mode (short version), on the "Keep my model" path (from the
+model's tables) and on a `--resume` whose `choices.json` has no `analysis.dashboard_plan`; no step after
+2b starts before it is written. Name it to the user when it starts ("Analysis planning – the
+analysis-planning skill"). From here on, `analysis` decides which options are recommended – its table in
+analysis-planning's SKILL.md says how per step.
 
 **Workbooks – which sheets?** When a workbook has more than one sheet or Excel table, ask first (one
 AskUserQuestion, multiSelect, max 4 options per question – more questions if needed): "Which sheets in
@@ -298,7 +303,10 @@ away are dropped.
 2. *Date table:* "Yes – a calendar table linked to <fact>[<date>] (Recommended)" · "No". With more date
    columns in the fact, the others are inactive relationships (tmdl-templates.md section 7).
 3. *Incomplete last month* (only with an M01 finding): the three variants from the catalog.
-4. *Measures* (multiSelect, up to 4 per question, recommended ones first): proposals from the columns –
+4. *Measures* (multiSelect, up to 4 per question, recommended ones first): **first the KPIs of
+   `analysis.dashboard_plan`** (with their period comparisons), their DAX draft fixed to the model's table
+   and column names, each option saying which dashboard visual it fills; a KPI the user unticks is a
+   visual the dashboard loses – say which, and update `dashboard_plan`. Then proposals from the columns –
    sum of each amount column ("Total amount"; with F14 *flag*: only rows with `amount issue = "ok"`, say
    so), row count of the fact ("Orders"), distinct count of each dimension key ("Customers"), average per
    row ("Average order value"), share of a flag ("Paid share"), latest complete month and previous month
@@ -320,9 +328,13 @@ The run always ends with an **overview page** (`overview.html`, step 8.7) and a 
 options each, recommended ones first):
 
 1. *Report and documentation* (multiSelect): "Dashboard pages – the **pbip-layout** skill (Recommended)" –
-  then **always** ask which template and which pages with pbip-layout's step 3 questions (recommend the
-  template from the model: leads/campaigns, opportunities or a ledger with account types → Business, order
-  lines with products and customers → AdventureWorks), and its colour and title questions as in
+  then **always** ask which template and which pages with pbip-layout's step 3 questions. The
+  **dashboard plan** (`analysis.dashboard_plan`) decides the recommendation: its template first and its pages
+  marked "(Recommended)". Check the plan against the designed model first: a page or visual the model can no
+  longer fill (a dropped KPI or dimension) leaves the plan with its reason. Then show the **final plan**
+  (per page: visual → KPI → measure) in the page question's `preview`. Without a plan (declined), recommend
+  the template from the model: leads/campaigns, opportunities or a ledger with account types → Business,
+  order lines with products and customers → AdventureWorks. Ask its colour and title questions as in
   `/messy-pipeline` section 2b (the colours are asked in fast mode too). Save the template to
   `extras.layout_template`, the page keys to `extras.layout_pages`, the colours and title to a pbip-layout
   profile (`runs/<run-id>/layout-profile.json`, `extras.layout_profile`). The Business template's build

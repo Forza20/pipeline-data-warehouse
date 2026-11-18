@@ -92,7 +92,10 @@ close it).
    (both after pbip-layout, which changes the report they read).
    - **pbip-layout**, *pipeline mode* (its SKILL.md section "Pipeline mode"): the pages the user chose in
      step 6 (`extras.layout_pages` – never chosen by the skill), the colour/title answers as a profile, the
-     template fields mapped with its `layout.md`, `docs/layout-config.json`, and **`layout-mapping.md` in the
+     template fields mapped with its `layout.md` – **the dashboard plan first**: each visual gets the measure
+     of the KPI `analysis.dashboard_plan` put there (and its texts/labels say that KPI's name); only a visual
+     the plan left empty uses layout.md's order; a deviation from the plan is a decision in
+     `layout-decisions.json`, asked at the hand-over – `docs/layout-config.json`, and **`layout-mapping.md` in the
      run folder** (page → template field → model field → value → fallback → open points). The measures and
      parameters the pages need (its `measures.md`) go into `choices.json → build.measures[]` and
      `build.parameters[]`, then `rebuild.js` – so a later rebuild keeps them. Do this after the model validates.
