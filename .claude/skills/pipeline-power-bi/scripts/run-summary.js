@@ -64,7 +64,7 @@ if (S.analysis) {
   if (A.drafted) L.push(`(${A.drafted} drafted, not asked)`);
   if (A.plan) {
     const P = A.plan;
-    L.push(`- Dashboard plan (${P.status || '–'}): ${P.template || '–'} – ${P.pages.map((p) => p.key).join(', ') || 'no pages'}`);
+    L.push(`- Dashboard plan (${P.status || '–'}): ${({ adventureworks: 'Generic layout', business: 'Business' })[P.template] || P.template || '–'} – ${P.pages.map((p) => p.key).join(', ') || 'no pages'}`);
     for (const p of P.pages) {
       const v = p.visuals.map((x) => `${x.visual} → ${x.kpi || `– ${x.note || 'empty'}`}`);
       if (v.length) L.push(`  - ${p.key}: ${v.join(' · ')}`);

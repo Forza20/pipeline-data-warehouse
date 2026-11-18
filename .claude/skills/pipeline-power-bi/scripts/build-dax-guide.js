@@ -64,7 +64,10 @@ const steps = (log.match(/\|\s*kept\s*\|/g) || []).length;
 const dlFlag = args.includes('--downloads');
 const dlDir = dlFlag ? (opt('--downloads') || path.join(os.homedir(), 'Downloads')) : null;
 const guideName = 'checks.dax_grounded-answers.dax guide.html';
-const fileRef = (f) => dlDir ? path.join(dlDir, f) : `runs/${RUN}/${f}`;
+// Full paths, so the guide is clear wherever it is opened from.
+const RUN_ABS = path.resolve(runDir).replace(/^[a-z]:/, (d) => d.toUpperCase());
+const PBIP_ABS = path.join(RUN_ABS, 'pbip', `${NAME}.pbip`);
+const fileRef = (f) => path.join(dlDir || RUN_ABS, f);
 
 // ---- formatting
 const loc = lang === 'da' ? 'da-DK' : 'en-US';
@@ -83,9 +86,9 @@ const T = {
     card1: `Kontrollerer <b>totalerne</b> i ${checks.length} rækker: antal rækker pr. tabel, de vigtigste mål, nøgler uden match${hasFilterChecks ? ' og om målene reagerer rigtigt på filtre' : ''}.`,
     card2: `Kontrollerer <b>rigtige forretningsspørgsmål</b>: ${questions.length} spørgsmål, som en bruger af rapporten kunne stille, med det svar, kildefilerne giver.`,
     where: dlDir ? `Begge filer ligger i Overførsler: <code class="path">${esc(fileRef('checks.dax'))}</code> og <code class="path">${esc(fileRef('grounded-answers.dax'))}</code>. Åbn dem i Notesblok for at kopiere indholdet.`
-      : `Begge filer ligger i kørselsmappen <code class="path">runs/${esc(RUN)}/</code>. Åbn dem i Notesblok for at kopiere indholdet.`,
+      : `Begge filer ligger i kørselsmappen <code class="path">${esc(RUN_ABS + path.sep)}</code>. Åbn dem i Notesblok for at kopiere indholdet.`,
     before: 'Før du starter',
-    b: [`Åbn <code class="path">runs\\${esc(RUN)}\\pbip\\${esc(NAME)}.pbip</code> i Power BI Desktop.`, 'Klik <b>Refresh</b> (Opdater) på fanen Home. Godkend adgangen til mappen, hvis Power BI spørger.', 'Vent, til opdateringen er færdig. Uden en opdatering er modellen tom, og alle tal bliver forkerte.'],
+    b: [`Åbn <code class="path">${esc(PBIP_ABS)}</code> i Power BI Desktop.`, 'Klik <b>Refresh</b> (Opdater) på fanen Home. Godkend adgangen til mappen, hvis Power BI spørger.', 'Vent, til opdateringen er færdig. Uden en opdatering er modellen tom, og alle tal bliver forkerte.'],
     runC: 'Kør checks.dax',
     c: ['Klik på ikonet <b>DAX query view</b> i venstre side (det nederste af de fire ikoner).', 'Åbn <code>checks.dax</code> i Notesblok, markér alt (Ctrl+A), kopiér (Ctrl+C) og indsæt det i DAX query view (Ctrl+V).', 'Klik <b>Run</b>. Du får en tabel med fire kolonner:'],
     colH: ['Kolonne', 'Betyder'],
@@ -112,9 +115,9 @@ const T = {
     card1: `Checks the <b>totals</b> in ${checks.length} rows: row counts per table, the headline measures, keys without a match${hasFilterChecks ? ' and whether the measures react correctly to filters' : ''}.`,
     card2: `Checks <b>real business questions</b>: ${questions.length} questions a report user could ask, with the answer the source files give.`,
     where: dlDir ? `Both files are in Downloads: <code class="path">${esc(fileRef('checks.dax'))}</code> and <code class="path">${esc(fileRef('grounded-answers.dax'))}</code>. Open them in Notepad to copy the text.`
-      : `Both files are in the run folder <code class="path">runs/${esc(RUN)}/</code>. Open them in Notepad to copy the text.`,
+      : `Both files are in the run folder <code class="path">${esc(RUN_ABS + path.sep)}</code>. Open them in Notepad to copy the text.`,
     before: 'Before you start',
-    b: [`Open <code class="path">runs\\${esc(RUN)}\\pbip\\${esc(NAME)}.pbip</code> in Power BI Desktop.`, 'Click <b>Refresh</b> on the Home tab. Approve the folder access if Power BI asks.', 'Wait until the refresh is done. Without a refresh the model is empty and every number is wrong.'],
+    b: [`Open <code class="path">${esc(PBIP_ABS)}</code> in Power BI Desktop.`, 'Click <b>Refresh</b> on the Home tab. Approve the folder access if Power BI asks.', 'Wait until the refresh is done. Without a refresh the model is empty and every number is wrong.'],
     runC: 'Run checks.dax',
     c: ['Click the <b>DAX query view</b> icon in the left bar (the lowest of the four icons).', 'Open <code>checks.dax</code> in Notepad, select all (Ctrl+A), copy (Ctrl+C) and paste it into DAX query view (Ctrl+V).', 'Click <b>Run</b>. You get a table with four columns:'],
     colH: ['Column', 'Meaning'],
