@@ -14,6 +14,7 @@ runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
     expected-values.md             # rows and totals to check the report against
     checks.dax                     # the same checks as one DAX query (Desktop → DAX query view)
     overview.html                  # project overview page (build-overview.js)
+    dax-checks-guide.html          # the run's guide to checks.dax / grounded-answers.dax (build-dax-guide.js; always handed over, copied to Downloads)
     layout-mapping.md              # from pbip-layout (when the dashboard is chosen)
     checks-basis.json              # what the model looked like when checks[] were computed (build-docs.js)
     governance/                    # model.json, <Name>_azdo_wiki.zip (pbip-governance), handover.md (build_handover.py)

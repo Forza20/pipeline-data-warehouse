@@ -11,8 +11,9 @@
 //   3 build-context.js     model-context.md
 //   4 model_health.py      model-health.md                           (needs profile.json)
 //   5 grounded_answers.py  grounded-answers.dax / .md                 (only with questions.json)
-//   6 build_handover.py    governance/handover.md                    (only when governance was chosen)
-//   7 build-overview.js    overview.html (+ Obsidian note with --vault)
+//   6 build-dax-guide.js   dax-checks-guide.html – the run's guide to checks.dax / grounded-answers.dax
+//   7 build_handover.py    governance/handover.md                    (only when governance was chosen)
+//   8 build-overview.js    overview.html (+ Obsidian note with --vault)
 //   – powerbi-report-author validate <Name>.Report                  (only with --validate-report)
 //
 // Prints JSON: { ok, failedAt, steps: [{ step, ok, skipped, ms, warnings, error }], warnings, stale, staleQuestions, next }.
@@ -57,6 +58,7 @@ const steps = [
     skip: !fs.existsSync(path.join(runDir, 'profile.json')) && 'no profile.json' },
   { step: 'grounded-answers', py: [path.join(S, 'grounded_answers.py'), pbip, path.join(runDir, 'questions.json'), '--out', runDir],
     skip: !fs.existsSync(path.join(runDir, 'questions.json')) && 'no questions.json yet (step 8.9)' },
+  { step: 'dax-guide', cmd: ['node', path.join(S, 'build-dax-guide.js'), runDir] },
   { step: 'handover', py: [path.join(S, 'build_handover.py'), runDir],
     skip: !((choices.extras || {}).governance || fs.existsSync(path.join(runDir, 'governance'))) && 'governance not chosen' },
   { step: 'overview', cmd: ['node', path.join(S, 'build-overview.js'), runDir, ...(opt('--vault') ? ['--vault', opt('--vault'), '--folder', opt('--folder') || 'Pipeline'] : [])] },
@@ -96,6 +98,7 @@ for (const s of steps) {
 }
 
 if (out.ok) {
+  out.next.push('Hand over the DAX guide (mandatory, step 9): node build-dax-guide.js <run> --lang <da|en> --downloads – copies the guide, checks.dax and grounded-answers.dax to Downloads.');
   out.next.push('Validate the TMDL: powerbi-modeling-mcp connection_operations ConnectFolder on the definition folder, then Disconnect.');
   if (!flag('--validate-report')) out.next.push(`Validate the report once: powerbi-report-author validate ${path.join(pbip, `${NAME}.Report`)} (or pass --validate-report).`);
   if ((choices.extras || {}).catalog || fs.existsSync(path.join(pbip, 'docs', 'catalog.xlsx'))) out.next.push('Rerun the catalog through the pbip-catalog skill (--missing-only, then the full run).');

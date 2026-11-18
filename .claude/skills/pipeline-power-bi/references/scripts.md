@@ -17,8 +17,12 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
 - `build_handover.py` – `governance/handover.md` from the model and the choices (step 8.6), with
   pbip-governance's PII heuristic and role parser.
 - `build-overview.js` – the overview page (and optional Obsidian note) from the run folder.
+- `build-dax-guide.js` – the run's own HTML guide to `checks.dax` and `grounded-answers.dax` (step 9,
+  always handed over): run id, number of checks, key expected numbers and why, every grounded question;
+  Danish or English (`--lang`, else `choices.json` → `dax_guide.lang`, else the report language);
+  `--downloads [<dir>]` copies the guide, `checks.dax` and `grounded-answers.dax` to Downloads.
 - `rebuild.js` – the run's scripts in order after a change (model → docs → context → health → grounded
-  answers → handover → overview), stopping at the first failure; one JSON result.
+  answers → DAX guide → handover → overview), stopping at the first failure; one JSON result.
 - `snake-names.js` – renames a build spec to snake_case (`dim_`/`fact_` tables, columns, measures) and
   rewrites every reference; `rebuild.js` runs it when `naming` is `snake_case`.
 - `descriptions.py` – fills every missing `///` description from the catalog's AI drafts (`--apply`) and

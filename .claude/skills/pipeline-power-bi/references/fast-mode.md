@@ -45,7 +45,8 @@ more is asked until the hand-over. Only these are still asked:
 
 Write `choices.json` once after step 5 (not after every table); write the build spec and `checks[]` in one
 turn, scaffold the report, then run `rebuild.js` once (it runs build-model, build-docs, build-context,
-model health, the grounded answers, the handover and the overview in order); load `pbip-catalog` and
+model health, the grounded answers, the DAX guide, the handover and the overview in order); the DAX guide
+goes to Downloads in fast mode too (`build-dax-guide.js … --downloads`, step 9 – never skipped); load `pbip-catalog` and
 `pbip-governance` in one turn (parallel Skill calls) and run the catalog's `--missing-only` and
 governance's `parse_pbip.py` + wiki bundle in one command. The hand-over says the run used fast mode and
 how to change a choice: `/pipeline-power-bi --resume <run-id>`.
