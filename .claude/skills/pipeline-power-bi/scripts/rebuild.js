@@ -11,7 +11,7 @@
 //   3 build-context.js     model-context.md
 //   4 model_health.py      model-health.md                           (needs profile.json)
 //   5 grounded_answers.py  grounded-answers.dax / .md                 (only with questions.json)
-//   6 build-dax-guide.js   dax-checks-guide.html – the run's guide to checks.dax / grounded-answers.dax
+//   6 build-dax-guide.js   checks.dax_grounded-answers.dax guide.html – the run's guide to checks.dax / grounded-answers.dax
 //   7 build_handover.py    governance/handover.md                    (only when governance was chosen)
 //   8 build-overview.js    overview.html (+ Obsidian note with --vault)
 //   – powerbi-report-author validate <Name>.Report                  (only with --validate-report)

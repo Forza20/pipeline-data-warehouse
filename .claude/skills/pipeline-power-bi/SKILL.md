@@ -416,7 +416,7 @@ flags and details of the eleven parts below, and the drift check for new files. 
   "why": { "<check name>": "<why this number, plain words>" }, "questions": { "1": "<short question>" } }`
   (the why/questions text in that language, for the key checks), then run
   **`node .claude\skills\pipeline-power-bi\scripts\build-dax-guide.js runs\<run-id> --downloads`**. It writes
-  `runs/<run-id>/dax-checks-guide.html` and copies it (`dax-checks-guide_<run-id>.html`), `checks.dax` and
+  `runs/<run-id>/checks.dax_grounded-answers.dax guide.html` and copies it, `checks.dax` and
   `grounded-answers.dax` to Downloads. Give the full Downloads path of the guide in the hand-over. Run it
   again after every rebuild that changes a check or a question (`rebuild.js` refreshes the run-folder copy
   only).
