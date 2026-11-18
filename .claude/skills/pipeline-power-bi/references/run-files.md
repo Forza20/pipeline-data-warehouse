@@ -13,8 +13,9 @@ runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
     cleaning-log.md                # table → step → rows → choice (written at the build)
     expected-values.md             # rows and totals to check the report against
     checks.dax                     # the same checks as one DAX query (Desktop → DAX query view)
+    grounded-answers.dax           # the grounded questions as one DAX query; grounded-answers.md explains them
     overview.html                  # project overview page (build-overview.js)
-    checks.dax_grounded-answers.dax guide.html # the run's guide to checks.dax / grounded-answers.dax (build-dax-guide.js; always handed over, copied to Downloads)
+    checks.dax_grounded-answers.dax guide.html # the run's guide to checks.dax / grounded-answers.dax (build-dax-guide.js; always handed over, stays here – no Downloads copy)
     layout-mapping.md              # from pbip-layout (when the dashboard is chosen)
     check-results.json             # the recorded result of checks.dax / grounded-answers.dax (record-checks.js)
     checks-basis.json              # what the model looked like when checks[] were computed (build-docs.js)

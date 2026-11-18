@@ -78,7 +78,7 @@ questions whatever the dataset holds. When done, set `"questions_asked": "<times
 
 **Layout (one call):**
 1. *Colours* (**always asked**, also when the medallion answers below are "use the recommendation" – only
-   the user knows their brand colours): "Standard (Recommended)" · "Saved profile" (only if `profiles\default.json` exists; show its
+   the user knows their brand colours): "Generic colors (Recommended)" · "Saved profile" (only if `profiles\default.json` exists; show its
    name and colours) · "Hex codes" · "Screenshot of a website". For hex codes: take them from the answer or
    ask in chat, and map them to the keys in `.claude\skills\pbip-layout\colors.md`. For a screenshot: ask for
    the file path in chat (an image pasted into the chat has a path too), run
@@ -133,7 +133,7 @@ Retention is part of the start, like the questions; it is not counted as a stop 
 
 ## 2d. Show the choices
 
-Show the user in 3–5 lines: profile (or Standard), the chosen pages, title, the medallion answers that differ from
+Show the user in 3–5 lines: profile (or Generic colors), the chosen pages, title, the medallion answers that differ from
 the recommendation, and the retention result. Then start step 3 without waiting.
 
 ## 3. Run the agents, one at a time

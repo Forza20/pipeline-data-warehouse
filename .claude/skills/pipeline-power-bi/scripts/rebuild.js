@@ -102,7 +102,7 @@ for (const s of steps) {
 }
 
 if (out.ok) {
-  out.next.push('Hand over the DAX guide (mandatory, step 9): node build-dax-guide.js <run> --lang <da|en> --downloads – copies the guide, checks.dax and grounded-answers.dax to Downloads.');
+  out.next.push('Hand over the DAX guide (mandatory, step 9): node build-dax-guide.js <run> --lang <da|en> – writes the guide to the run folder next to checks.dax and grounded-answers.dax (no Downloads copy).');
   out.next.push('Validate the TMDL: powerbi-modeling-mcp connection_operations ConnectFolder on the definition folder, then Disconnect.');
   if (!flag('--validate-report')) out.next.push(`Validate the report once: powerbi-report-author validate ${path.join(pbip, `${NAME}.Report`)} (or pass --validate-report).`);
   if ((choices.extras || {}).catalog || fs.existsSync(path.join(pbip, 'docs', 'catalog.xlsx'))) out.next.push('Rerun the catalog through the pbip-catalog skill (--missing-only, then the full run).');

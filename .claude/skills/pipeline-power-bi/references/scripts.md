@@ -20,7 +20,8 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
 - `build-dax-guide.js` – the run's own HTML guide to `checks.dax` and `grounded-answers.dax` (step 9,
   always handed over): run id, number of checks, key expected numbers and why, every grounded question;
   Danish or English (`--lang`, else `choices.json` → `dax_guide.lang`, else the report language);
-  `--downloads [<dir>]` copies the guide, `checks.dax` and `grounded-answers.dax` to Downloads.
+  `--downloads [<dir>]` (tests only – the pipeline never passes it) copies the guide, `checks.dax` and
+  `grounded-answers.dax` to another folder; by default all three stay in the run folder.
 - `record-checks.js` – the result of `checks.dax` / `grounded-answers.dax` (JSON from powerbi-modeling-mcp
   `dax_query_operations`, or the table copied from DAX query view) into `expected-values.md` and
   `grounded-answers.md`: "In Power BI", Difference and one ✅/❌ result line; saves `check-results.json`
