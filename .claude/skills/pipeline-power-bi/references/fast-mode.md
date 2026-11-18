@@ -9,6 +9,8 @@ more is asked until the hand-over. Only these are still asked:
 - the path of the files when none was given (the report name is not asked: `--name`, else the folder name);
 - a run folder that already exists (step 1.4), and Power BI Desktop being open (step 8);
 - installing a missing program (step 0) – never install without a yes;
+- the analysis (step 2b): one AskUserQuestion call – purpose, the top number, the main split – from the
+  analysis-planning skill; the rest is drafted and asked at the hand-over;
 - which dashboard the report gets – the AdventureWorks template or the Business template (Marketing, Sales,
   Finance) – which of its pages, and its colours – Standard, a saved profile, hex codes or a screenshot
   (step 6, one AskUserQuestion call; the dashboard is always built).

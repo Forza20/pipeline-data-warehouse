@@ -31,9 +31,15 @@ const rels = b.relationships && b.relationships.length
   ? b.relationships.map((r) => `${r.from} → ${r.to}${r.active === false ? ' (inactive)' : ''}`) : (m.relationships || []);
 const measures = b.measures && b.measures.length ? b.measures.map((x) => x.name) : (m.measures || []);
 const review = (d.review || []).filter((r) => r && r.point);
+const a = c.analysis || null;
+const label = (x) => (typeof x === 'string' ? x : x.name || x.column || x.text);
 const S = {
   run: c.run_id || path.basename(runDir), name: c.name, culture: c.report_culture, currency: c.currency, fast: !!c.fast,
   status: c.status || {},
+  analysis: a && { purpose: a.purpose || '', audience: a.audience || '', kpis: (a.kpis || []).map(label),
+    dimensions: (a.dimensions || []).map(label), timeGrain: a.time_grain || '', comparisons: a.comparisons || [],
+    questions: (a.questions || []).map(label),
+    drafted: ['kpis', 'dimensions', 'questions'].reduce((n, k) => n + (a[k] || []).filter((x) => x && x.source === 'drafted').length, 0) },
   design: { facts: (d.facts || []).map((f) => ({ name: f.name, grain: f.grain, sources: f.sources || [] })),
     dimensions: (d.dimensions || []).map((x) => ({ name: x.name, sources: x.sources || [] })),
     stagingOnly: d.staging_only || [], leftOut: (d.left_out || []).map((x) => (typeof x === 'string' ? { table: x } : x)), roles: names(d.roles) },
@@ -44,6 +50,14 @@ if (process.argv.includes('--json')) { console.log(JSON.stringify(S, null, 1)); 
 
 const L = [`**${S.name || S.run}** (\`${S.run}\`) · ${S.culture || '–'}, ${S.currency || '–'}${S.fast ? ' · fast mode' : ''}`, ''];
 L.push(`Status: ${Object.entries(S.status).map(([k, v]) => `${k} ${v}`).join(' · ') || '–'}`, '');
+if (S.analysis) {
+  const A = S.analysis;
+  L.push(`**Analysis:** ${A.purpose || '–'}${A.audience ? ` (for ${A.audience})` : ''}`);
+  L.push(`- Numbers: ${A.kpis.join(', ') || '–'} · split by: ${A.dimensions.join(', ') || '–'} · time: ${[A.timeGrain, ...A.comparisons].filter(Boolean).join(', ') || '–'}`);
+  if (A.questions.length) L.push(`- Questions: ${A.questions.join(' · ')}`);
+  if (A.drafted) L.push(`(${A.drafted} drafted, not asked)`);
+  L.push('');
+}
 if (S.design.facts.length || S.design.dimensions.length) {
   L.push(`**Star schema: ${S.design.facts.length} facts, ${S.design.dimensions.length} dimensions**`);
   for (const f of S.design.facts) L.push(`- Fact ${f.name}: ${f.grain || '–'}${f.sources.length ? ` (from ${f.sources.join(', ')})` : ''}`);

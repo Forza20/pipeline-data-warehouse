@@ -157,6 +157,13 @@ Show the user one overview table: file (and sheet / Excel table) → rows · col
 counting F17) · proposed role (fact = the table other tables do not point at, with dates and amounts;
 dimension = a table others point at; other).
 
+**Step 2b – Plan the analysis.** Right after the overview, load the **analysis-planning** skill (Skill
+call) and follow it: 5–7 questions, one at a time, about purpose, audience, business questions, KPIs,
+split and time, each with 3 options from the profile plus free text (fast mode: one call). It writes
+`choices.json` → `analysis`. From here on, `analysis` decides which options are recommended – its table
+in analysis-planning's SKILL.md says how per step. Skipped on the "Keep my model" path, except for the
+dashboard template and pages in step 6.
+
 **Workbooks – which sheets?** When a workbook has more than one sheet or Excel table, ask first (one
 AskUserQuestion, multiSelect, max 4 options per question – more questions if needed): "Which sheets in
 <file> should become tables in the report?" One option per sheet/Excel table, label = its name, description
@@ -437,7 +444,7 @@ This skill is never finished. Improve it as you use it.
 | Any script | [references/scripts.md](references/scripts.md) – what each script does |
 | PBIP/TMDL load errors | `../supabase-medallion-powerbi/references/tmdl-templates.md` (sections 1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` |
 
-Other skills used: `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
+Other skills used: `analysis-planning`, `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
 
 **After changing any script of this skill, or `parse_pbip.py`/`build_catalog.py`, run**
 `node .claude\skills\pipeline-power-bi\tests\run-tests.js` (and

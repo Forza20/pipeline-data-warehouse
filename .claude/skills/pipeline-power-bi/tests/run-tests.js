@@ -297,6 +297,21 @@ res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run, '--
 let sj = {};
 try { sj = JSON.parse(res.stdout); } catch { /* reported below */ }
 check('summary --json: same content as data', sj.run === 'test' && sj.sources.length === 1 && sj.review.open.length === 1 && sj.measures.length === 2, res.stdout.slice(0, 300));
+check('summary: no analysis line without analysis', !sum.includes('**Analysis:**') && sj.analysis === null);
+// analysis-planning (step 2b) writes choices.json → analysis; the summary shows it first
+const anChoices = JSON.parse(fs.readFileSync(path.join(run, 'choices.json'), 'utf8'));
+anChoices.analysis = { purpose: 'Monthly revenue per region', audience: 'sales managers',
+  kpis: [{ name: 'Revenue', definition: 'sum of orders.amount, paid only', source: 'user' }, { name: 'Orders', source: 'drafted' }],
+  dimensions: [{ column: 'customers.region', source: 'user' }], time_grain: 'month', comparisons: ['previous month'],
+  questions: [{ text: 'Revenue in Nord last complete month?', source: 'user' }], tables: ['orders', 'customers'], asked: 6 };
+fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify(anChoices));
+res = spawnSync('node', [path.join(SKILL, 'scripts', 'run-summary.js'), run], { encoding: 'utf8' });
+const asum = res.stdout || '';
+check('summary: analysis shows purpose, numbers, split, time, questions and drafted count', res.status === 0 &&
+  asum.includes('**Analysis:** Monthly revenue per region (for sales managers)') &&
+  asum.includes('- Numbers: Revenue, Orders · split by: customers.region · time: month, previous month') &&
+  asum.includes('- Questions: Revenue in Nord last complete month?') && asum.includes('(1 drafted, not asked)') &&
+  asum.indexOf('**Analysis:**') < asum.indexOf('**Star schema'), asum.slice(0, 600));
 const py = process.env.PYTHON || 'python';
 if (!QUICK) {
   res = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'model_health.py'), path.join(run, 'pbip'), '--profile', profFile, '--out', run], { encoding: 'utf8' });

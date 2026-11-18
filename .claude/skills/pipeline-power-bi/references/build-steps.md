@@ -164,7 +164,8 @@ close it).
    and a Difference column. Example of the result: [checks.example.dax](checks.example.dax).
 9. **Grounded-answer test** (always): `checks.dax` proves the totals; this proves that real questions get
    the right number, under the asker's permissions, traceable to their definition.
-   - Ask the user for 3–5 business questions (AskUserQuestion with drafted ones from the measures and
+   - Start from `choices.json` → `analysis.questions` (step 2b) – they are the recommended ones. Then ask
+     the user for 3–5 business questions (AskUserQuestion with drafted ones from the measures and
      dimensions, e.g. "Sales in <region> in <latest complete month>", plus "Other" for their own). With an
      RLS role, add one question as a user of that role (a user from the security sheet).
    - Compute each expected number **from the source files** (a short Python/PowerShell script over
