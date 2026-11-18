@@ -154,7 +154,9 @@ Read-only; prints one line per table. Then read `profile.json` (per table: `kind
 one table at a time – never paste it whole.
 
 Show the user one overview table: file (and sheet / Excel table) → rows · columns · problems found (not
-counting F17) · proposed role (fact = the table other tables do not point at, with dates and amounts;
+counting F17 – F17 is a fix ID: each F-code (F01–F29) is one kind of data problem with its own cleaning
+step, and the Power Query step carries the same name; the full list is in references/fix-catalog.md. Say
+this to the user the first time you show an F-code) · proposed role (fact = the table other tables do not point at, with dates and amounts;
 dimension = a table others point at; other).
 
 **Step 2b – Plan the analysis.** Right after the overview, load the **analysis-planning** skill (Skill
@@ -393,6 +395,10 @@ flags and details of the eleven parts below, and the drift check for new files. 
 - Run `grounded-answers.dax` the same way, then confirm each role row once with Modeling → **View as** →
   the role + *Other user*. Fill in "In Power BI" in `grounded-answers.md`. A question with a difference is
   handled like any other difference (below).
+- Offer the guide (AskUserQuestion, single-select): "Get an HTML guide on how to use `checks.dax` and
+  `grounded-answers.dax`?" · "Yes – copy it to Downloads (Recommended)" · "No". With yes, copy
+  [references/dax-checks-guide.html](references/dax-checks-guide.html) to the user's Downloads folder and
+  give its full path.
 - Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
   explain at once: follow the **reconcile** skill (`.claude/skills/reconcile/SKILL.md`) – split it by the
   dimensions until it sits in one slice and name the rows behind it. Write the result into
