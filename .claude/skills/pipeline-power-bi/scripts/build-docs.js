@@ -244,12 +244,13 @@ if (checks.some((c) => !c.auto) || questions.length) {
 // ---------- expected-values.md ----------
 const fmt = (n) => (Number.isInteger(n) ? n.toLocaleString('en-US') : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const ev = [`# Expected values – ${NAME} (${RUN})`, '',
-  'Computed from the source files with the kept cleaning steps, not from the model. Fill in "In Power BI" after a',
-  'refresh (run `checks.dax` in DAX query view). Rows marked (auto) are model checks added by `build-docs.js`.', '',
+  'Computed from the source files with the kept cleaning steps, not from the model. "In Power BI" and "Difference"',
+  'are written by `record-checks.js` after a refresh and a run of `checks.dax`. Rows marked (auto) are model checks',
+  'added by `build-docs.js`.', '',
   ...(stale.length ? [`> **Stale:** the design changed after these values were computed (${changedParts.join(', ')}). Rows marked`,
     '> (stale) must be recomputed from the source files before the check means anything.', ''] : []),
-  '| Check | Expected | Assumes | In Power BI |', '|---|---|---|---|',
-  ...checks.map((c) => `| ${cell(c.name)}${c.auto ? ' (auto)' : ''}${c.stale ? ' (stale)' : ''} | ${fmt(c.expected)} | ${cell(c.assumes)} | |`), ''];
+  '| Check | Expected | Assumes | In Power BI | Difference |', '|---|---|---|---|---|',
+  ...checks.map((c) => `| ${cell(c.name)}${c.auto ? ' (auto)' : ''}${c.stale ? ' (stale)' : ''} | ${fmt(c.expected)} | ${cell(c.assumes)} | | |`), ''];
 if (choices.expected_notes) ev.push(String(choices.expected_notes).trim(), '');
 fs.writeFileSync(path.join(runDir, 'expected-values.md'), ev.join('\n'), 'utf8');
 

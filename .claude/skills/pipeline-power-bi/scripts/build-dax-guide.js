@@ -101,7 +101,7 @@ const T = {
     noQ: 'Kørslen har endnu ingen grounded-answers.dax. Den kommer, når forretningsspørgsmålene er skrevet (trin 8.9).',
     diff: 'Hvis Difference ikke er 0',
     d: ['<b>Mange rækker er forkerte, eller alle er tomme:</b> modellen er sandsynligvis ikke opdateret. Klik Refresh og kør igen.', '<b>Fejlmeddelelse i stedet for en tabel:</b> læs meddelelsen. Den nævner ofte et rensetrin, f.eks. <code>F08 Parse order_date</code>. Send fejlen til Claude.', '<b>Kun en enkelt række afviger:</b> skriv Check-navnet og begge tal til Claude. Claude bruger så <i>reconcile</i>-skillen til at dele afvigelsen op, indtil de rækker, der giver forskellen, er fundet.'],
-    note: 'Når alt er 0, kan du skrive tallene i kolonnen "In Power BI" i <code>expected-values.md</code> i kørselsmappen. Så er kontrollen dokumenteret.',
+    note: 'Du skal ikke skrive tallene ind selv. Højreklik på resultatet, vælg <b>Copy table</b>, og indsæt det i chatten (gør det for begge filer). Claude skriver så tallene, Difference og én resultatlinje i <code>expected-values.md</code> og <code>grounded-answers.md</code>, fx „✅ 41/41 checks og 4/4 grounded answers: Difference 0 – ingen fejl“. Er Power BI Desktop forbundet til Claude, kører Claude filerne selv.',
   },
   en: {
     title: 'How to use checks.dax and grounded-answers.dax',
@@ -130,7 +130,7 @@ const T = {
     noQ: 'The run has no grounded-answers.dax yet. It comes when the business questions are written (step 8.9).',
     diff: 'When a Difference is not 0',
     d: ['<b>Many rows are wrong, or all are empty:</b> the model is probably not refreshed. Click Refresh and run again.', '<b>An error instead of a table:</b> read the message. It often names a cleaning step, e.g. <code>F08 Parse order_date</code>. Send the error to Claude.', '<b>Only one row differs:</b> give Claude the Check name and both numbers. Claude then uses the <i>reconcile</i> skill to split the difference until the rows behind it are found.'],
-    note: 'When everything is 0, write the numbers into the column "In Power BI" in <code>expected-values.md</code> in the run folder. Then the check is documented.',
+    note: 'You do not type the numbers in yourself. Right-click the result, choose <b>Copy table</b> and paste it into the chat (for both files). Claude then writes the numbers, the Difference and one result line into <code>expected-values.md</code> and <code>grounded-answers.md</code>, e.g. "✅ 41/41 checks and 4/4 grounded answers: Difference 0 – no errors". When Power BI Desktop is connected to Claude, Claude runs the files itself.',
   },
 }[lang];
 

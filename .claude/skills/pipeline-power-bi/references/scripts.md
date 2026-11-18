@@ -21,6 +21,11 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
   always handed over): run id, number of checks, key expected numbers and why, every grounded question;
   Danish or English (`--lang`, else `choices.json` → `dax_guide.lang`, else the report language);
   `--downloads [<dir>]` copies the guide, `checks.dax` and `grounded-answers.dax` to Downloads.
+- `record-checks.js` – the result of `checks.dax` / `grounded-answers.dax` (JSON from powerbi-modeling-mcp
+  `dax_query_operations`, or the table copied from DAX query view) into `expected-values.md` and
+  `grounded-answers.md`: "In Power BI", Difference and one ✅/❌ result line; saves `check-results.json`
+  with a model fingerprint and rebuilds the overview. `--apply-only` (rebuild.js) writes the saved result
+  back, marked outdated when the model changed. Exit 0 = every Difference 0.
 - `rebuild.js` – the run's scripts in order after a change (model → docs → context → health → grounded
   answers → DAX guide → handover → overview), stopping at the first failure; one JSON result.
 - `snake-names.js` – renames a build spec to snake_case (`dim_`/`fact_` tables, columns, measures) and

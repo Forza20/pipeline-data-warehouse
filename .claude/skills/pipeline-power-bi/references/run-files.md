@@ -16,6 +16,7 @@ runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
     overview.html                  # project overview page (build-overview.js)
     checks.dax_grounded-answers.dax guide.html # the run's guide to checks.dax / grounded-answers.dax (build-dax-guide.js; always handed over, copied to Downloads)
     layout-mapping.md              # from pbip-layout (when the dashboard is chosen)
+    check-results.json             # the recorded result of checks.dax / grounded-answers.dax (record-checks.js)
     checks-basis.json              # what the model looked like when checks[] were computed (build-docs.js)
     governance/                    # model.json, <Name>_azdo_wiki.zip (pbip-governance), handover.md (build_handover.py)
     pbip/<Name>.pbip, <Name>.Report/, <Name>.SemanticModel/

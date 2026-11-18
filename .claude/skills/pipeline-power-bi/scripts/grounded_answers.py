@@ -166,7 +166,7 @@ def main():
                f'- **Measure:** {x["measure"]}' + (f' – {m["description"]}' if m.get('description') else ''),
                f'- **Filters:** ' + (', '.join(f'{k} = {v}' for k, v in (x.get("filters") or {}).items()) or 'none'),
                f'- **Expected:** {x["expected"]} – {x.get("expected_how") or "(how it was computed is missing)"}',
-               '- **In Power BI:** _(fill in after the refresh)_'] + role_txt + [
+               '- **In Power BI:** _(written by record-checks.js after the refresh)_'] + role_txt + [
                '', '**Definition**', '```dax']
         for name in ms:
             md.append(f'{name} = {measures[name]["expression"].strip()}')
