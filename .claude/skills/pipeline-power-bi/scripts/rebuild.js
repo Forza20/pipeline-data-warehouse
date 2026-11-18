@@ -11,6 +11,8 @@
 //   3 build-context.js     model-context.md
 //   4 model_health.py      model-health.md                           (needs profile.json)
 //   5 grounded_answers.py  grounded-answers.dax / .md                 (only with questions.json)
+//   – record-checks.js     the saved check result (check-results.json) back into the .md files, marked outdated
+//                          when the model changed since                 (only with check-results.json)
 //   6 build-dax-guide.js   checks.dax_grounded-answers.dax guide.html – the run's guide to checks.dax / grounded-answers.dax
 //   7 build_handover.py    governance/handover.md                    (only when governance was chosen)
 //   8 build-overview.js    overview.html (+ Obsidian note with --vault)
@@ -58,6 +60,8 @@ const steps = [
     skip: !fs.existsSync(path.join(runDir, 'profile.json')) && 'no profile.json' },
   { step: 'grounded-answers', py: [path.join(S, 'grounded_answers.py'), pbip, path.join(runDir, 'questions.json'), '--out', runDir],
     skip: !fs.existsSync(path.join(runDir, 'questions.json')) && 'no questions.json yet (step 8.9)' },
+  { step: 'check-results', cmd: ['node', path.join(S, 'record-checks.js'), runDir, '--apply-only'],
+    skip: !fs.existsSync(path.join(runDir, 'check-results.json')) && 'no check result recorded yet (step 9)' },
   { step: 'dax-guide', cmd: ['node', path.join(S, 'build-dax-guide.js'), runDir] },
   { step: 'handover', py: [path.join(S, 'build_handover.py'), runDir],
     skip: !((choices.extras || {}).governance || fs.existsSync(path.join(runDir, 'governance'))) && 'governance not chosen' },

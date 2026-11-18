@@ -384,7 +384,7 @@ if (!QUICK) {
   res = spawnSync('node', [path.join(SKILL, 'scripts', 'rebuild.js'), run], { encoding: 'utf8', env: { ...process.env, PYTHON: py } });
   let rb = {};
   try { rb = JSON.parse(res.stdout); } catch { /* reported below */ }
-  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,model-health,grounded-answers,dax-guide,handover,overview', res.stdout.slice(0, 800) + res.stderr);
+  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,model-health,grounded-answers,check-results,dax-guide,handover,overview', res.stdout.slice(0, 800) + res.stderr);
   // descriptions.py: every table, column and measure has a /// description after a rebuild, and the Excel list exists
   {
     const dr = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'descriptions.py'), path.join(run, 'pbip'), '--warn-only'], { encoding: 'utf8' });
@@ -497,6 +497,39 @@ if (!QUICK) {
       gr.status === 0 && gj.lang === 'da' && (gj.downloads || []).some((f) => f.endsWith('checks.dax_grounded-answers.dax guide.html') && fs.existsSync(f)) &&
       fs.existsSync(path.join(dl, 'checks.dax')) && dtxt.includes('Sådan bruger du') && dtxt.includes(path.join(dl, 'checks.dax')), gr.stdout.slice(0, 400) + gr.stderr);
     fs.rmSync(dl, { recursive: true, force: true });
+  }
+  // record-checks.js: a pasted DAX query view table (Danish numbers) or MCP JSON fills expected-values.md and one result line
+  {
+    const exp = [...fs.readFileSync(path.join(run, 'checks.dax'), 'utf8').matchAll(/^\s*\(\s*"((?:[^"]|"")*)"\s*,.*,\s*(-?[0-9.]+)\s*\)\s*,?\s*$/gm)].map((m) => [m[1], Number(m[2])]);
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rec-'));
+    const tsv = (wrong) => ['Check\tIn Power BI\tExpected\tDifference', ...exp.map(([n, v], i) => {
+      const got = i === 0 && wrong ? v + 1 : v;
+      return [n, got.toLocaleString('da-DK'), v.toLocaleString('da-DK'), String(got - v).replace('.', ',')].join('\t');
+    })].join('\r\n');
+    const rec = (file) => spawnSync('node', [path.join(SKILL, 'scripts', 'record-checks.js'), run, '--checks', file, '--no-overview'], { encoding: 'utf8' });
+    fs.writeFileSync(path.join(tmp, 'bad.txt'), tsv(true));
+    let r1 = rec(path.join(tmp, 'bad.txt')); let j1 = {}; try { j1 = JSON.parse(r1.stdout); } catch { /* reported below */ }
+    check('record-checks: a pasted table with one difference → exit 1, ❌ line names the check',
+      r1.status === 1 && j1.allZero === false && (j1.checks || {}).fail.length === 1 && rd('expected-values.md').includes(`❌ **Result`) && rd('expected-values.md').includes(exp[0][0]), r1.stdout.slice(0, 500) + r1.stderr);
+    fs.writeFileSync(path.join(tmp, 'ok.json'), JSON.stringify({ results: [{ tables: [{ rows: exp.map(([n, v]) => ({ '[Check]': n, '[In Power BI]': v, '[Expected]': v, '[Difference]': 0 })) }] }] }));
+    const r2 = rec(path.join(tmp, 'ok.json')); let j2 = {}; try { j2 = JSON.parse(r2.stdout); } catch { /* reported below */ }
+    const ev2 = rd('expected-values.md');
+    check('record-checks: MCP JSON with every Difference 0 → exit 0, one ✅ line, In Power BI + Difference filled',
+      r2.status === 0 && j2.allZero && (ev2.match(/Result /g) || []).length === 1 && ev2.includes(`✅ **Result`) && ev2.includes('| ✅ 0 |') && ev2.includes('| In Power BI | Difference |'), r2.stdout.slice(0, 500) + r2.stderr);
+    // a rebuild writes the saved result back; a changed model marks it outdated
+    const ra = spawnSync('node', [path.join(SKILL, 'scripts', 'build-docs.js'), run], { encoding: 'utf8' });
+    spawnSync('node', [path.join(SKILL, 'scripts', 'record-checks.js'), run, '--apply-only'], { encoding: 'utf8' });
+    const kept = rd('expected-values.md').includes('✅ **Result');
+    const def = path.join(run, 'pbip', fs.readdirSync(path.join(run, 'pbip')).find((d) => d.endsWith('.SemanticModel')), 'definition', 'model.tmdl');
+    const orig = fs.readFileSync(def, 'utf8');
+    fs.writeFileSync(def, orig + '\n');
+    spawnSync('node', [path.join(SKILL, 'scripts', 'record-checks.js'), run, '--apply-only'], { encoding: 'utf8' });
+    const outdated = rd('expected-values.md').includes('⚠️ **Result');
+    fs.writeFileSync(def, orig);
+    check('record-checks --apply-only: result kept after build-docs, marked outdated when the model changed', ra.status === 0 && kept && outdated, rd('expected-values.md').slice(0, 600));
+    fs.rmSync(path.join(run, 'check-results.json'), { force: true });
+    spawnSync('node', [path.join(SKILL, 'scripts', 'build-docs.js'), run], { encoding: 'utf8' });
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
   // snake-names.js + naming snake_case: every table, column and measure in the model is snake_case,
   // DAX and relationships follow, a second run changes nothing, and a non-snake name stops the build

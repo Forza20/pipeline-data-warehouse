@@ -400,15 +400,26 @@ flags and details of the eleven parts below, and the drift check for new files. 
 
 ## Step 9 – Check the numbers
 
-- With Desktop: open `<Name>.pbip`, ask the user to click **Refresh** (and approve the file access
-  prompt for the folder), then run the DAX checks of source-model.md section 4 with
-  `dax_query_operations` and compare with `expected-values.md`. A query error in a step: read the error
-  (it names the step, e.g. `F08 Parse order_date`), fix the step, rebuild, refresh again.
-- Without Desktop: give the user `checks.dax` (paste into Desktop → DAX query view → Run; every
-  Difference should be 0) and `expected-values.md` for the cards.
-- Run `grounded-answers.dax` the same way, then confirm each role row once with Modeling → **View as** →
-  the role + *Other user*. Fill in "In Power BI" in `grounded-answers.md`. A question with a difference is
-  handled like any other difference (below).
+- **The user never fills in "In Power BI" by hand** – `record-checks.js` writes it, the Difference column and
+  one result line ("✅ 41/41 checks and 4/4 grounded answers: Difference 0 – no errors", or ❌ with the rows
+  that are not 0) into `expected-values.md` and `grounded-answers.md`, saves `check-results.json` and
+  rebuilds `overview.html`. A later rebuild writes the saved result back, marked ⚠️ outdated when the model
+  changed since.
+- **A – Claude runs the checks (default, with Desktop):** open `<Name>.pbip`, ask the user to click
+  **Refresh** (and approve the file access prompt for the folder). Run the text of `checks.dax` and of
+  `grounded-answers.dax` with powerbi-modeling-mcp `dax_query_operations`, save each tool result as it came
+  (JSON) to `runs/<run-id>/checks.result.json` and `grounded.result.json`, then
+  **`node .claude\skills\pipeline-power-bi\scripts\record-checks.js runs\<run-id> --checks runs\<run-id>\checks.result.json --grounded runs\<run-id>\grounded.result.json`**.
+  A query error in a step: read the error (it names the step, e.g. `F08 Parse order_date`), fix the step,
+  rebuild, refresh again.
+- **B – the user runs them (no MCP connection):** the user pastes `checks.dax` into Desktop → DAX query
+  view → Run, right-clicks the result → **Copy table**, and pastes it into the chat; same for
+  `grounded-answers.dax`. Save each paste as it is to `checks.result.txt` / `grounded.result.txt` in the run
+  folder and run the same `record-checks.js` command with those files (tab-separated, Danish or English
+  number format).
+- Tell the user the result line in one sentence. Then confirm each role row once with Modeling →
+  **View as** → the role + *Other user*. A question with a difference is handled like any other
+  difference (below).
 - **The DAX guide is always handed over – never ask, never skip.** It is the run's own guide to `checks.dax`
   and `grounded-answers.dax`: the report name, run id, the number of checks, the key expected numbers and
   why, and every grounded question with its expected answer. Write it in the language the user speaks
@@ -422,8 +433,8 @@ flags and details of the eleven parts below, and the drift check for new files. 
   only).
 - Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
   explain at once: follow the **reconcile** skill (`.claude/skills/reconcile/SKILL.md`) – split it by the
-  dimensions until it sits in one slice and name the rows behind it. Write the result into
-  `expected-values.md` (column "In Power BI") and rebuild the overview page.
+  dimensions until it sits in one slice and name the rows behind it. After a fix: rebuild, refresh, run
+  the checks again and `record-checks.js` again (it rebuilds the overview page).
 
 ## Step 10 – Hand-over (5–8 lines)
 
