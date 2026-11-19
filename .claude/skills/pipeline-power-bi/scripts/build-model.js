@@ -143,6 +143,12 @@ function fixStep(q, f, s) {
       return q.add(`F15 Flag ${c}`, `Table.AddColumn(<prev>, ${ms(f.flagColumn || `${c} status`)}, each if [${c}] = null then "missing or invalid" else if [${c}] > ${cut} then "future" else if Date.Year([${c}]) < 1900 then "too old" else "ok", type text)`);
     }
     case 'F16': {
+      // month names without a year column fall in the current year – wrong for every past row
+      if (f.period === 'monthName' && !f.year) {
+        const yc = (f.keep || []).find((k) => /year|^år$|^aar$|^yr$/i.test(k));
+        if (yc) errors.push(`${s.name}: F16 with period "monthName" needs "year": "${yc}" – without it every month gets the current year and no "${f.attribute || 'Period'} start" column is made`);
+        else warnings.push(`${s.name}: F16 with period "monthName" and no "year" column – the months get the current year`);
+      }
       q.add(`F16 Unpivot ${f.attribute || 'Period'}`, `Table.UnpivotOtherColumns(<prev>, ${L(f.keep)}, ${ms(f.attribute || 'Period')}, ${ms(f.value || 'Value')})`);
       const a = f.attribute || 'Period';
       // v = the M expression for the period text: `_` inside TransformColumns, `[<attribute>]` inside AddColumn

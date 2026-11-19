@@ -238,9 +238,10 @@ same steps whatever the dataset:
 ## New versions of the source files (`--resume <run-id>` → "New files")
 
 Before the user refreshes with new files, check them against what the model was built for:
-`node .claude\skills\pipeline-power-bi\scripts\check-drift.js runs\<run-id> [--path <new file or folder>]`
-→ `drift.md`. Exit code 1 = the refresh will fail: a file, sheet, Excel table or selected column is gone,
+`node .claude\skills\pipeline-power-bi\scripts\check-drift.js runs\<run-id> [--path <new file or folder>] --save-profile runs\<run-id>\profile.new.json`
+→ `drift.md` (`--save-profile` keeps the profile it made of the new files, so it is not profiled twice). Exit code 1 = the refresh will fail: a file, sheet, Excel table or selected column is gone,
 or a CSV's delimiter, header row or encoding changed. For each break propose the change to the build spec
 (a renamed column: the guess it prints; a new sheet name: `item`), rebuild, and validate. Warnings (a
 column that changed kind, a new problem type) go to step 4 for that table. Then copy the files to `data/`
-when `copy_files` is true, and save the new profile as `profile.json`.
+when `copy_files` is true, and move `profile.new.json` to `profile.json` (no new profiler run;
+`source-stats.js` exports the rows again by itself, since `data/` is now newer than `rows/`).

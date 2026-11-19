@@ -54,7 +54,7 @@ directory is inside it) – the previous model is kept, close what holds it and 
 | F13 | `column` (keep first per value, `ignoreCase`) or `column` + `remove` [values] + `label` |
 | F14 | `column`, `checks` [`negative`,`spike`,`zero`], `spike` (limit), `mode` `flag`/`remove`, `flagColumn` |
 | F15 | `column`, `mode` `flag`/`remove`, `cutoff`, `flagColumn` (default `<column> status`) |
-| F16 | `keep` [id columns], `attribute`, `value`, `period` `yyyy-MM` or `monthName` (+ `year` column → `<attribute> start`) |
+| F16 | `keep` [id columns], `attribute`, `value`, `period` `yyyy-MM` or `monthName` (+ `year` column → `<attribute> start`; a `keep` column named like a year makes `year` required – the build stops without it) |
 | F17 | `types` {column: type}, `periodColumns` [`2025-02` text → month date] |
 | F19, F25 | `columns` |
 | F23 | `column`, `separator`, `names` |
