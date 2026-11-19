@@ -3,8 +3,9 @@
 // "526,6tusind", "40K" or "$0.04mio." - they always use the measure's own
 // format string (whole number or decimal).
 //
-// Used by gen-report.js on every visual it writes, and as a CLI on an existing
-// report:  node display-units.js <Report folder or definition/pages folder>
+// Used by gen-report.js on every visual it writes and on the report theme, and as a
+// CLI on an existing report:  node display-units.js <Report folder or definition/pages folder>
+//                       theme: node display-units.js --theme <pbip-layout-theme.json>
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -48,11 +49,37 @@ function fixVisual(json) {
   return n;
 }
 
-module.exports = { fixVisual };
+// The same settings as report-theme defaults (visualStyles), so a visual the user adds later in
+// Power BI Desktop also starts at "None" instead of "Auto". Our values win; the rest of the theme stays.
+function withThemeDefaults(theme) {
+  const vs = (theme.visualStyles = theme.visualStyles || {});
+  for (const [type, list] of Object.entries(MAP)) {
+    vs[type] = vs[type] || {};
+    const cards = (vs[type]['*'] = vs[type]['*'] || {});
+    for (const [obj, prop, selector] of list) {
+      const arr = (cards[obj] = cards[obj] || []);
+      const id = selector && selector.id;
+      let e = arr.find((x) => (x.$id || null) === (id || null));
+      if (!e) { e = id ? { $id: id } : {}; arr.push(e); }
+      e[prop] = 1;
+    }
+  }
+  return theme;
+}
+
+module.exports = { fixVisual, withThemeDefaults };
 
 if (require.main === module) {
+  if (process.argv[2] === '--theme') {
+    const f = process.argv[3];
+    if (!f) { console.error('usage: node display-units.js --theme <theme.json>'); process.exit(1); }
+    const raw = fs.readFileSync(f, 'utf8');
+    fs.writeFileSync(f, JSON.stringify(withThemeDefaults(JSON.parse(raw.replace(/^﻿/, ''))), null, 2) + '\n');
+    console.log(`theme default display units set to None: ${f}`);
+    process.exit(0);
+  }
   const arg = process.argv[2];
-  if (!arg) { console.error('usage: node display-units.js <Report folder | pages folder>'); process.exit(1); }
+  if (!arg) { console.error('usage: node display-units.js <Report folder | pages folder> | --theme <theme.json>'); process.exit(1); }
   let dir = path.resolve(arg);
   if (fs.existsSync(path.join(dir, 'definition', 'pages'))) dir = path.join(dir, 'definition', 'pages');
   let files = 0, props = 0;
