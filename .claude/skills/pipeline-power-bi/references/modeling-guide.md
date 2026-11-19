@@ -103,8 +103,8 @@ day; the windows ignore calendar and fact-date filters but follow every other di
 
 ```dax
 -- <Base> last N months
-VAR LastDate  = CALCULATE ( MAX ( <Fact>[<date>] ), REMOVEFILTERS () )          -- the whole dataset
-VAR LastMonth = IF ( LastDate = EOMONTH ( LastDate, 0 ), EOMONTH ( LastDate, 0 ), EOMONTH ( LastDate, -1 ) )
+VAR LastOrderDate = CALCULATE ( MAX ( <Fact>[<date>] ), REMOVEFILTERS () )          -- the whole dataset
+VAR LastMonth = IF ( LastOrderDate = EOMONTH ( LastOrderDate, 0 ), EOMONTH ( LastOrderDate, 0 ), EOMONTH ( LastOrderDate, -1 ) )
 VAR FirstDay  = EOMONTH ( LastMonth, -N ) + 1
 RETURN
     CALCULATE ( [<Base>], REMOVEFILTERS ( <Date> ), REMOVEFILTERS ( <Fact>[<date>] ),
@@ -117,14 +117,17 @@ VAR PrevFirst = EOMONTH ( LastMonth, -2 * N ) + 1          -- DATESBETWEEN ( <Da
 -- <Base> growth % (format 0.0 %)
 DIVIDE ( [<Base> last N months] - [<Base> previous N months], [<Base> previous N months] )
 ```
+- Never name a variable after a DAX function (`LastDate`, `FirstDate`, `Date`, `Today` …): `LastDate`
+  collides with `LASTDATE`, the measure goes into an error state, and every query that uses it fails with
+  `MdxScript(Model) (1, 1) Navnet 'SYNTAXERROR' kunne ikke fortolkes`.
 - With the date table's `Is complete month` flag (fix M01 *flag complete months*), `LastMonth` may instead
   be `CALCULATE ( MAX ( <Date>[Date] ), REMOVEFILTERS (), <Date>[Is complete month] = TRUE () )`.
-- `REMOVEFILTERS ()` in `LastDate` makes the windows the same for every product or region; anchor inside
+- `REMOVEFILTERS ()` in `LastOrderDate` makes the windows the same for every product or region; anchor inside
   the filter context instead only when the user asks for "each one's own latest month".
 - Filter contract (build-spec.md): `ignore` a calendar column and `<Fact>[<date>]`, `keep` the dimensions;
   `additive: true` for the two windows, not for the growth %. `DIVIDE` returns blank when the previous
   window is 0 or blank.
-- Show the window dates: `measure-test.js … --show-vars` lists `LastDate`, `LastMonth` and `FirstDay`, so
+- Show the window dates: `measure-test.js … --show-vars` lists `LastOrderDate`, `LastMonth` and `FirstDay`, so
   the user sees which months were used.
 
 ## 6. Power Query structure
