@@ -15,15 +15,25 @@
 
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File Profile-Sources.ps1 -Path "C:\data\orders.csv,C:\data\customers.csv" -OutFile profile.json
-  powershell -NoProfile -ExecutionPolicy Bypass -File Profile-Sources.ps1 -Path "C:\data" -OutFile profile.json
+  powershell -NoProfile -ExecutionPolicy Bypass -File Profile-Sources.ps1 -Path "C:\data" -OutFile profile.json -RowsDir runs\<run-id>\rows
+  powershell -NoProfile -ExecutionPolicy Bypass -File Profile-Sources.ps1 -WarmUp
+
+  -RowsDir <folder>  also writes each table's rows (header row first, as the profile read them) to
+                     <folder>/<n>_<table>.json, named in profile.json -> tables[].rowsFile; source-stats.js
+                     computes expected values and evidence from them without parsing the files again
+  -WarmUp            only compiles and caches the C# parts, then exits (step 0, in the background), so the
+                     first real profile does not wait for the compiler
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string[]]$Path,
+    [string[]]$Path,
     [string]$OutFile,
+    [string]$RowsDir,
     [string]$Today = (Get-Date -Format 'yyyy-MM-dd'),
-    [int]$MaxExamples = 3
+    [int]$MaxExamples = 3,
+    [switch]$WarmUp
 )
+if (-not $WarmUp -and -not $Path) { throw 'Give -Path (files or a folder), or -WarmUp.' }
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName Microsoft.VisualBasic
@@ -46,7 +56,7 @@ foreach ($p in $Path) {
         } else { throw "Not found: $q" }
     }
 }
-if ($files.Count -eq 0) { throw 'No CSV files found.' }
+if ($files.Count -eq 0 -and -not $WarmUp) { throw 'No CSV files found.' }
 
 # ---------------------------------------------------------------------------------------------------
 # Per-cell profiling in C# (C# 5 – the compiler that ships with Windows PowerShell 5.1)
@@ -193,6 +203,34 @@ namespace PpbiProfile {
             return m.Success ? m.Groups[1].Value.ToUpperInvariant() : "?";
         }
 
+        // The rows from the header row on, as JSON: {"header":[…],"rows":[[…],…]} – for source-stats.js.
+        // Excel adds "kinds": one string per data row, one type char per cell (s text, n number, b true/false, d date).
+        public static void WriteRows(string path, List<string[]> rows, int h, List<string> kinds) {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{\"header\":"); Arr(sb, rows[h]); sb.Append(",\"rows\":[");
+            for (int r = h + 1; r < rows.Count; r++) { if (r > h + 1) sb.Append(",\n"); Arr(sb, rows[r]); }
+            sb.Append("]");
+            if (kinds != null && kinds.Count == rows.Count) {
+                sb.Append(",\"kinds\":");
+                Arr(sb, kinds.GetRange(h + 1, kinds.Count - h - 1).ToArray());
+            }
+            sb.Append("}");
+            System.IO.File.WriteAllText(path, sb.ToString(), new System.Text.UTF8Encoding(false));
+        }
+        static void Arr(System.Text.StringBuilder sb, string[] a) {
+            sb.Append('[');
+            for (int i = 0; i < a.Length; i++) {
+                if (i > 0) sb.Append(',');
+                sb.Append('"');
+                foreach (char ch in a[i] ?? "") {
+                    if (ch == '"') sb.Append("\\\""); else if (ch == '\\') sb.Append("\\\\");
+                    else if (ch < ' ') sb.Append("\\u").Append(((int)ch).ToString("x4")); else sb.Append(ch);
+                }
+                sb.Append('"');
+            }
+            sb.Append(']');
+        }
+
         public static TableStats Process(List<string[]> rows, int h, DateTime today, int maxEx, string delim) {
             string[] header = rows[h];
             int n = header.Length;
@@ -290,6 +328,7 @@ namespace PpbiProfile {
         public string Sheet, Table, Ref;
         public bool Hidden;
         public List<string[]> Rows = new List<string[]>();
+        public List<string> Kinds;   // per row, one type char per cell (see Kind) – for the rows export
     }
 
     public static class Xlsx {
@@ -435,9 +474,31 @@ namespace PpbiProfile {
             return d.ToString("0.###############", inv);
         }
 
+        // The cell type per cell of the last sheet read (s text, n number, b true/false, d date): the profile reads
+        // every cell as text, but source-stats.js needs the type Power Query sees (a TRUE cell is true, not "TRUE")
+        static Dictionary<long, char> lastKinds = new Dictionary<long, char>();
+        static char Kind(string v, string inline, string t, int style, HashSet<int> dates) {
+            if (t == "inlineStr" || t == "s" || t == "str" || t == "e") return 's';
+            if (t == "b") return 'b';
+            if (t == "d") return 'd';
+            double d;
+            if (v == null || !double.TryParse(v, NumberStyles.Float, inv, out d)) return 's';
+            return style >= 0 && dates.Contains(style) && d > -657435 && d < 2958466 ? 'd' : 'n';
+        }
+        static List<string> ToKinds(Dictionary<long, char> kinds, int r1, int c1, int r2, int c2) {
+            var list = new List<string>();
+            for (int r = r1; r <= r2; r++) {
+                var sb = new StringBuilder();
+                for (int c = c1; c <= c2; c++) { char k; sb.Append(kinds.TryGetValue((long)r * 20000 + c, out k) ? k : ' '); }
+                list.Add(sb.ToString());
+            }
+            return list;
+        }
+
         static Dictionary<long, string> ReadSheet(ZipArchive z, string path, List<string> shared, HashSet<int> dates, bool d1904,
                                                  out int minR, out int minC, out int maxR, out int maxC) {
             var cells = new Dictionary<long, string>();
+            lastKinds = new Dictionary<long, char>();
             minR = int.MaxValue; minC = int.MaxValue; maxR = 0; maxC = 0;
             using (var s = z.GetEntry(path).Open())
             using (var r = XmlReader.Create(s)) {
@@ -468,6 +529,7 @@ namespace PpbiProfile {
                         string val = Convert(v, inline, t, style, shared, dates, d1904);
                         if (!string.IsNullOrEmpty(val)) {
                             cells[(long)row * 20000 + col] = val;
+                            lastKinds[(long)row * 20000 + col] = Kind(v, inline, t, style, dates);
                             if (row < minR) minR = row; if (col < minC) minC = col;
                             if (row > maxR) maxR = row; if (col > maxC) maxC = col;
                         }
@@ -513,6 +575,7 @@ namespace PpbiProfile {
                     if (rid == null || !rels.TryGetValue(rid, out target) || z.GetEntry(target) == null || !target.Contains("worksheets/")) continue;
                     int minR, minC, maxR, maxC;
                     var cells = ReadSheet(z, target, shared, dates, d1904, out minR, out minC, out maxR, out maxC);
+                    var kinds = lastKinds;
                     string dir = target.Substring(0, target.LastIndexOf('/'));
                     string file = target.Substring(target.LastIndexOf('/') + 1);
                     var tableRels = Rels(z, dir + "/_rels/" + file + ".rels", dir, "/table");
@@ -525,17 +588,19 @@ namespace PpbiProfile {
                         int r1, c1, r2, c2;
                         ParseRef(p.Ref, out r1, out c1, out r2, out c2);
                         p.Rows = ToRows(cells, r1, c1, r2, c2);
+                        p.Kinds = ToKinds(kinds, r1, c1, r2, c2);
                         if (Attr(root, "headerRowCount") == "0") {
                             var hdr = new string[c2 - c1 + 1];
                             for (int i = 0; i < hdr.Length; i++) hdr[i] = "Column" + (i + 1);
                             p.Rows.Insert(0, hdr);
+                            p.Kinds.Insert(0, new string('s', hdr.Length));
                         }
                         result.Add(p);
                         found++;
                     }
                     if (found == 0) {
                         var p = new XlsxPart { Sheet = name, Hidden = hidden };
-                        if (maxR > 0) { p.Ref = ColName(minC) + minR + ":" + ColName(maxC) + maxR; p.Rows = ToRows(cells, minR, minC, maxR, maxC); }
+                        if (maxR > 0) { p.Ref = ColName(minC) + minR + ":" + ColName(maxC) + maxR; p.Rows = ToRows(cells, minR, minC, maxR, maxC); p.Kinds = ToKinds(kinds, minR, minC, maxR, maxC); }
                         result.Add(p);
                     }
                 }
@@ -546,6 +611,8 @@ namespace PpbiProfile {
 }
 '@
 Import-PpbiType 'PpbiProfile.Xlsx' $csXlsx 'System.IO.Compression', 'System.IO.Compression.FileSystem', 'System.Xml'
+if ($WarmUp) { 'Profiler ready (C# parts compiled and cached).'; exit 0 }
+if ($RowsDir) { New-Item -ItemType Directory -Force -Path $RowsDir | Out-Null; $RowsDir = (Resolve-Path -LiteralPath $RowsDir).Path }
 
 # ---------------------------------------------------------------------------------------------------
 # Patterns. Order matters: the first match wins.
@@ -675,7 +742,7 @@ foreach ($file in $files) {
             $sources.Add([pscustomobject]@{
                 name = $(if ($part.Table) { $part.Table } else { $part.Sheet }); file = $file
                 kind = $(if ($part.Table) { 'excel table' } else { 'sheet' }); sheet = $part.Sheet; excelTable = $part.Table
-                range = $part.Ref; hidden = $part.Hidden; rows = $part.Rows; malformed = 0; malformedLines = @()
+                range = $part.Ref; hidden = $part.Hidden; rows = $part.Rows; kinds = $part.Kinds; malformed = 0; malformedLines = @()
                 encoding = 'xlsx'; codePage = $null; delimiter = $null
             })
         }
@@ -738,6 +805,11 @@ foreach ($src in $sources) {
     $nCol = $header.Length
 
     $ts = [PpbiProfile.Profiler]::Process($rows, $h, $todayDate, $MaxExamples, $delim)
+    $rowsFile = $null
+    if ($RowsDir) {
+        $rowsFile = ('{0:00}_{1}.json' -f $tables.Count, ($tableName -replace '[^\w\-]+', '_'))
+        [PpbiProfile.Profiler]::WriteRows((Join-Path $RowsDir $rowsFile), $rows, $h, $src.kinds)
+    }
     $cols = $ts.Cols
     $dataRows = $ts.DataRows; $dupRows = $ts.DupRows
 
@@ -993,7 +1065,7 @@ foreach ($src in $sources) {
         isEmpty = $false; headerRow = $h + 1; headerCells = @($header | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -First 3)
         columnsCount = $nCol; dataRows = $dataRows; emptyRows = $ts.EmptyRows; totalRows = $ts.TotalRows
         exactDuplicates = $dupRows; malformedLines = $ts.WrongCount + $malformed; columns = $colOut; findings = $findings
-        monthCandidate = $monthCandidate; contentHash = $ts.ContentHash
+        monthCandidate = $monthCandidate; contentHash = $ts.ContentHash; rowsFile = $rowsFile
     })
     $tables.Add($entry)
 }

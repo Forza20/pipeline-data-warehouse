@@ -4,7 +4,12 @@ What each script in `scripts/` does. Read when a step names a script you need th
 changing a script. Commands and flags per step are in [build-steps.md](build-steps.md).
 
 - `Profile-Sources.ps1` – the read-only profiler for CSV and Excel (Windows PowerShell 5.1; Excel need not
-  be installed). Step 2.
+  be installed). Step 2. `-RowsDir` also writes each table's rows to `rows/` (Excel cells with their type);
+  `-WarmUp` only compiles and caches the C# parts (step 0, in the background).
+- `source-stats.js` – expected values and evidence from the source files: replays the build spec's staging
+  steps and model-table ops (or, with `--raw`, the profile tables as read) on the exported rows and answers
+  queries (rows, count, distinct, sum, avg, min, max; M `where`, `join`, `by`); `--apply` writes the exact
+  results into `checks[]` and `questions.json`. An `M` step or M it cannot evaluate marks the table `approx`.
 - `build-model.js` + [build-spec.md](build-spec.md) – the model generator and its spec (choices.json →
   `build`). Step 8.
 - `pbip_sources.py` – the CSV/Excel files behind the user's own Power BI project (step 1), read-only;
@@ -48,7 +53,7 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
 
 ## Tests
 
-`tests/run-tests.js` checks the profiler, the model generator, the hand-over files (build-docs, stale
+`tests/run-tests.js` checks the profiler, `source-stats.js`, the model generator, the hand-over files (build-docs, stale
 checks and questions, build_handover), rebuild.js, run-summary.js, the drift check, model health, model
 context, the grounded-answer test, the catalog's fast first run, own-project sources and the overview page
 on the fixtures in `tests/fixtures` (`tests/make-fixtures.py` recreates them). `--quick` skips the drift

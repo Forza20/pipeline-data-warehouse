@@ -27,7 +27,7 @@ function check(name, ok, info) {
 // ---------- 1. profiler ----------
 const profFile = path.join(TMP, 'profile.json');
 execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
-  '-Path', FIX, '-OutFile', profFile, '-Today', '2026-11-06'], { stdio: 'pipe' });
+  '-Path', FIX, '-OutFile', profFile, '-Today', '2026-11-06', '-RowsDir', path.join(TMP, 'rows')], { stdio: 'pipe' });
 const prof = JSON.parse(fs.readFileSync(profFile, 'utf8').replace(/^﻿/, ''));
 // CamelCase keys (CustomerKey) and plain integer keys under different names (CampaignKey 1..8 vs
 // OpportunityKey 1..468): the demo/business files must give exactly their 7 relationships by name
@@ -216,6 +216,52 @@ const custTmdl = fs.readFileSync(path.join(def, 'tables', 'Customer.tmdl'), 'utf
 check('build: pii_not_personal becomes annotation PII = not personal on that column only',
   /column 'Customer name'[\s\S]*?annotation PII = not personal/.test(custTmdl.split("column 'Is inferred'")[0]) && (custTmdl.match(/annotation PII = /g) || []).length === 1);
 check('build: term annotation on the measure',/annotation Term = Revenue/.test(fs.readFileSync(path.join(def, 'tables', '_Measures.tmdl'), 'utf8')));
+
+// ---------- 2. source-stats.js: expected values from the exported rows with the spec's steps ----------
+{
+  const ss = path.join(TMP, 'ss');
+  fs.mkdirSync(ss);
+  fs.copyFileSync(profFile, path.join(ss, 'profile.json'));
+  fs.cpSync(path.join(TMP, 'rows'), path.join(ss, 'rows'), { recursive: true });
+  check('profiler -RowsDir: a rows file per table', prof.tables.filter((t) => !t.isEmpty).every((t) => t.rowsFile && fs.existsSync(path.join(TMP, 'rows', t.rowsFile))));
+  fs.writeFileSync(path.join(ss, 'choices.json'), JSON.stringify({ build: spec, checks: [] }));
+  const qs = [
+    { name: 'sales rows', table: 'Sales' },
+    { name: 'all amounts', table: 'Sales', agg: 'sum', column: 'Amount' },
+    { name: 'revenue', table: 'Sales', agg: 'sum', column: 'Amount', where: '[Amount issue] = "ok"', check: { dax: '[Revenue]', assumes: 'F14' } },
+    { name: 'web orders', table: 'Sales', where: '[Channel] = "Web"' },
+    { name: 'future dates', table: 'Sales', where: '[Date status] = "future"' },
+    { name: 'last date', table: 'Sales', agg: 'max', column: 'Order date' },
+    { name: 'K-009 inferred', table: 'Customer', where: '[Customer ID] = "K-009" and [Is inferred] = true' },
+    { name: 'no test customer', table: 'Customer', where: '[Customer ID] = "K-100"' },
+    { name: 'by customer', table: 'Sales', agg: 'sum', column: 'Amount', join: [{ table: 'Customer', on: 'Customer key', columns: ['Customer ID'] }], by: 'Customer ID' },
+    { name: 'products without test row', table: 'Product', where: '[Product code] = "ZZZ-000"' },
+    { name: 'primary contacts', table: 'Contact' },
+  ];
+  fs.writeFileSync(path.join(ss, 'q.json'), JSON.stringify(qs));
+  const r = spawnSync('node', [path.join(SKILL, 'scripts', 'source-stats.js'), ss, '--queries', path.join(ss, 'q.json'), '--apply'], { encoding: 'utf8' });
+  let o = { results: [] };
+  try { o = JSON.parse(r.stdout); } catch { /* reported below */ }
+  const v = (n) => (o.results.find((x) => x.name === n) || {});
+  check('source-stats: runs without errors', r.status === 0 && o.ok, (r.stderr || r.stdout).slice(0, 600));
+  check('source-stats: F03/F04/F12 leave 11 order rows', v('sales rows').value === 11, v('sales rows').value);
+  check('source-stats: F09 parses 1.234,50 and -50,00 (sum 4049.7)', v('all amounts').value === 4049.7, v('all amounts').value);
+  check('source-stats: F14 flag excludes the negative amount (4099.7)', v('revenue').value === 4099.7, v('revenue').value);
+  check('source-stats: F17 int + F28 names (4 Web orders)', v('web orders').value === 4, v('web orders').value);
+  check('source-stats: F15 future date flagged', v('future dates').value === 1, v('future dates').value);
+  check('source-stats: F08 dates, max 2030-02-06', v('last date').value === '2030-02-06', v('last date').value);
+  check('source-stats: inferMembers adds K-009, F27 removes K-100', v('K-009 inferred').value === 1 && v('no test customer').value === 0);
+  check('source-stats: F11 + merge on the surrogate key (K-002 = 99.95 + 75.25 + 55)', Math.abs((v('by customer').values || {})['K-002'] - 230.2) < 1e-9, JSON.stringify(v('by customer').values));
+  check('source-stats: Excel sheet with F27 and Excel table with a filter op', v('products without test row').value === 0 && v('primary contacts').value > 0 && !(o.tables.Contact || {}).approx);
+  const cs = JSON.parse(fs.readFileSync(path.join(ss, 'choices.json'), 'utf8')).checks;
+  check('source-stats --apply: check written to checks[]', cs.length === 1 && cs[0].dax === '[Revenue]' && cs[0].expected === 4099.7, JSON.stringify(cs));
+  fs.writeFileSync(path.join(ss, 'qr.json'), JSON.stringify([{ name: 'raw rows', table: 'orders' }, { name: 'raw sum', table: 'orders', agg: 'sum', column: 'Beløb' }]));
+  const raw = spawnSync('node', [path.join(SKILL, 'scripts', 'source-stats.js'), ss, '--raw', '--queries', path.join(ss, 'qr.json')], { encoding: 'utf8' });
+  let ro = { results: [] };
+  try { ro = JSON.parse(raw.stdout); } catch { /* reported below */ }
+  check('source-stats --raw: profile tables, empty and total rows removed (12 rows, sum 4149.65)',
+    ro.mode === 'raw' && ro.results[0].value === 12 && Math.abs(ro.results[1].value - 4149.65) < 1e-9, raw.stdout.slice(0, 400) + raw.stderr);
+}
 
 // ---------- 2a. model context, model health, drift ----------
 // the bad-spec test above replaced choices.json – put the good one back

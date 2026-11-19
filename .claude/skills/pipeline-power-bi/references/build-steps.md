@@ -10,14 +10,24 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
 `desktop.running` true → ask the user to save and close it).
 
 1. Copy the files to `data/` when `copy_files` is true.
-2. **Expected values** – the one part that needs computing: from the source files (a short script over
-   `data/`, applying the kept fixes, never from the model), rows per model table after the row-removing
-   fixes (F03, F04, F12, F13, F15/F14 *remove*), every headline measure, distinct keys, min/max dates and
-   a few splits. Write them to `choices.json` → `checks[]`, one per check: `{ "name": "Total sales",
-   "dax": "[Total sales]", "expected": 4054.7, "assumes": "F09, F14 flag, F15 flag" }` (`dax` returns
-   one number; a share as `[Paid share] * 100`). A reconciliation with the file's own total row, or other
-   prose, goes into `expected_notes` (Markdown). `build-docs.js` (step 3) writes `expected-values.md` and
-   `checks.dax` from them – do not write those two files by hand.
+2. **Expected values** – the one part that needs computing: from the source files with the kept fixes,
+   never from the model: rows per model table, every headline measure, distinct keys, min/max dates and a
+   few splits. Write the build spec (part 3) first in the same turn, then **one** call:
+   ```
+   node .claude\skills\pipeline-power-bi\scripts\source-stats.js runs\<run-id> --queries runs\<run-id>\check-queries.json --apply
+   ```
+   It replays the spec's staging steps and model-table ops on the rows the profiler exported (`rows/`;
+   missing → it exports them once from `data/`) and, with `--apply`, writes every exact result into
+   `choices.json` → `checks[]`: one query per check, e.g. `{ "name": "Total sales", "table": "fact_sales",
+   "agg": "sum", "column": "amount", "where": "[amount_issue] = \"ok\"", "check": { "dax": "[total_sales]",
+   "assumes": "F09, F14 flag" } }` (aggs `rows`, `count`, `distinct`, `sum`, `avg`, `min`, `max`; `join` a
+   dimension for a split; `by` for one value per member). Use a queries **file**, not `--q`: Windows
+   PowerShell breaks the quotes of inline JSON. Without queries it prints every table's rows and per-column
+   sum/distinct/min/max – enough for most row and total checks. A result marked `approx` (an `M` step or
+   an M expression it cannot evaluate – `unsupported` names it) is not written: compute that one by a
+   short script. `dax` returns one number; a share as `[Paid share] * 100`. A reconciliation with the
+   file's own total row, or other prose, goes into `expected_notes` (Markdown). `build-docs.js` (step 3)
+   writes `expected-values.md` and `checks.dax` from them – do not write those two files by hand.
 3. **The model is generated, not hand-written.** Write the build spec into `choices.json` → `build`
    ([build-spec.md](build-spec.md)): staging per source with its kept steps by fix
    id, the design's tables with their ops and final columns, date, relationships, measures, roles, and
@@ -171,9 +181,10 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
      the user for 3–5 business questions (AskUserQuestion with drafted ones from the measures and
      dimensions, e.g. "Sales in <region> in <latest complete month>", plus "Other" for their own). With an
      RLS role, add one question as a user of that role (a user from the security sheet).
-   - Compute each expected number **from the source files** (a short Python/PowerShell script over
-     `data/`, applying the kept fixes the question depends on) – never from the model – and write how in
-     `expected_how`.
+   - Compute each expected number **from the source files** – never from the model: after writing
+     `questions.json`, one `source-stats.js … --queries <file> --apply` with `"question": <n>` on each query
+     (and `"role": true` for the role row) writes `expected` and `expected_how`. A short script only for an
+     `approx` result.
    - Write `questions.json` (format in the script's header) and run
      `python .claude\skills\pipeline-power-bi\scripts\grounded_answers.py runs\<run-id>\pbip runs\<run-id>\questions.json`.
      It writes `grounded-answers.dax` (Value, Expected, Difference per question; role rows simulate the
@@ -190,8 +201,9 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
     text keys, bidirectional and many-to-many relationships, auto date/time – and four DAX rules for every
     measure: `TODAY()`/`NOW()` (anchor on the latest date in the data instead), `/` without `DIVIDE`, a
     `[Name]` that is neither a measure nor a column, and a number equal to an expected value of a check or
-    question (a typed-in result). Offer the warnings as one multiSelect ("Remove the unused fact columns: …");
-    a yes changes the build spec and rebuilds. A DAX warning is fixed in the measure's `expr`, never accepted.
+    question (a typed-in result). The warnings are one multiSelect ("Remove the unused fact columns: …") in
+    the hand-over's decision call (SKILL.md step 10), not a round of their own; a yes changes the build spec
+    and rebuilds. A DAX warning is fixed in the measure's `expr` at once, never asked or accepted.
 
 ## Add or change a measure (`--resume <run-id>` → "Change the model, a measure or extras")
 
@@ -206,7 +218,7 @@ same steps whatever the dataset:
    `DIVIDE` for every ratio, every helper as a `VAR` inside the formula – nothing may depend on a definition
    that only exists in a query. Add `filters` (build-spec.md) – the contract the checks test. Period measures:
    the template in modeling-guide.md §5.
-3. **Expected value from the source files** (a short script over `data/` with the kept fixes, as in part 2):
+3. **Expected value from the source files** (`source-stats.js … --apply` with a `check` query, as in part 2):
    add `{ "name": "<measure>", "dax": "[<measure>]", "expected": <n>, "assumes": "…" }` to `checks[]`. A
    number the user gives is a cross-check, never the formula's input.
 4. **Test before saving:** `node .claude\skills\pipeline-power-bi\scripts\measure-test.js runs\<run-id> "<measure>" [--by "Table[Column]"] [--show-vars]`

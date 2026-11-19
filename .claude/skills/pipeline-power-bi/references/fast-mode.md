@@ -43,8 +43,9 @@ more is asked until the hand-over. Only these are still asked:
 
 ## Few tool calls
 
-Write `choices.json` once after step 5 (not after every table); write the build spec and `checks[]` in one
-turn, scaffold the report, then run `rebuild.js` once (it runs build-model, build-docs, build-context,
+Write `choices.json` once after step 5 (not after every table); write the build spec and the check queries
+in one turn and run `source-stats.js … --queries <file> --apply` once for every expected value (step 8.2;
+the 4b evidence the same way with `--raw`), scaffold the report, then run `rebuild.js` once (it runs build-model, build-docs, build-context,
 model health, the grounded answers, the DAX guide, the handover and the overview in order); the DAX guide
 is written to the run folder in fast mode too (`build-dax-guide.js runs\<run-id>`, no `--downloads`, step 9 – never skipped); load `pbip-catalog` and
 `pbip-governance` in one turn (parallel Skill calls) and run the catalog's `--missing-only` and
