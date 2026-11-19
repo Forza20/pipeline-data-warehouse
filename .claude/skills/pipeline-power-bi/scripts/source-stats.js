@@ -459,13 +459,17 @@ const lmCache = new WeakMap();
 function lowerMap(m) { if (!lmCache.has(m)) { const o = {}; for (const [k, v] of Object.entries(m)) o[k.toLowerCase()] = v; lmCache.set(m, o); } return lmCache.get(m); }
 
 function staging(s) {
-  const parts = [{ item: s.item, kind: s.kind, columns: s.columns }, ...(s.append || []).map((a) => ({ kind: s.kind, ...a }))];
+  const parts = [{ item: s.item, kind: s.kind, columns: s.columns, file: s.file }, ...(s.append || []).map((a) => ({ kind: s.kind, ...a }))];
+  // CSV appends name each part by `file` (build-model.js: the item, else the file name without extension)
+  const csv = s.kind === 'csv';
+  const label = (p) => p.item || String(p.file || s.file).replace(/\.[^.]+$/, '');
   let t = null;
   for (const part of parts) {
-    const src = findSource(s.file, part.kind || s.kind, part.item);
-    if (!src) { warnings.push(`${s.name}: no exported rows for ${s.file}${part.item ? ' / ' + part.item : ''}`); return null; }
+    const file = part.file || s.file;
+    const src = findSource(file, part.kind || s.kind, part.item);
+    if (!src) { warnings.push(`${s.name}: no exported rows for ${file}${part.item ? ' / ' + part.item : ''}`); return null; }
     const pt = fromExport(src, part.columns || s.columns, { name: s.name });
-    if (s.append) { const tag = s.sourceColumn || 'SourceSheet'; for (const r of pt.rows) r[tag] = part.item; if (!pt.columns.includes(tag)) pt.columns.push(tag); }
+    if (s.append) { const tag = s.sourceColumn || (csv ? 'SourceFile' : 'SourceSheet'); for (const r of pt.rows) r[tag] = csv ? label(part) : part.item; if (!pt.columns.includes(tag)) pt.columns.push(tag); }
     if (!t) t = pt; else { for (const c of pt.columns) if (!t.columns.includes(c)) t.columns.push(c); t.rows.push(...pt.rows); }
   }
   for (const f of s.steps || []) applyStep(t, f, s.name);

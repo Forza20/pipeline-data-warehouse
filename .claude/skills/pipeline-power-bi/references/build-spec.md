@@ -39,6 +39,8 @@ directory is inside it) – the previous model is kept, close what holds it and 
   `delimiter` `,` `;` `tab` `|`, `codePage`, `headerRow` from the profile).
 - `columns`: the profile's column names in order (F01 keeps exactly these).
 - `append` (F21): more sheets/tables with the same layout; a `sourceColumn` says where each row came from.
+  CSV: each part is `{ "file": "sales_2021.csv" }` (delimiter, codePage, headerRow and columns are inherited
+  unless the part sets them); the source column (default `SourceFile`) holds the file name without extension.
 - `steps`: in fix-catalog order. Each step is `{ "fix": "Fxx", … }`:
 
 | Fix | Keys |
