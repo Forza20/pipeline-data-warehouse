@@ -451,8 +451,18 @@ function applyStep(t, f, name) {
       for (const r of t.rows) { const k = r[c] === null ? null : String(show(r[c])); r[nm] = k === null ? null : Object.prototype.hasOwnProperty.call(names, k) ? names[k] : 'Unknown ' + k; }
       t.columns.push(nm); return;
     }
+    case 'F20': {
+      // as build-model.js: a short line has an empty last column (f.column, else the staging's last column)
+      const last = c || f.lastColumn;
+      const short = (r) => r[last] === null || r[last] === undefined || r[last] === '';
+      if (f.mode === 'leave') return;
+      if (f.mode === 'remove') { t.rows = t.rows.filter((r) => !short(r)); return; }
+      const nm = f.flagColumn || 'Row check';
+      for (const r of t.rows) r[nm] = short(r) ? 'short line' : 'ok';
+      t.columns.push(nm); return;
+    }
     case 'M': t.unsupported.push(`${name}: M step "${f.label}"`); t.approx = true; return;
-    default: return; // F01, F02, F18, F20, F21, F22, F26, F29, M01, M02: built elsewhere or no row effect here
+    default: return; // F01, F02, F18, F21, F22, F26, F29, M01, M02: built elsewhere or no row effect here
   }
 }
 const lmCache = new WeakMap();
@@ -472,7 +482,7 @@ function staging(s) {
     if (s.append) { const tag = s.sourceColumn || (csv ? 'SourceFile' : 'SourceSheet'); for (const r of pt.rows) r[tag] = csv ? label(part) : part.item; if (!pt.columns.includes(tag)) pt.columns.push(tag); }
     if (!t) t = pt; else { for (const c of pt.columns) if (!t.columns.includes(c)) t.columns.push(c); t.rows.push(...pt.rows); }
   }
-  for (const f of s.steps || []) applyStep(t, f, s.name);
+  for (const f of s.steps || []) applyStep(t, f.fix === 'F20' ? { ...f, lastColumn: s.columns[s.columns.length - 1] } : f, s.name);
   return t;
 }
 

@@ -59,6 +59,7 @@ directory is inside it) – the previous model is kept, close what holds it and 
 | F16 | `keep` [id columns], `attribute`, `value`, `period` `yyyy-MM` or `monthName` (+ `year` column → `<attribute> start`; a `keep` column named like a year makes `year` required – the build stops without it) |
 | F17 | `types` {column: type}, `periodColumns` [`2025-02` text → month date] |
 | F19, F25 | `columns` |
+| F20 | CSV only: `mode` `flag` (default, column `flagColumn`, default `Row check`: "short line"/"ok") / `remove` / `leave`; `column` = the column that is empty on a short line (default: the last of `columns`) |
 | F23 | `column`, `separator`, `names` |
 | F24 | `column`, `separators` (default `,;`) |
 | F27 | `column`, `values` [keys], `mode` `remove`/`flag` |

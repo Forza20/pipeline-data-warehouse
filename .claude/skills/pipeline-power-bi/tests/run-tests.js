@@ -261,6 +261,163 @@ check('build: term annotation on the measure',/annotation Term = Revenue/.test(f
     ro.mode === 'raw' && ro.results[0].value === 12 && Math.abs(ro.results[1].value - 4149.65) < 1e-9, raw.stdout.slice(0, 400) + raw.stderr);
 }
 
+// ---------- 2b'. every fix the profiler can propose is built (build-model.js) and replayed (source-stats.js) ----------
+// Guards against a fix that the profiler recommends but the build skips (F21 for CSV and F20 were such gaps).
+// One spec with a staging query per fix (and variant) per source kind, one build and one source-stats run.
+const tryRead = (f) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
+{
+  const read = (f) => fs.readFileSync(path.join(SKILL, 'scripts', f), 'utf8');
+  const caseIds = (src) => new Set([...src.matchAll(/case '(F\d\d)'/g)].map((m) => m[1]));
+  const profilerIds = new Set([...read('Profile-Sources.ps1').matchAll(/'(F\d\d|M\d\d)'/g)].map((m) => m[1]));
+  const bmSrc = read('build-model.js');
+  const elsewhere = ((bmSrc.match(/if \((\[[^\]]*\])\.includes\(f\.fix\)\) return q; \/\/ handled elsewhere/) || [])[1] || '[]').match(/F\d\d|M\d\d/g) || [];
+  // fixes with no staging step of their own, and where the test suite proves them instead
+  const COVERAGE = {
+    F01: 'source steps from kind/header/columns – checked below on every kind',
+    F02: 'final column names in tables[] – snake-names.js tests',
+    F18: 'inferMembers op on the dimension – build and source-stats tests above',
+    F21: 'staging append – checked below (CSV) and here (sheet)',
+    F22: 'design: the copy is left out – nothing to build',
+    F26: 'design: column hidden or left out in tables[] – no staging step',
+    F29: 'design: filter op on the detail table – Contact test above',
+    M01: 'date.completeMonth – date table test above',
+    M02: 'design: a new dimension table – no staging step',
+  };
+  const K = {
+    csv: { file: 'orders.csv', kind: 'csv', delimiter: ';', codePage: 65001, headerRow: 3, columns: csvCols,
+      c: { text: 'Region', id: 'KundeID', date: 'Dato', num: 'Beløb', bool: 'Betalt', code: 'Kanal', empty: 'Note' } },
+    sheet: { file: 'workbook.xlsx', kind: 'sheet', item: 'Sales_2025', header: 'OrderID', columns: ['OrderID', 'CustomerName', 'OrderDate', 'Amount'],
+      c: { text: 'CustomerName', id: 'OrderID', date: 'OrderDate', num: 'Amount', bool: 'CustomerName', code: 'Amount', empty: 'CustomerName' } },
+    'excel table': { file: 'workbook.xlsx', kind: 'excel table', item: 'tblContacts', columns: ['CustomerID', 'ContactName', 'Email', 'IsPrimary'],
+      c: { text: 'ContactName', id: 'CustomerID', date: 'Email', num: 'CustomerID', bool: 'IsPrimary', code: 'CustomerID', empty: 'Email' } },
+  };
+  // variant -> [kinds, steps(c) (prerequisites first, the fix under test last), flag column made by the step]
+  const STEPS = {
+    F03: [['csv', 'sheet', 'excel table'], () => [{ fix: 'F03' }]],
+    F04: [['csv', 'sheet', 'excel table'], () => [{ fix: 'F04' }]],
+    F05: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F05', columns: [c.text] }]],
+    F06: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F06', columns: [c.text] }]],
+    F07: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F07', column: c.text, case: 'proper' }]],
+    F08: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F08', column: c.date, dayFirst: true }]],
+    F09: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F09', column: c.num }]],
+    F10: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F10', column: c.bool }]],
+    F11: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F11', column: c.id, prefix: 'K', separator: '-', digits: 3 }]],
+    F12: [['csv', 'sheet', 'excel table'], () => [{ fix: 'F12' }]],
+    F13: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F13', column: c.id }]],
+    'F13 remove': [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F13', column: c.id, remove: ['X-1'], label: 'copies' }]],
+    F14: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F09', column: c.num }, { fix: 'F14', column: c.num, checks: ['negative', 'spike'], spike: 1000 }], (c) => `${c.num} issue`],
+    'F14 remove': [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F09', column: c.num }, { fix: 'F14', column: c.num, checks: ['negative'], mode: 'remove' }]],
+    F15: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F08', column: c.date }, { fix: 'F15', column: c.date }], (c) => `${c.date} status`],
+    'F15 remove': [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F08', column: c.date }, { fix: 'F15', column: c.date, mode: 'remove' }]],
+    F16: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F16', keep: [c.id], attribute: 'Period', value: 'Value', period: 'yyyy-MM' }]],
+    F17: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F17', types: { [c.text]: 'text' } }]],
+    F19: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F19', columns: [c.empty] }]],
+    F20: [['csv'], () => [{ fix: 'F20', column: 'Kanal' }], () => 'Row check'],
+    'F20 remove': [['csv'], () => [{ fix: 'F20', column: 'Kanal', mode: 'remove' }]],
+    F23: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F23', column: c.text, separator: '|', names: ['Part 1', 'Part 2'] }]],
+    F24: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F24', column: c.text }]],
+    F25: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F25', columns: [c.empty] }]],
+    F27: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F27', column: c.id, values: ['ZZZ-000'] }]],
+    'F27 flag': [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F27', column: c.id, values: ['ZZZ-000'], mode: 'flag' }], () => 'Is test row'],
+    F28: [['csv', 'sheet', 'excel table'], (c) => [{ fix: 'F28', column: c.code, names: { 10: 'Web' }, as: 'Code name' }], () => 'Code name'],
+  };
+  const stepFixes = new Set(Object.keys(STEPS).map((k) => k.slice(0, 3)));
+  const uncovered = [...profilerIds].filter((id) => !stepFixes.has(id) && !COVERAGE[id]);
+  check('fix coverage: every fix the profiler can propose has a build test or a stated place', uncovered.length === 0, `no test for ${uncovered.join(', ')} – add it to STEPS or COVERAGE`);
+  const silent = elsewhere.filter((id) => !COVERAGE[id]);
+  check('fix coverage: build-model.js skips no fix without a stated place', silent.length === 0, `skipped by build-model.js: ${silent.join(', ')}`);
+  const notReplayed = [...caseIds(bmSrc)].filter((id) => !caseIds(read('source-stats.js')).has(id));
+  check('fix coverage: every step build-model.js writes is replayed by source-stats.js', notReplayed.length === 0, notReplayed.join(', '));
+
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const staging = [];
+  const cases = [];
+  for (const [variant, [kinds, steps, flag]] of Object.entries(STEPS)) {
+    for (const kind of kinds) {
+      const { c, ...src } = K[kind];
+      const name = `stg_${slug(variant)}_${slug(kind)}`;
+      staging.push({ name, ...src, steps: steps(c) });
+      cases.push({ variant, fix: variant.slice(0, 3), kind, name, flag: flag && flag(c) });
+    }
+  }
+  // F21 on two sheets (Sales_2026 has an extra column) – the CSV form is tested in the next block
+  staging.push({ name: 'stg_f21_sheet', ...(({ c, ...s }) => s)(K.sheet), append: [{ item: 'Sales_2026', columns: ['OrderID', 'CustomerName', 'OrderDate', 'Amount', 'Legacy'] }], steps: [] });
+  const cr = path.join(TMP, 'fix-coverage');
+  fs.mkdirSync(cr);
+  fs.copyFileSync(profFile, path.join(cr, 'profile.json'));
+  fs.cpSync(path.join(TMP, 'rows'), path.join(cr, 'rows'), { recursive: true });
+  fs.writeFileSync(path.join(cr, 'choices.json'), JSON.stringify({ build: { name: 'Cov', culture: 'en-US', cutoffDate: '2026-11-06', sourceFolder: FIX + '\\',
+    staging, tables: [], relationships: [], measures: [] } }));
+  const b = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), cr], { encoding: 'utf8' });
+  let bo = {};
+  try { bo = JSON.parse(b.stdout); } catch { /* reported below */ }
+  check(`fix coverage: ${staging.length} staging queries build`, b.status === 0 && bo.ok && bo.staging === staging.length, (b.stdout + b.stderr).slice(0, 800));
+  const exprs = tryRead(path.join(cr, 'pbip', 'Cov.SemanticModel', 'definition', 'expressions.tmdl'));
+  const block = (name) => (exprs.split(/\nexpression /).find((x) => x.startsWith(name + ' =')) || '');
+  const noStep = cases.filter((x) => !block(x.name).includes(`#"${x.fix} `)).map((x) => `${x.variant} (${x.kind})`);
+  check('fix coverage: every fix writes a step named after it, on every source kind', noStep.length === 0, noStep.join(', '));
+  const noF01 = Object.keys(K).filter((kind) => !block(`stg_f03_${slug(kind)}`).includes('#"F01 '));
+  check('fix coverage: F01 source steps on every kind', noF01.length === 0, noF01.join(', '));
+  check('fix coverage: F21 sheet append written', block('stg_f21_sheet').includes('#"F21 Append Sales_2025 and Sales_2026"'));
+
+  const qs = cases.map((x) => ({ name: x.name, table: x.name }));
+  for (const x of cases.filter((y) => y.flag)) qs.push({ name: `${x.name} flag`, table: x.name, agg: 'count', column: x.flag });
+  qs.push({ name: 'f21 sheet', table: 'stg_f21_sheet' }, { name: 'f20 short', table: 'stg_f20_csv', where: '[Row check] = "short line"' });
+  fs.writeFileSync(path.join(cr, 'q.json'), JSON.stringify(qs));
+  const s = spawnSync('node', [path.join(SKILL, 'scripts', 'source-stats.js'), cr, '--queries', path.join(cr, 'q.json')], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  let so = { results: [], tables: {} };
+  try { so = JSON.parse(s.stdout); } catch { /* reported below */ }
+  check('fix coverage: source-stats replays every staging query', s.status === 0 && so.ok, (s.stderr || s.stdout).slice(0, 600));
+  const val = (n) => (so.results.find((x) => x.name === n) || {}).value;
+  const notExact = cases.filter((x) => typeof val(x.name) !== 'number' || (so.tables[x.name] || {}).approx || ((so.tables[x.name] || {}).unsupported || []).length)
+    .map((x) => `${x.variant} (${x.kind}): ${JSON.stringify((so.tables[x.name] || {}).unsupported || val(x.name))}`);
+  check('fix coverage: every fix replays exactly (no approx, no unsupported step)', notExact.length === 0, notExact.join('; '));
+  const noFlag = cases.filter((x) => x.flag && val(`${x.name} flag`) !== val(x.name)).map((x) => `${x.variant} (${x.kind})`);
+  check('fix coverage: flag steps fill their flag column on every row', noFlag.length === 0, noFlag.join(', '));
+  check('fix coverage: F20 remove keeps exactly the lines flag mode marks ok', val('stg_f20_remove_csv') === val('stg_f20_csv') - val('f20 short'),
+    `${val('stg_f20_remove_csv')} vs ${val('stg_f20_csv')} - ${val('f20 short')}`);
+  check('fix coverage: F21 sheet append replays both sheets (6 + 6 rows)', val('f21 sheet') === 12, val('f21 sheet'));
+}
+
+// ---------- 2b''. F21 append of CSV files (one file per year) ----------
+{
+  const ar = path.join(TMP, 'csv-append');
+  fs.mkdirSync(ar);
+  // a second CSV with the customers layout: the same exported rows under another file name
+  const p = JSON.parse(JSON.stringify(prof));
+  const custT = p.tables.find((t) => t.name === 'customers');
+  p.tables.push({ ...custT, name: 'customers_b', file: custT.file.replace(/customers\.csv$/, 'customers_b.csv') });
+  fs.writeFileSync(path.join(ar, 'profile.json'), JSON.stringify(p));
+  fs.cpSync(path.join(TMP, 'rows'), path.join(ar, 'rows'), { recursive: true });
+  const cols = ['KundeID', 'Navn', 'Segment'];
+  const aspec = { name: 'App', culture: 'en-US', cutoffDate: '2026-11-06', sourceFolder: FIX + '\\',
+    staging: [{ name: 'stg_customers', file: 'customers.csv', kind: 'csv', delimiter: ',', codePage: 65001, headerRow: 1, columns: cols,
+      append: [{ file: 'customers_b.csv' }],
+      steps: [{ fix: 'F17', types: { KundeID: 'text', Navn: 'text', Segment: 'text', SourceFile: 'text' } }, { fix: 'F27', column: 'KundeID', values: ['K-100'] }] }],
+    tables: [{ name: 'Customer', kind: 'dimension', from: 'stg_customers',
+      columns: [{ name: 'Customer ID', from: 'KundeID', type: 'text' }, { name: 'Source file', from: 'SourceFile', type: 'text' }] }],
+    relationships: [], measures: [] };
+  fs.writeFileSync(path.join(ar, 'choices.json'), JSON.stringify({ build: aspec }));
+  const b = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), ar], { encoding: 'utf8' });
+  let bo = {};
+  try { bo = JSON.parse(b.stdout); } catch { /* reported below */ }
+  check('csv append: builds', b.status === 0 && bo.ok, (b.stdout + b.stderr).slice(0, 600));
+  const ex2 = tryRead(path.join(ar, 'pbip', 'App.SemanticModel', 'definition', 'expressions.tmdl'));
+  const csvCalls = ex2.match(/Csv\.Document\(File\.Contents\(SourceFolder & "customers(_b)?\.csv"\), \[Delimiter = ",", Columns = 3, Encoding = 65001/g) || [];
+  check('csv append: one Csv.Document per file, delimiter and encoding inherited', csvCalls.length === 2, csvCalls.length);
+  check('csv append: parts combined with a SourceFile column named after each file',
+    ex2.includes('#"F21 Append customers and customers_b"') && ex2.includes('"SourceFile", each "customers", type text') && ex2.includes('"SourceFile", each "customers_b", type text'));
+  check('csv append: step names unique per part', ex2.includes('#"F01 Promote headers customers"') && ex2.includes('#"F01 Promote headers customers_b"'));
+  fs.writeFileSync(path.join(ar, 'q.json'), JSON.stringify([{ name: 'rows', table: 'Customer' }, { name: 'by file', table: 'Customer', by: 'Source file' },
+    { name: 'test rows', table: 'Customer', where: '[Customer ID] = "K-100"' }]));
+  const s = spawnSync('node', [path.join(SKILL, 'scripts', 'source-stats.js'), ar, '--queries', path.join(ar, 'q.json')], { encoding: 'utf8' });
+  let so = { results: [], tables: {} };
+  try { so = JSON.parse(s.stdout); } catch { /* reported below */ }
+  const v = (n) => so.results.find((x) => x.name === n) || {};
+  check('csv append: source-stats reads both files exactly (2 x 4 customers after F27)', s.status === 0 && v('rows').value === 8 && !(so.tables.Customer || {}).approx, (s.stderr || JSON.stringify(v('rows'))).slice(0, 400));
+  check('csv append: rows tagged per file (4 + 4) and the step runs after the append', JSON.stringify(v('by file').values) === JSON.stringify({ customers: 4, customers_b: 4 }) && v('test rows').value === 0, JSON.stringify(v('by file').values));
+}
+
 // ---------- 2a. model context, model health, drift ----------
 // the bad-spec test above replaced choices.json – put the good one back
 fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary,
