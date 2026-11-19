@@ -13,9 +13,9 @@ problem, and writes only the fixes the user keeps as named Power Query steps in 
 user never edits Power Query by hand, and every proposal is a choice they can switch on or off – now,
 at the review before the build, and on any later run.
 
-Talk to the user in their language (the language they write in), in plain words: say "table" and
-"cleaning step", not "partition" or "M expression". All files the skill writes are in English unless the
-user picks another report language.
+**Always English** – every question, option, description, preview, status line and file, even when the
+user writes in Danish (principle 7). Plain words: say "table" and "cleaning step", not "partition" or
+"M expression".
 
 Arguments: file paths or a folder – CSV, Excel, a `.pbip` project or a `.pbix` (optional – otherwise ask),
 `demo` for the demo files, `--name <report name>`, `--resume <run-id>`, `--fast` (see Fast mode).
@@ -43,6 +43,11 @@ Arguments: file paths or a folder – CSV, Excel, a `.pbip` project or a `.pbix`
    one fact per business process at its lowest grain, flat dimensions, no test rows, no lookup chains,
    one marked date table. [references/modeling-guide.md](references/modeling-guide.md) holds the rules;
    step 4b turns them into proposals the user accepts or declines.
+7. **English only, and never "AdventureWorks".** All text the user sees (AskUserQuestion questions,
+   labels, descriptions, previews, chat text, the analysis summary, the dashboard plan) and every file is
+   in English, whatever language the user writes in. The AdventureWorks template is always "Generic
+   layout" (its colours "Generic colors") in that text – the word "AdventureWorks" appears only in keys
+   and file names (`adventureworks`), never in what the user reads.
 
 ## Fast mode (`--fast`)
 
@@ -444,10 +449,10 @@ flags and details of the eleven parts below, and the drift check for new files. 
   difference (below).
 - **The DAX guide is always handed over – never ask, never skip.** It is the run's own guide to `checks.dax`
   and `grounded-answers.dax`: the report name, run id, the number of checks, the key expected numbers and
-  why, and every grounded question with its expected answer. Write it in the language the user speaks
-  with you (not the report language): put `choices.json` → `dax_guide` = `{ "lang": "da"|"en",
+  why, and every grounded question with its expected answer. Write it in English (principle 7): put
+  `choices.json` → `dax_guide` = `{ "lang": "en",
   "why": { "<check name>": "<why this number, plain words>" }, "questions": { "1": "<short question>" } }`
-  (the why/questions text in that language, for the key checks), then run
+  (the why/questions text in English, for the key checks), then run
   **`node .claude\skills\pipeline-power-bi\scripts\build-dax-guide.js runs\<run-id>`**. It writes
   `runs/<run-id>/checks.dax_grounded-answers.dax guide.html` next to `checks.dax`, `grounded-answers.dax` and
   the run's other files. **No copy to Downloads** (never pass `--downloads`) – all three stay in the run

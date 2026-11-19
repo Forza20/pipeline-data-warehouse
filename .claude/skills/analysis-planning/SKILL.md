@@ -11,8 +11,10 @@ the cleaning and the star schema, so every later recommendation points at the an
 instead of at the shape of the files. It decides nothing itself: its answers only change which option is
 marked "(Recommended)" later, and the user still confirms each step.
 
-Talk in the user's language, in plain words ("number", "split by", not "measure", "dimension"). Write the
-answers in English, like the rest of `choices.json`.
+Always talk in English, even when the user writes in Danish – questions, options, the analysis summary and
+the dashboard plan – in plain words ("number", "split by", not "measure", "dimension"). Write the answers
+in English, like the rest of `choices.json`. The AdventureWorks template is always called "Generic layout"
+in what the user reads; `adventureworks` stays only as the key.
 
 **It always runs in a pipeline-power-bi run** – every path: normal, fast mode (short version), the "Keep my
 model" path, and a `--resume` whose `choices.json` has no `analysis` (or no `dashboard_plan`). Its last
