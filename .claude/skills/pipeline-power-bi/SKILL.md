@@ -517,4 +517,7 @@ Other skills used: `analysis-planning`, `pbip-layout`, `pbip-catalog`, `pbip-gov
 **After changing any script of this skill, or `parse_pbip.py`/`build_catalog.py`, run**
 `node .claude\skills\pipeline-power-bi\tests\run-tests.js` (and
 `python -m unittest discover -s .claude\skills\pbip-catalog\tests`) – all must pass. `--quick` is for use
-while working; a change is only done when the full run passes.
+while working; a change is only done when the full run passes **and every new path has a test of its
+own** – a new fix, variant, source kind, op or flag gets a check in `run-tests.js` that fails without the
+change (prove it: run the new check against the old script once). A new fix id in the profiler goes into
+the fix-coverage test's `STEPS` (or `COVERAGE` with the place that handles it) in the same change.

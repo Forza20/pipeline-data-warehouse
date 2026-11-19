@@ -915,7 +915,8 @@ foreach ($src in $sources) {
                 if ($posList.Count -ge 20) { $posList.Sort(); $median = $posList[[int][Math]::Floor($posList.Count / 2)]; foreach ($x in $posList) { if ($x -gt 10 * $median) { $spike++ } } }
                 if ($neg -gt 0) { $findings.Add((New-Finding $tableName 'F14' $cname $neg 'Negative values' @() $true 'flag')) }
                 if ($zero -gt 0) { $findings.Add((New-Finding $tableName 'F14' $cname $zero 'Zero values' @() $false 'flag')) }
-                if ($spike -gt 0) { $findings.Add((New-Finding $tableName 'F14' $cname $spike ('Values above 10 x the median ({0:N2})' -f $median) @() $true 'flag')) }
+                # invariant number in the text (not the PC's culture: "199,38" on a Danish PC); `limit` is the spike limit for the build spec
+                if ($spike -gt 0) { $fs = New-Finding $tableName 'F14' $cname $spike ([string]::Format([Globalization.CultureInfo]::InvariantCulture, 'Values above 10 x the median ({0:0.00})', $median)) @() $true 'flag'; $fs | Add-Member -NotePropertyName limit -NotePropertyValue ([Math]::Round(10 * $median, 4)); $findings.Add($fs) }
             }
         }
         if ($kind -eq 'bool' -and $distinct -gt 2) {

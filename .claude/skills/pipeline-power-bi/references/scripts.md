@@ -10,6 +10,11 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
   steps and model-table ops (or, with `--raw`, the profile tables as read) on the exported rows and answers
   queries (rows, count, distinct, sum, avg, min, max; M `where`, `join`, `by`); `--apply` writes the exact
   results into `checks[]` and `questions.json`. An `M` step or M it cannot evaluate marks the table `approx`.
+- `draft-spec.js` – drafts `choices.json` → `build` from the profile: every recommended finding at its
+  default variant as a staging step, one loaded table per source, the preferred relationships and a date
+  table. Findings it cannot draft (F28 names, F07 spelling, F27 without a key column, F11 to plain numbers)
+  are listed in `skipped` with the reason – ask them; model choices (F02, F21, F22, F26, F18, M01) in
+  `model`. A starting point for step 8.3: reshape it to the step 4b design. `--write` saves it.
 - `build-model.js` + [build-spec.md](build-spec.md) – the model generator and its spec (choices.json →
   `build`). Step 8.
 - `pbip_sources.py` – the CSV/Excel files behind the user's own Power BI project (step 1), read-only;

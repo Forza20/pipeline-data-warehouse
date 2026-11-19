@@ -32,6 +32,26 @@ const bizProfile = fs.existsSync(DEMO_BIZ)
   ? spawnAsync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
     '-Path', DEMO_BIZ, '-OutFile', path.join(TMP, 'profile-business.json'), '-Today', '2026-11-14'])
   : null;
+// Real-looking data (full run only): a messy retail dataset (CSV, every error type) and a dummy workbook
+// (Excel sheets with Danish names) are generated, profiled, drafted into a spec, built and replayed.
+// Starts here in the background; checked at the end (section 4).
+const realData = QUICK ? null : (async () => {
+  const rd = path.join(TMP, 'real-data');
+  const src = path.join(rd, 'src');
+  fs.mkdirSync(src, { recursive: true });
+  const ps = (file, a) => spawnAsync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', file, ...a]);
+  const gen = await Promise.all([
+    ps(path.join(SKILL, '..', 'messy-dataset', 'scripts', 'New-MessyDataset.ps1'), ['-Domain', 'retail', '-Seed', '7', '-Rows', '300',
+      '-Errors', '1,2,3,4,5,6,7,8,9,10,11,12,13', '-OutDir', src, '-AnswersDir', path.join(rd, 'answers')]),
+    ps(path.join(SKILL, '..', 'schema-dummy-data', 'scripts', 'New-DummyData.ps1'), ['-SchemaPath', path.join(SKILL, '..', 'schema-dummy-data', 'tests', 'fixtures', 'schema_basic.xlsx'),
+      '-OutDir', src, '-Locale', 'en', '-Seed', '7', '-RowsFact', '200', '-RowsDim', '20', '-OutName', 'dummy']),
+  ]);
+  for (const f of fs.readdirSync(src)) if (f.endsWith('.md')) fs.rmSync(path.join(src, f));
+  const run = path.join(rd, 'run');
+  fs.mkdirSync(run);
+  const prof = await ps(path.join(SKILL, 'scripts', 'Profile-Sources.ps1'), ['-Path', src, '-OutFile', path.join(run, 'profile.json'), '-RowsDir', path.join(run, 'rows'), '-Today', '2026-11-19']);
+  return { gen, prof, run, src };
+})();
 const profFile = path.join(TMP, 'profile.json');
 execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
   '-Path', FIX, '-OutFile', profFile, '-Today', '2026-11-06', '-RowsDir', path.join(TMP, 'rows')], { stdio: 'pipe' });
@@ -929,7 +949,50 @@ check('overview: theme light uses the light palette and its keys', /<style>\n:ro
 fs.unlinkSync(path.join(run, 'overview-colors.json'));
 
 // ---------- 4. drift checks started in the background after the profiler ----------
-Promise.all([driftSame, driftNew, bizProfile]).then(([same, changed, biz]) => {
+Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, biz, real]) => {
+  // real-looking data: profile -> draft-spec.js -> build-model.js -> source-stats.js, every recommended finding placed
+  if (real) {
+    const node = (script, a) => spawnSync('node', [path.join(SKILL, 'scripts', script), ...a], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    const js = (r) => { try { return JSON.parse(r.stdout.replace(/^[^{]+/, '')); } catch { return {}; } };
+    check('real data: messy CSV and dummy Excel generated', real.gen.every((g) => g.status === 0) && fs.readdirSync(real.src).some((f) => f.endsWith('.xlsx')) && fs.readdirSync(real.src).filter((f) => f.endsWith('.csv')).length >= 5,
+      real.gen.map((g) => g.stderr.slice(0, 300)).join(' | '));
+    check('real data: profiled', real.prof.status === 0 && fs.existsSync(path.join(real.run, 'profile.json')), real.prof.stderr.slice(0, 400));
+    const p = JSON.parse(tryRead(path.join(real.run, 'profile.json')).replace(/^﻿/, '') || '{"tables":[]}');
+    check('real data: CSV and Excel sheets in the profile', p.tables.some((t) => t.kind === 'csv') && p.tables.some((t) => t.kind === 'sheet'));
+    const spikes = p.tables.flatMap((t) => (t.findings || []).filter((f) => f.fix === 'F14' && /above/.test(f.detail)));
+    check('real data: F14 spike finding has a numeric limit and a culture-independent median (199.38, not 199,38)',
+      spikes.length > 0 && spikes.every((f) => typeof f.limit === 'number' && f.limit > 0 && /\(\d+\.\d{2}\)$/.test(f.detail)), JSON.stringify(spikes.map((f) => [f.detail, f.limit])));
+    const d = node('draft-spec.js', [real.run, '--write', '--name', 'Real']);
+    const dOut = js(d);
+    check('real data: draft-spec.js drafts a spec', d.status === 0 && dOut.ok && dOut.staging > 0, (d.stdout + d.stderr).slice(0, 500));
+    const spec = (JSON.parse(tryRead(path.join(real.run, 'choices.json')) || '{}').build) || { staging: [], tables: [] };
+    // every recommended finding is a step of its table's staging query, a model setting or a stated skip
+    const stgOf = (name) => spec.staging.find((s) => s.name === 'stg_' + name.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')) ||
+      spec.staging.find((s) => (s.append || []).some((a) => (a.file || a.item) && p.tables.some((t) => t.name === name && (path.basename(t.file || '') === a.file || t.sheet === a.item))));
+    const placed = (t, f) => (dOut.model || []).concat(dOut.skipped || []).some((x) => x.table === t.name && x.fix === f.fix && (x.column || null) === (f.column || null)) ||
+      ((stgOf(t.name) || {}).steps || []).some((s) => s.fix === f.fix && (!f.column || s.column === f.column || (s.columns || []).includes(f.column) || f.fix === 'F16'));
+    const lost = p.tables.flatMap((t) => (t.findings || []).filter((f) => f.recommended && !placed(t, f)).map((f) => `${t.name} ${f.fix} ${f.column || ''}`));
+    check('real data: every recommended finding is a step, a model setting or a stated skip', lost.length === 0, lost.join('; '));
+    check('real data: every skip says why', (dOut.skipped || []).every((x) => x.reason && x.reason.length > 10), JSON.stringify(dOut.skipped));
+    const b = node('build-model.js', [real.run]);
+    const bOut = js(b);
+    check('real data: the drafted spec builds', b.status === 0 && bOut.ok && bOut.staging === dOut.staging, (b.stdout + b.stderr).slice(0, 600));
+    const ex = tryRead(path.join(real.run, 'pbip', 'Real.SemanticModel', 'definition', 'expressions.tmdl'));
+    const noStep = spec.staging.flatMap((s) => s.steps.filter((st) => !ex.includes(`#"${st.fix} `)).map((st) => `${s.name} ${st.fix}`));
+    check('real data: every drafted step is in the model under its fix name', noStep.length === 0, noStep.join(', '));
+    fs.writeFileSync(path.join(real.run, 'q.json'), JSON.stringify(spec.tables.map((t) => ({ name: t.name, table: t.name }))));
+    const s = node('source-stats.js', [real.run, '--queries', path.join(real.run, 'q.json')]);
+    const sOut = js(s);
+    const bad = Object.entries(sOut.tables || {}).filter(([, v]) => v.approx || (v.unsupported || []).length || v.errors).map(([k, v]) => `${k}: ${JSON.stringify(v.unsupported)} errors ${v.errors}`);
+    const empty = (sOut.results || []).filter((x) => !(x.value > 0)).map((x) => x.name);
+    check('real data: source-stats replays every table exactly (no approx step, no type errors, no empty table)', s.status === 0 && sOut.ok && bad.length === 0 && empty.length === 0 && (sOut.results || []).length === spec.tables.length,
+      (bad.join('; ') + ' empty: ' + empty.join(', ') + s.stderr).slice(0, 600));
+    const sn = node('snake-names.js', [real.run, '--apply']);
+    const b2 = node('build-model.js', [real.run]);
+    check('real data: snake_case names (also non-ASCII like beløb) build', sn.status === 0 && b2.status === 0 && js(b2).ok, (sn.stderr + b2.stdout + b2.stderr).slice(0, 500));
+    const bd = node('build-docs.js', [real.run]);
+    check('real data: cleaning log written', bd.status === 0 && tryRead(path.join(real.run, 'cleaning-log.md')).length > 0, (bd.stdout + bd.stderr).slice(0, 400));
+  }
   // CamelCase keys (CustomerKey) and plain integer keys under different names (CampaignKey 1..8 vs
   // OpportunityKey 1..468): the demo/business files must give exactly their 7 relationships by name
   if (biz) {
