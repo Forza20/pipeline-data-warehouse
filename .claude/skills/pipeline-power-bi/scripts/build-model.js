@@ -76,10 +76,22 @@ const fnUsed = new Set();
 function sourceSteps(q, s) {
   const file = s.file;
   if (s.kind === 'csv') {
-    q.add('Source', `Csv.Document(File.Contents(SourceFolder & ${ms(file)}), [Delimiter = ${ms(s.delimiter === 'tab' ? '#(tab)' : (s.delimiter || ','))}, Columns = ${s.columnsCount || s.columns.length}, Encoding = ${s.codePage || 65001}, QuoteStyle = QuoteStyle.Csv])`);
-    if ((s.headerRow || 1) > 1) q.add(`F01 Skip ${s.headerRow - 1} title lines`, `Table.Skip(<prev>, ${s.headerRow - 1})`);
-    q.add('F01 Promote headers', 'Table.PromoteHeaders(<prev>, [PromoteAllScalars = true])');
-    q.add('F01 Keep data columns', `Table.SelectColumns(<prev>, ${L(s.columns)})`);
+    // one CSV file; with `append` (F21) each part is its own file (`file`, inheriting delimiter, codePage,
+    // headerRow and columns from the staging entry) and the parts are combined with a source column
+    const csvOne = (p, sfx) => {
+      q.add(`Source${sfx}`, `Csv.Document(File.Contents(SourceFolder & ${ms(p.file)}), [Delimiter = ${ms(p.delimiter === 'tab' ? '#(tab)' : (p.delimiter || ','))}, Columns = ${p.columnsCount || p.columns.length}, Encoding = ${p.codePage || 65001}, QuoteStyle = QuoteStyle.Csv])`);
+      if ((p.headerRow || 1) > 1) q.add(`F01 Skip ${p.headerRow - 1} title lines${sfx}`, `Table.Skip(<prev>, ${p.headerRow - 1})`);
+      q.add(`F01 Promote headers${sfx}`, 'Table.PromoteHeaders(<prev>, [PromoteAllScalars = true])');
+      q.add(`F01 Keep data columns${sfx}`, `Table.SelectColumns(<prev>, ${L(p.columns)})`);
+      return q.prev();
+    };
+    if (!s.append) { csvOne(s, ''); return; }
+    const { append, steps, ...first } = s;
+    const parts = [first, ...append.map((a) => ({ ...first, item: undefined, ...a }))];
+    const label = (p) => p.item || String(p.file).replace(/\.[^.]+$/, '');
+    const refs = parts.map((p) => csvOne(p, ' ' + label(p)));
+    const tag = s.sourceColumn || 'SourceFile';
+    q.add(`F21 Append ${parts.map(label).join(' and ')}`, `Table.Combine({${parts.map((p, i) => `Table.AddColumn(${refs[i]}, ${ms(tag)}, each ${ms(label(p))}, type text)`).join(', ')}})`);
     return;
   }
   q.add('Source', `Excel.Workbook(File.Contents(SourceFolder & ${ms(file)}), null, true)`);
