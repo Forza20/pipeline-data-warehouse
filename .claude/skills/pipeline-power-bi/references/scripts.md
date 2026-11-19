@@ -10,7 +10,7 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
 - `pbip_sources.py` – the CSV/Excel files behind the user's own Power BI project (step 1), read-only;
   refuses a `.pbix` with how to save it as `.pbip`.
 - `Check-Tools.ps1` – step 0's checks of Node, the report CLI, Desktop and Python in one call (JSON);
-  installs nothing.
+  installs nothing. `-DesktopOnly`: only whether Desktop is running (step 8.1).
 - `build-docs.js` – `cleaning-log.md`, `expected-values.md` and `checks.dax` from the profile, the choices,
   `checks[]` and the generated model (step 8.4); marks checks made stale by a later design change
   (`checks-basis.json`, `--checks-updated`).
@@ -28,13 +28,16 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
   with a model fingerprint and rebuilds the overview. `--apply-only` (rebuild.js) writes the saved result
   back, marked outdated when the model changed. Exit 0 = every Difference 0.
 - `rebuild.js` – the run's scripts in order after a change (model → docs → context → health → grounded
-  answers → DAX guide → handover → overview), stopping at the first failure; one JSON result.
+  answers → DAX guide → handover → overview), stopping at the first failure; one JSON result. It parses
+  the model once (`parse_pbip.py` to a temp file) and passes it as `--parsed` to model health, the
+  grounded answers and the handover.
 - `snake-names.js` – renames a build spec to snake_case (`dim_`/`fact_` tables, columns, measures) and
   rewrites every reference; `rebuild.js` runs it when `naming` is `snake_case`.
 - `descriptions.py` – fills every missing `///` description from the catalog's AI drafts (`--apply`) and
   writes `pbip/docs/descriptions.xlsx` (with a Review column for descriptions that rest on an assumption);
   `--redo` replaces named fields' descriptions; refuses to write a file whose change is more than `///`
-  lines (exit 2); exit 1 lists fields still missing.
+  lines (exit 2); exit 1 lists fields still missing. Skips the Excel write when the list is unchanged
+  (`docs/.descriptions.xlsx.sha256`).
 - `measure-test.js` – a DAX query view test of a new or changed measure before it is saved (`DEFINE` + its
   checks and filter contract + a per-member breakdown); `filter-checks.js` turns a measure's `filters`
   into checks for it and for `checks.dax`.

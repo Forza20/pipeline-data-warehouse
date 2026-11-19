@@ -36,7 +36,9 @@ HERE = Path(__file__).resolve().parent
 PARSER = HERE.parent.parent / 'pbip-governance' / 'scripts' / 'parse_pbip.py'
 
 
-def load(pbip):
+def load(pbip, parsed=None):
+    if parsed:  # parse_pbip.py output already written by rebuild.js (saves a second parse)
+        return json.loads(Path(parsed).read_text(encoding='utf-8-sig'))['model']
     if not PARSER.exists():
         sys.exit(f'needs the pbip-governance skill next to this one ({PARSER})')
     out = subprocess.run([sys.executable, '-X', 'utf8', str(PARSER), str(pbip)], capture_output=True)
@@ -78,11 +80,12 @@ def main():
     ap.add_argument('pbip')
     ap.add_argument('questions')
     ap.add_argument('--out')
+    ap.add_argument('--parsed', help='parse_pbip.py output for this pbip (rebuild.js passes it)')
     a = ap.parse_args()
     pbip = Path(a.pbip).resolve()
     out = Path(a.out) if a.out else pbip.parent
     questions = json.loads(Path(a.questions).read_text(encoding='utf-8-sig'))
-    model = load(pbip)
+    model = load(pbip, a.parsed)
 
     measures = {m['name']: {**m, 'home': t['name']} for t in model['tables'] for m in t['measures']}
     columns = {(t['name'], c['name']): c for t in model['tables'] for c in t['columns']}

@@ -48,7 +48,10 @@ def main():
     run_id = choices.get('run_id') or run.name
     pbip = run / 'pbip'
     pp = load_parser()
-    model = pp.parse_model(pbip)
+    # --parsed <file>: parse_pbip.py output already written by rebuild.js (saves a second parse)
+    parsed = sys.argv[sys.argv.index('--parsed') + 1] if '--parsed' in sys.argv[2:-1] else None
+    model = (json.loads(Path(parsed).read_text(encoding='utf-8-sig'))['model'] if parsed
+             else pp.parse_model(pbip))
     design = choices.get('design') or {}
     warnings = []
 

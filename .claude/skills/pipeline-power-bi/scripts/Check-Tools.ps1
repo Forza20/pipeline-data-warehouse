@@ -5,15 +5,28 @@
 
   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Check-Tools.ps1 [-Catalog]
 
-  -Catalog  also check Python 3 with openpyxl (only the data catalog needs it)
+  -Catalog      also check Python 3 with openpyxl (only the data catalog needs it)
+  -DesktopOnly  only whether Power BI Desktop is running (step 8.1, before the build) – well under a second
 
   Output: node, reportCli, desktop (installed, how found, running, unsavedTitle), python, freeMemoryGB,
-  and missing[] with the install command for each missing program.
+  and missing[] with the install command for each missing program. With -DesktopOnly: desktop (running,
+  unsavedTitle) only.
 #>
 [CmdletBinding()]
-param([switch]$Catalog)
+param([switch]$Catalog, [switch]$DesktopOnly)
 
 $ErrorActionPreference = 'SilentlyContinue'
+function Get-DesktopWindow {
+    Get-Process PBIDesktop -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle } | Select-Object -First 1
+}
+if ($DesktopOnly) {
+    $proc = Get-DesktopWindow
+    [ordered]@{ desktop = [ordered]@{
+        running = [bool]$proc
+        unsavedTitle = $(if ($proc -and $proc.MainWindowTitle -match '^\*') { $proc.MainWindowTitle } else { $null })
+    } } | ConvertTo-Json -Depth 3
+    exit 0
+}
 function Get-Version([string]$exe, [string[]]$argList) {
     if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { return $null }
     $v = (& $exe @argList 2>$null | Select-Object -First 1)
@@ -28,7 +41,17 @@ $out.node = $node
 if (-not $node) { $missing.Add([ordered]@{ program = 'Node.js 18+'; install = 'winget install --id OpenJS.NodeJS.LTS -e' }) }
 elseif ([int](($node -replace '^v', '') -split '\.')[0] -lt 18) { $missing.Add([ordered]@{ program = "Node.js 18+ (found $node)"; install = 'winget install --id OpenJS.NodeJS.LTS -e' }) }
 
-$cli = Get-Version 'powerbi-report-author' @('--version')
+# the CLI's own --version starts Node through the npm shim (about a second): read its package.json instead
+$cli = $null
+$cliCmd = Get-Command 'powerbi-report-author' -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($cliCmd) {
+    $cli = 'found'
+    $pkg = Join-Path (Split-Path -Parent $cliCmd.Source) 'node_modules\@microsoft\powerbi-report-authoring-cli\package.json'
+    if (Test-Path -LiteralPath $pkg) {
+        $ver = (Get-Content -LiteralPath $pkg -Raw | ConvertFrom-Json).version
+        if ($ver) { $cli = [string]$ver }
+    }
+}
 $out.reportCli = $cli
 if (-not $cli) { $missing.Add([ordered]@{ program = 'Power BI report CLI'; install = 'npm install -g @microsoft/powerbi-report-authoring-cli' }) }
 
@@ -37,7 +60,7 @@ $desk = [ordered]@{ installed = $false; how = $null; running = $false; unsavedTi
 if (Get-Command PBIDesktop -ErrorAction SilentlyContinue) { $desk.installed = $true; $desk.how = 'PATH' }
 elseif (Test-Path "$env:ProgramFiles\Microsoft Power BI Desktop\bin\PBIDesktop.exe") { $desk.installed = $true; $desk.how = 'Program Files' }
 elseif (Get-AppxPackage -Name '*PowerBI*' -ErrorAction SilentlyContinue) { $desk.installed = $true; $desk.how = 'Microsoft Store' }
-$proc = Get-Process PBIDesktop -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle } | Select-Object -First 1
+$proc = Get-DesktopWindow
 if ($proc) { $desk.running = $true; if ($proc.MainWindowTitle -match '^\*') { $desk.unsavedTitle = $proc.MainWindowTitle } }
 $out.desktop = $desk
 if (-not $desk.installed) { $missing.Add([ordered]@{ program = 'Power BI Desktop'; install = 'winget install --id Microsoft.PowerBI -e' }) }
