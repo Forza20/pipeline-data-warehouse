@@ -155,7 +155,10 @@ for (const st of B.staging || []) {
     for (const t of (B.tables || []).filter((x) => x.from === st.name)) {
       const col = (t.columns || []).find((c) => (c.from || c.name) === s.column);
       if (!col) continue;
-      const vals = s.values.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(', ');
+      // numeric column + numeric values: no quotes, else CONTAINSROW fails on Text vs Integer
+      const numeric = /^(int|int64|integer|whole|double|decimal|number|currency|fixed)/i.test(String(col.type || ''))
+        && s.values.every((v) => /^-?\d+(\.\d+)?$/.test(String(v).trim()));
+      const vals = s.values.map((v) => numeric ? String(v).trim() : `"${String(v).replace(/"/g, '""')}"`).join(', ');
       add({ name: `Test rows left in ${t.name} (${s.values.join(', ')})`, dax: `COUNTROWS ( FILTER ( ${q(t.name)}, ${q(t.name)}[${col.name}] IN { ${vals} } ) ) + 0`,
         expected: 0, assumes: 'F27' });
     }
