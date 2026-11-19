@@ -30,7 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
-const { fixVisual: noDisplayUnits } = require('./display-units');
+const { fixVisual: noDisplayUnits, withThemeDefaults } = require('./display-units');
 
 const args = process.argv.slice(2);
 const pi = args.indexOf('--preview');
@@ -473,13 +473,14 @@ function tintPng(buf, hex) {
 function themeJson() {
   if (T.customTheme) {
     const ct = JSON.parse(fs.readFileSync(path.join(TPL_DIR, T.customTheme), 'utf8').replace(/\{\{([A-Za-z]+)\}\}/g, (m, k) => C[k] || m));
-    return { ...ct, name: 'pbip-layout-theme.json' };
+    return withThemeDefaults({ ...ct, name: 'pbip-layout-theme.json' }); // + display units None by default
   }
   const base = readJ(path.join(TPL_DIR, 'base-theme.json'));
   const dc = Array.isArray(base.dataColors) ? [...base.dataColors] : [];
   (T.themeDataColors || ['dark', 'gold', 'teal', 'bad', 'muted', 'badDark']).forEach((k, i) => { dc[i] = C[k]; });
   const roles = T.themeRoles || { background: 'panel', foreground: 'axis', tableAccent: 'teal' };
-  return { name: 'pbip-layout-theme.json', dataColors: dc, ...Object.fromEntries(Object.entries(roles).map(([r, k]) => [r, C[k]])) };
+  // + display units None by default, so visuals added later in Desktop never show "tusind"/K/mio.
+  return withThemeDefaults({ name: 'pbip-layout-theme.json', dataColors: dc, ...Object.fromEntries(Object.entries(roles).map(([r, k]) => [r, C[k]])) });
 }
 
 // ---------- preview (a wireframe of the chosen pages; no report files are written) ----------
