@@ -192,9 +192,18 @@ function fixStep(q, f, s) {
       const rec = Object.entries(f.names || {}).map(([k, v]) => `${mid(String(k))} = ${ms(v)}`).join(', ');
       return q.add(`F28 ${f.as || c} names`, `Table.AddColumn(<prev>, ${ms(f.as || c + ' name')}, each Record.FieldOrDefault([${rec}], Text.From([${c}]), "Unknown " & Text.From([${c}])), type text)`);
     }
+    case 'F20': {
+      // lines with too few fields: Csv.Document (Columns = n) fills them with null/"" in the last column
+      if (s.kind !== 'csv') { errors.push(`${s.name}: F20 is for CSV files only (an Excel sheet has no field count)`); return q; }
+      const last = c || s.columns[s.columns.length - 1];
+      const short = `[${last}] = null or [${last}] = ""`;
+      if (f.mode === 'leave') return q;
+      if (f.mode === 'remove') return q.add('F20 Remove short lines', `Table.SelectRows(<prev>, each not (${short}))`);
+      return q.add('F20 Flag short lines', `Table.AddColumn(<prev>, ${ms(f.flagColumn || 'Row check')}, each if ${short} then "short line" else "ok", type text)`);
+    }
     case 'M': return q.add(f.label, f.expr);
     default:
-      if (['F01', 'F02', 'F18', 'F20', 'F21', 'F22', 'F26', 'F29', 'M01', 'M02'].includes(f.fix)) return q; // handled elsewhere
+      if (['F01', 'F02', 'F18', 'F21', 'F22', 'F26', 'F29', 'M01', 'M02'].includes(f.fix)) return q; // handled elsewhere
       errors.push(`${s.name}: unknown step ${f.fix}`);
       return q;
   }
