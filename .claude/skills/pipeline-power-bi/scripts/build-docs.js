@@ -155,11 +155,18 @@ for (const st of B.staging || []) {
     for (const t of (B.tables || []).filter((x) => x.from === st.name)) {
       const col = (t.columns || []).find((c) => (c.from || c.name) === s.column);
       if (!col) continue;
-      // numeric column + numeric values: no quotes, else CONTAINSROW fails on Text vs Integer
-      const numeric = /^(int|int64|integer|whole|double|decimal|number|currency|fixed)/i.test(String(col.type || ''))
-        && s.values.every((v) => /^-?\d+(\.\d+)?$/.test(String(v).trim()));
-      const vals = s.values.map((v) => numeric ? String(v).trim() : `"${String(v).replace(/"/g, '""')}"`).join(', ');
-      add({ name: `Test rows left in ${t.name} (${s.values.join(', ')})`, dax: `COUNTROWS ( FILTER ( ${q(t.name)}, ${q(t.name)}[${col.name}] IN { ${vals} } ) ) + 0`,
+      // The IN list must match the column's type, else CONTAINSROW fails ("Text vs Integer").
+      // Numeric column (a `key` is Int64 too): numeric values unquoted; a text value ("30---", "Export date ...") cannot be
+      // in a numeric column, so it is left out. Text column: every value quoted. Other types (date,
+      // boolean): no check, a test-row value is never of that type.
+      const type = String(col.type || 'text').toLowerCase();
+      const isNum = (v) => /^-?\d+(\.\d+)?$/.test(String(v).trim());
+      let vals;
+      if (/^(key|int|int64|integer|whole|double|decimal|number|currency|fixed)/.test(type)) vals = s.values.filter(isNum).map((v) => String(v).trim());
+      else if (/^(text|string)/.test(type)) vals = s.values.map((v) => `"${String(v).replace(/"/g, '""')}"`);
+      else vals = [];
+      if (!vals.length) continue;
+      add({ name: `Test rows left in ${t.name} (${s.values.join(', ')})`, dax: `COUNTROWS ( FILTER ( ${q(t.name)}, ${q(t.name)}[${col.name}] IN { ${vals.join(', ')} } ) ) + 0`,
         expected: 0, assumes: 'F27' });
     }
   }

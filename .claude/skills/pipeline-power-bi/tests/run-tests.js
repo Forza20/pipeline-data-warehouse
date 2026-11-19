@@ -464,6 +464,18 @@ check('docs: cleaning log names the real step names', clog.includes('| F08 | Dat
 check('docs: a finding without a step is "not kept"', /\| F26 \| Email \| \d+ \| not kept \|/.test(clog) && /Not kept: F26 ContactName/.test(clog));
 check('docs: a fix built in a model table is kept there', clog.includes('in Customer: `F18 Missing KundeID values`'));
 check('docs: automatic orphan and test-row checks', cdax.includes('"Sales rows without Customer"') && cdax.includes('\'Customer\'[Customer ID] IN { "K-100" }') && cdax.includes('\'Product\'[Product code] IN { "ZZZ-000" }') && (bd.checks || {}).auto === 4, JSON.stringify(bd.checks));
+{ // F27 values must match the column type, else Power BI: "CONTAINSROW ... Text with Integer"
+  const tr = fs.mkdtempSync(path.join(require('os').tmpdir(), 'f27type-'));
+  const sp = JSON.parse(JSON.stringify(spec));
+  sp.staging.find((s) => s.name === 'stg_contacts').steps = [{ fix: 'F27', column: 'CustomerID', values: ['9999', 'Export date 2023'] }];
+  sp.staging.find((s) => s.name === 'stg_customers').steps.push({ fix: 'F27', column: 'CustomerKey', values: ['30---'] });
+  fs.writeFileSync(path.join(tr, 'choices.json'), JSON.stringify({ run_id: 'f27', name: 'F27', build: sp }));
+  const r = spawnSync('node', [path.join(SKILL, 'scripts', 'build-docs.js'), tr], { encoding: 'utf8' });
+  const d = fs.existsSync(path.join(tr, 'checks.dax')) ? fs.readFileSync(path.join(tr, 'checks.dax'), 'utf8') : '';
+  check('docs: F27 on int column keeps only numbers, unquoted', d.includes("'Contact'[Customer ID] IN { 9999 }"), r.stdout + r.stderr + d.slice(0, 400));
+  check('docs: F27 with only text values on a key column writes no check', !/'Customer'\[Customer key\] IN/.test(d) && d.includes('\'Customer\'[Customer ID] IN { "K-100" }'));
+  fs.rmSync(tr, { recursive: true, force: true });
+}
 check('docs: given check in DAX and expected values', cdax.includes('( "Rows Sales", COUNTROWS ( Sales ), 11 )') && cev.includes('| Rows Sales | 11 | F03, F04, F12 | |') && cev.includes('The I alt row does not match.'));
 // stale checks: a design change after the expected values were computed marks the checks that read it
 const docs = (extra = []) => { const r = spawnSync('node', [path.join(SKILL, 'scripts', 'build-docs.js'), run, ...extra], { encoding: 'utf8' }); try { return JSON.parse(r.stdout); } catch { return { raw: r.stdout + r.stderr }; } };
