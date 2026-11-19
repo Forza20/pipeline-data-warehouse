@@ -25,24 +25,17 @@ function check(name, ok, info) {
 }
 
 // ---------- 1. profiler ----------
+// The demo/business profile runs in the background at the same time as the fixtures profile (each is
+// seconds of PowerShell); its checks are made at the end (section 4).
+const DEMO_BIZ = path.join(SKILL, '..', '..', '..', 'demo', 'business');
+const bizProfile = fs.existsSync(DEMO_BIZ)
+  ? spawnAsync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
+    '-Path', DEMO_BIZ, '-OutFile', path.join(TMP, 'profile-business.json'), '-Today', '2026-11-14'])
+  : null;
 const profFile = path.join(TMP, 'profile.json');
 execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
   '-Path', FIX, '-OutFile', profFile, '-Today', '2026-11-06', '-RowsDir', path.join(TMP, 'rows')], { stdio: 'pipe' });
 const prof = JSON.parse(fs.readFileSync(profFile, 'utf8').replace(/^﻿/, ''));
-// CamelCase keys (CustomerKey) and plain integer keys under different names (CampaignKey 1..8 vs
-// OpportunityKey 1..468): the demo/business files must give exactly their 7 relationships by name
-{
-  const DEMO_BIZ = path.join(SKILL, '..', '..', '..', 'demo', 'business');
-  if (fs.existsSync(DEMO_BIZ)) {
-    const pf = path.join(TMP, 'profile-business.json');
-    execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
-      '-Path', DEMO_BIZ, '-OutFile', pf, '-Today', '2026-11-14'], { stdio: 'pipe' });
-    const pb = JSON.parse(fs.readFileSync(pf, 'utf8').replace(/^﻿/, ''));
-    const rels = pb.relations.map((r) => `${r.from}->${r.to}`).sort();
-    check('profiler: CamelCase Key columns are ids, and plain numbers under two key names are not related (demo/business: 7 relationships, all by name)',
-      rels.length === 7 && pb.relations.every((r) => r.matchedBy === 'name' && r.preferred) && rels.includes('opportunities[CustomerKey]->customers[CustomerKey]'), rels.join(', '));
-  }
-}
 const T = (n) => prof.tables.find((t) => t.name === n) || { findings: [], columns: [] };
 const has = (t, fix, col) => T(t).findings.some((f) => f.fix === fix && (col === undefined || f.column === col));
 const find = (t, fix, col) => T(t).findings.find((f) => f.fix === fix && (col === undefined || f.column === col));
@@ -133,12 +126,12 @@ function spawnAsync(cmd, args) {
     p.on('close', (status) => resolve({ status, stdout, stderr }));
   });
 }
-function driftRun(name, srcFolder) {
+function driftRun(name, srcFolder, extra = []) {
   const dir = path.join(TMP, name);
   fs.mkdirSync(dir);
   fs.copyFileSync(profFile, path.join(dir, 'profile.json'));
   fs.writeFileSync(path.join(dir, 'choices.json'), JSON.stringify({ build: spec }));
-  const done = spawnAsync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), dir, '--path', srcFolder, '--today', '2026-11-06']);
+  const done = spawnAsync('node', [path.join(SKILL, 'scripts', 'check-drift.js'), dir, '--path', srcFolder, '--today', '2026-11-06', ...extra]);
   return done.then((r) => ({ ...r, dir }));
 }
 const newFix = path.join(TMP, 'newfiles');
@@ -147,8 +140,10 @@ for (const f of fs.readdirSync(FIX)) fs.copyFileSync(path.join(FIX, f), path.joi
 const csv = fs.readFileSync(path.join(newFix, 'orders.csv'), 'utf8').replace('Ordrenr;Dato;KundeID;Region;Beløb', 'Ordrenr;Dato;KundeID;Region;Belob');
 fs.writeFileSync(path.join(newFix, 'orders.csv'), csv, 'utf8');
 fs.rmSync(path.join(newFix, 'customers.csv'));
-const driftSame = QUICK ? null : driftRun('drift-same', FIX);
-const driftNew = QUICK ? null : driftRun('drift-new', newFix);
+// unchanged files: the fixtures profile from section 1 is the new profile too (no extra profiler run);
+// changed files: profiled by check-drift itself, and kept with --save-profile
+const driftSame = QUICK ? null : driftRun('drift-same', FIX, ['--new-profile', profFile]);
+const driftNew = QUICK ? null : driftRun('drift-new', newFix, ['--save-profile', path.join(TMP, 'drift-new-profile.json')]);
 
 const glossary = [{ term: 'Revenue', definition: 'Order amounts without flagged anomalies.', owner: 'Finance' }];
 fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', build: spec, glossary, pii_not_personal: ['Customer[Customer name]'],
@@ -188,12 +183,15 @@ const before = fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8');
 const bad = JSON.parse(JSON.stringify(spec));
 bad.relationships.push({ from: 'Sales[No such column]', to: 'Customer[Customer key]' });
 bad.staging[0].steps.push({ fix: 'F99' });
+// month names with a year column but no "year" key: every month would fall in the current year
+bad.staging[0].steps.push({ fix: 'F16', keep: ['Ordrenr', 'Year'], attribute: 'month', value: 'target', period: 'monthName' });
 fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ build: bad }));
 res = gen(run);
 let badOut = {};
 try { badOut = JSON.parse(res.stdout); } catch { /* reported below */ }
 check('bad spec: exit code 2', res.status === 2, res.status);
-check('bad spec: names both errors', (badOut.errors || []).length === 2, JSON.stringify(badOut.errors));
+check('bad spec: names all three errors', (badOut.errors || []).length === 3, JSON.stringify(badOut.errors));
+check('bad spec: F16 month names without "year" stops the build', (badOut.errors || []).some((e) => /F16.*"year": "Year"/.test(e)), JSON.stringify(badOut.errors));
 check('bad spec: model untouched', fs.readFileSync(path.join(def, 'model.tmdl'), 'utf8') === before);
 check('bad spec: no half-written folder left', !fs.existsSync(path.join(def, '..', 'definition.new')));
 
@@ -774,13 +772,23 @@ check('overview: theme light uses the light palette and its keys', /<style>\n:ro
 fs.unlinkSync(path.join(run, 'overview-colors.json'));
 
 // ---------- 4. drift checks started in the background after the profiler ----------
-Promise.all([driftSame, driftNew]).then(([same, changed]) => {
+Promise.all([driftSame, driftNew, bizProfile]).then(([same, changed, biz]) => {
+  // CamelCase keys (CustomerKey) and plain integer keys under different names (CampaignKey 1..8 vs
+  // OpportunityKey 1..468): the demo/business files must give exactly their 7 relationships by name
+  if (biz) {
+    let pb = { relations: [] };
+    try { pb = JSON.parse(fs.readFileSync(path.join(TMP, 'profile-business.json'), 'utf8').replace(/^﻿/, '')); } catch { /* reported below */ }
+    const rels = pb.relations.map((r) => `${r.from}->${r.to}`).sort();
+    check('profiler: CamelCase Key columns are ids, and plain numbers under two key names are not related (demo/business: 7 relationships, all by name)',
+      biz.status === 0 && rels.length === 7 && pb.relations.every((r) => r.matchedBy === 'name' && r.preferred) && rels.includes('opportunities[CustomerKey]->customers[CustomerKey]'), rels.join(', ') + biz.stderr.slice(0, 400));
+  }
   if (!QUICK) {
     check('drift: unchanged files pass', same.status === 0, same.stdout + same.stderr);
     const driftMd = fs.existsSync(path.join(changed.dir, 'drift.md')) ? fs.readFileSync(path.join(changed.dir, 'drift.md'), 'utf8') : '';
     check('drift: breaking changes give exit 1', changed.status === 1, changed.status);
     check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
     check('drift: missing file found', driftMd.includes('file customers.csv not found'));
+    check('drift --save-profile: the new profile is kept', fs.existsSync(path.join(TMP, 'drift-new-profile.json')));
   }
 
   fs.rmSync(TMP, { recursive: true, force: true });

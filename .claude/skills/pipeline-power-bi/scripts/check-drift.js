@@ -3,6 +3,7 @@
 // was built for (profile.json + the build spec in choices.json). Read-only on the source files.
 //
 //   node check-drift.js runs/<run-id> [--path <new file or folder>] [--today yyyy-MM-dd]
+//                      [--new-profile <profile of the new files>] [--save-profile <file>]
 //
 // --path defaults to choices.source_original (where the user keeps the files), else the run's data/ folder.
 // Writes runs/<run-id>/drift.md and drift.json. Exit code 1 when a change breaks the refresh, else 0.
@@ -44,18 +45,25 @@ if (!src) {
   if (src === path.join(run, 'data')) note = 'No new files given (--path) and source_original not found – this compares the run’s own copy of the files the model was built from, so it cannot show drift.';
 }
 
-const tmp = path.join(os.tmpdir(), `drift-${process.pid}.json`);
-const ps = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'Profile-Sources.ps1'), '-Path', src, '-OutFile', tmp];
-if (opt('--today')) ps.push('-Today', opt('--today'));
+// --new-profile <file>: a profile of the new files that already exists (no second profiler run);
+// --save-profile <file>: keep the profile made here (e.g. as the run's new profile.json after the check)
 let newProf;
-try {
-  execFileSync('powershell', ps, { stdio: 'pipe' });
-  newProf = read(tmp);
-} catch (e) {
-  console.error('Profile-Sources.ps1 failed on ' + src + ':\n' + String((e.stderr || e.message || '')).slice(-800));
-  process.exit(2);
-} finally {
-  fs.rmSync(tmp, { force: true });
+if (opt('--new-profile')) {
+  newProf = read(opt('--new-profile'));
+} else {
+  const tmp = path.join(os.tmpdir(), `drift-${process.pid}.json`);
+  const ps = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'Profile-Sources.ps1'), '-Path', src, '-OutFile', tmp];
+  if (opt('--today')) ps.push('-Today', opt('--today'));
+  try {
+    execFileSync('powershell', ps, { stdio: 'pipe' });
+    newProf = read(tmp);
+    if (opt('--save-profile')) fs.copyFileSync(tmp, opt('--save-profile'));
+  } catch (e) {
+    console.error('Profile-Sources.ps1 failed on ' + src + ':\n' + String((e.stderr || e.message || '')).slice(-800));
+    process.exit(2);
+  } finally {
+    fs.rmSync(tmp, { force: true });
+  }
 }
 
 const low = (s) => String(s || '').toLowerCase();

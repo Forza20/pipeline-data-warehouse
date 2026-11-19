@@ -203,6 +203,43 @@ namespace PpbiProfile {
             return m.Success ? m.Groups[1].Value.ToUpperInvariant() : "?";
         }
 
+        // F27: rows whose fields say test/dummy/placeholder, or whose id is a placeholder (9999, ZZZ-…).
+        // Examples: the first 3 non-empty fields of a row, joined with " | ".
+        public static int TestRows(List<string[]> rows, int h, int n, Regex rxRow, Regex rxId, int[] idIdx, int maxEx, List<string> ex) {
+            int count = 0;
+            for (int r = h + 1; r < rows.Count; r++) {
+                string[] f = rows[r];
+                if (f.Length != n) continue;
+                bool hit = rxRow.IsMatch(string.Join("\u001f", f));
+                if (!hit) foreach (int c in idIdx) if (rxId.IsMatch(f[c].Trim())) { hit = true; break; }
+                if (!hit) continue;
+                count++;
+                if (ex.Count < maxEx) {
+                    var first = new List<string>();
+                    foreach (string v in f) { if (v.Trim().Length > 0) { first.Add(v); if (first.Count == 3) break; } }
+                    ex.Add(string.Join(" | ", first));
+                }
+            }
+            return count;
+        }
+
+        // M02: per candidate column c, the number of distinct (key, c) pairs over rows with a key –
+        // equal to the key's distinct count means c is fixed by the key
+        public static int[] PairCounts(List<string[]> rows, int h, int n, int k, int[] cs) {
+            var sets = new HashSet<string>[cs.Length];
+            for (int i = 0; i < cs.Length; i++) sets[i] = new HashSet<string>();
+            for (int r = h + 1; r < rows.Count; r++) {
+                string[] f = rows[r];
+                if (f.Length != n) continue;
+                string key = f[k].Trim();
+                if (key.Length == 0) continue;
+                for (int i = 0; i < cs.Length; i++) sets[i].Add(key + "\u001f" + f[cs[i]].Trim());
+            }
+            var counts = new int[cs.Length];
+            for (int i = 0; i < cs.Length; i++) counts[i] = sets[i].Count;
+            return counts;
+        }
+
         // The rows from the header row on, as JSON: {"header":[…],"rows":[[…],…]} – for source-stats.js.
         // Excel adds "kinds": one string per data row, one type char per cell (s text, n number, b true/false, d date).
         public static void WriteRows(string path, List<string[]> rows, int h, List<string> kinds) {
@@ -958,15 +995,9 @@ foreach ($src in $sources) {
     # -----------------------------------------------------------------------------------------------
     # Rows that do not belong in a report (F27): test, dummy and placeholder records
     # -----------------------------------------------------------------------------------------------
-    $idIdx = @(); for ($c = 0; $c -lt $nCol; $c++) { if ($colOut[$c].kind -eq 'id') { $idIdx += $c } }
-    $testRows = 0; $testEx = New-Object System.Collections.Generic.List[string]
-    for ($r = $h + 1; $r -lt $rows.Count; $r++) {
-        $f = $rows[$r]
-        if ($f.Length -ne $nCol) { continue }
-        $hit = $rxTestRow.IsMatch([string]::Join([string][char]31, $f))
-        if (-not $hit) { foreach ($c in $idIdx) { if ($rxTestId.IsMatch($f[$c].Trim())) { $hit = $true; break } } }
-        if ($hit) { $testRows++; if ($testEx.Count -lt $MaxExamples) { $testEx.Add((@($f | Where-Object { $_.Trim() } | Select-Object -First 3) -join ' | ')) } }
-    }
+    $idIdx = [int[]]@(for ($c = 0; $c -lt $nCol; $c++) { if ($colOut[$c].kind -eq 'id') { $c } })
+    $testEx = New-Object System.Collections.Generic.List[string]
+    $testRows = [PpbiProfile.Profiler]::TestRows($rows, $h, $nCol, $rxTestRow, $rxTestId, $idIdx, $MaxExamples, $testEx)
     # A few rows (at most 2, or up to 20 % in larger tables) – more than that is the data itself, not test rows
     if ($testRows -gt 0 -and $testRows -le [Math]::Max(2, 0.2 * $dataRows) -and $testRows -lt $dataRows) {
         $findings.Add((New-Finding $tableName 'F27' $null $testRows 'Test, dummy or placeholder rows (TEST, DO NOT USE, 9999, ZZZ- …) - remove them before they reach totals and lists' @($testEx) $true 'remove'))
@@ -1001,12 +1032,14 @@ foreach ($src in $sources) {
         }) | Select-Object -First 5
         foreach ($k in $cand) {
             $attrs = New-Object System.Collections.Generic.List[string]
-            for ($c = 0; $c -lt $nCol; $c++) {
+            $cs = [int[]]@(for ($c = 0; $c -lt $nCol; $c++) {
                 if ($c -eq $k -or $cols[$c].Values.Count -lt 2 -or $cols[$c].Overflow) { continue }
                 if ($cols[$c].Values.Count -gt $cols[$k].Values.Count) { continue }
-                $pairs = New-Object 'System.Collections.Generic.HashSet[string]'
-                for ($r = $h + 1; $r -lt $rows.Count; $r++) { $f = $rows[$r]; if ($f.Length -eq $nCol -and $f[$k].Trim()) { [void]$pairs.Add($f[$k].Trim() + [char]31 + $f[$c].Trim()) } }
-                if ($pairs.Count -eq $cols[$k].Values.Count) { $attrs.Add($cols[$c].Name) }
+                $c
+            })
+            if ($cs.Count) {
+                $pc2 = [PpbiProfile.Profiler]::PairCounts($rows, $h, $nCol, $k, $cs)
+                for ($i = 0; $i -lt $cs.Count; $i++) { if ($pc2[$i] -eq $cols[$k].Values.Count) { $attrs.Add($cols[$cs[$i]].Name) } }
             }
             if ($attrs.Count -ge 2) {
                 $dependencies.Add([pscustomobject]@{ key = $cols[$k].Name; distinct = $cols[$k].Values.Count; attributes = @($attrs) })
