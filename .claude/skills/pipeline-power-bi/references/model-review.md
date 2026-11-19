@@ -16,9 +16,9 @@ so the user can confirm with one click.
 | 6 | **Names and meaning** | The report names of facts, measures and key columns, and any term that means two things | the measures and columns that share a word or a term | "Orders" counting lines in one place and orders in another |
 
 **Every drafted point carries its evidence** – one number, measured before the user is asked, so the
-choice is made on the size of the effect and not on a description of it. Compute it with a short script
-over `data/` (apply the kept fixes; use the profile where it already holds the number, e.g. match % from
-`relations[]`), put it in the question's option description ("Revenue = LineTotal (Recommended) – taking
+choice is made on the size of the effect and not on a description of it. Compute all points in one
+`source-stats.js runs\<run-id> --raw --queries <file>` call (a short script only for what it marks
+unsupported; use the profile where it already holds the number, e.g. match % from `relations[]`), put it in the question's option description ("Revenue = LineTotal (Recommended) – taking
 the discount off would lower it by $24,857, 4.7 %; 99 of 200 lines have a discount"), and write it to the
 point as `evidence`: `{ "value": "−$24,857 (−4.7 %)", "how": "SUM(LineTotal) vs SUM(LineTotal × (1 − DiscountPct)) in order_line_items; 99 of 200 lines discounted" }`.
 A point with nothing to measure gets `"evidence": { "value": "not measurable", "how": "<why>" }`, so the gap

@@ -72,6 +72,11 @@ one call (about 3–5 seconds; add `-Catalog` when the catalog may be chosen –
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Check-Tools.ps1 [-Catalog]
 ```
+In the same turn, start the profiler's warm-up **in the background** (`run_in_background`) – it compiles and
+caches the profiler's C# parts once (about 5 seconds on a new PC), so step 2 does not wait for it:
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Profile-Sources.ps1 -WarmUp
+```
 It prints JSON: `node`, `reportCli`, `desktop` (installed, running, `unsavedTitle`), `python`,
 `freeMemoryGB`, and `missing[]` with the install command of each missing program:
 
@@ -146,9 +151,11 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
 ## Step 2 – Profile
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Profile-Sources.ps1 -Path "<folder or file1,file2>" -OutFile runs\<run-id>\profile.json
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Profile-Sources.ps1 -Path "<folder or file1,file2>" -OutFile runs\<run-id>\profile.json -RowsDir runs\<run-id>\rows
 ```
-Read-only; prints one line per table. Then read `profile.json` (per table: `kind` = `csv` / `sheet` /
+Read-only for the source files; prints one line per table. `-RowsDir` keeps each table's rows as the profile
+read them (`rows/`), so `source-stats.js` computes evidence and expected values later without parsing the
+files again. Then read `profile.json` (per table: `kind` = `csv` / `sheet` /
 `excel table`, `file`, `sheet`, `excelTable`, `range`, `hidden`, `isEmpty`, `encoding`, `delimiter`,
 `headerRow`, `headerCells`, `dataRows`, `columns[]` with `kind`/`readable`/`min`/`max`/`sum`,
 `findings[]` with `fix`, `column`, `rows`, `detail`, `recommended`, `variant`; plus `relations[]`, where
@@ -216,11 +223,18 @@ question ("Sheet Salg in salg.xlsx"). Facts first, then dimensions, then the res
 
 - Question 1 (single-select): "<table> (<file>, <rows> rows) has <n> proposed cleaning steps. How do you
   want to go through them?" · "Accept the <k> recommended steps (Recommended)" with the step list in the
-  description and in `preview` · "Choose step by step" · "No cleaning for this table (only data types)".
+  description and in `preview` · "Choose step by step" · "No cleaning for this table (only data types)" ·
+  "Accept the recommended steps for this and all remaining tables (<n> tables)" – only when more than one
+  table is left.
 - With "accept": keep every finding with `recommended: true` at its default variant, drop the others,
   and write them to `choices.json`. Show one line: "<table>: <k> steps kept, <m> not kept (<names>)."
+- With "all remaining tables": the same for every table not yet asked, without more questions in step 4 –
+  one line per table as above. Only F28 code names are still asked (in chat), since only the user knows them.
+- **Read [references/fix-catalog.md](references/fix-catalog.md) only now**, when the user first picks "step
+  by step" (once per run) – "accept", "all remaining" and "no cleaning" need only the profile's
+  `recommended` and `variant`.
 - With "step by step": the next calls group the findings into questions of at most 4 options, in the
-  order of [references/fix-catalog.md](references/fix-catalog.md):
+  catalog's order:
   - *Structure* (F01, F20, F03, F04, F19, F25), *Text* (F05, F06, F07, F23), *Formats* (F11, F08,
     F09, F10), *Rows* (F27, F12, F13, F15, F14, F24), *Shape and keys* (F16, F18), *Codes* (F28),
     *Privacy* (F26), *Types and names* (F17, F02). F29 and M02 are not asked here – they are model
@@ -279,14 +293,16 @@ dates and amounts per table, and the findings F21, F22, F29, M02, F28.
    reason (e.g. "City stays its own table because targets are set per city").
 5. **Human review** ([references/model-review.md](references/model-review.md)): grain, join paths, metric
    formulas, history, access and names are business meaning, not something the profile can decide. First
-   **measure the evidence** for every drafted point (the guide's evidence column: one number per point, by a
-   short script over `data/` with the kept fixes, or from the profile) – in one script for all points.
+   **measure the evidence** for every drafted point (the guide's evidence column: one number per point) in
+   **one** call: `node .claude\skills\pipeline-power-bi\scripts\source-stats.js runs\<run-id> --raw --queries runs\<run-id>\evidence-queries.json`
+   (profile table names, M conditions in `where`, `join` for paths, `by` for splits – its header has the
+   format). Write a script by hand only for what it names as unsupported.
    Then show the drafted answer with its number and let the user confirm, change or leave it open; write
    the result to `choices.json` → `design.review` with `evidence` `{value, how}`. In fast mode the evidence
    is measured too – the open points then reach the hand-over with their size. Open points go into the
    overview page and the hand-over.
 
-## Step 5 – The model (one or two AskUserQuestion calls)
+## Step 5 – The model (one or two AskUserQuestion calls, glossary included)
 
 Relationships, date and measures now follow the design from step 4b: facts relate to dimensions on the
 surrogate or natural keys the design names; the profile's `relations[]` between tables that were merged
@@ -316,8 +332,10 @@ away are dropped.
    contract). All measures go into `_Measures` with display folders.
 5. *Business terms (glossary):* every measure that goes on the report gets a **term** – the business word
    for it ("Revenue", "Active customer") with a one-sentence definition in the user's words. Draft the
-   definitions from the formulas and the review answers (step 4b.5), show them in one AskUserQuestion
-   (`preview` with term · definition · measure), and let the user confirm or rewrite them. Write
+   definitions from the formulas and the review answers (step 4b.5) and ask them **in the same call as the
+   measures** (not a call of its own): one single-select "Use the drafted business terms (Recommended)"
+   (`preview` with term · definition · measure for the recommended measures) · "I'll rewrite some" (then
+   ask in chat which). A measure the user unticks in that call drops its term. Write
    `choices.json` → `glossary[]` (`term`, `definition`, `owner` if given, `examples`) and the term on the
    measure (`build.measures[].term`, written to the model as `annotation Term`). A term that two measures
    claim, or a definition the formula does not match, goes back to the user.
@@ -372,8 +390,10 @@ proved again in `checks.dax` after the rebuild.
 flags and details of the eleven parts below, and the drift check for new files. What must hold in every run:
 
 1. Power BI Desktop is closed (`Check-Tools.ps1 -DesktopOnly` – not the full check again); the files are copied to `data/` when `copy_files`.
-2. **Expected values** come from the source files (a script over `data/` with the kept fixes), never from the
-   model, into `choices.json` → `checks[]`; `build-docs.js` writes `expected-values.md` and `checks.dax`.
+2. **Expected values** come from the source files with the kept fixes, never from the model:
+   `source-stats.js runs\<run-id> --queries <file> --apply` replays the build spec's steps on the exported
+   rows and writes `checks[]` (and grounded questions' `expected`) in one call; `build-docs.js` writes
+   `expected-values.md` and `checks.dax`.
 3. **The model is generated, not hand-written:** the build spec in `choices.json` → `build`
    ([references/build-spec.md](references/build-spec.md)), always with `"naming": "snake_case"` – every
    table, column and measure in the model is snake_case (`dim_customer`, `customer_id`, `fact_sales`,
@@ -394,7 +414,8 @@ flags and details of the eleven parts below, and the drift check for new files. 
 8. **`checks.dax`** – one `EVALUATE` with a Difference per check.
 9. **Grounded-answer test** – 3–5 business questions with expected numbers from the source files.
 10. **Model context** (`model-context.md`) for AI assistants.
-11. **Model health** (`model-health.md`) – the warnings offered as one multiSelect.
+11. **Model health** (`model-health.md`) – the warnings are asked at the hand-over (step 10), in the same
+    call as the open decisions, not in a round of their own; a DAX warning is fixed at once, never asked.
 
 **New versions of the source files** (`--resume <run-id>` → "New files"): run the drift check first –
 [references/build-steps.md](references/build-steps.md), last section.
@@ -442,7 +463,8 @@ flags and details of the eleven parts below, and the drift check for new files. 
 
 **First the decisions still open** (principle 1): the open review points (`design.review`), the
 `handover_notes` that are choices (a row left out, a value treated a certain way), visible PII the audit
-flagged, and pbip-layout's `layout-decisions.json`. Ask them with AskUserQuestion (max 4 per call): each
+flagged, pbip-layout's `layout-decisions.json`, and the model-health warnings (one multiSelect, e.g.
+"Remove the unused fact columns: …"). Ask them with AskUserQuestion (max 4 per call, as few calls as fit): each
 question stands on its own, says what was applied, has your recommendation first with "(Recommended)"
 and its reason, then 1–3 alternatives with their effect. Keep the answers in `choices.json`; an answer
 that differs from what was applied changes the spec or the layout config, then `rebuild.js` (and
@@ -479,9 +501,9 @@ This skill is never finished. Improve it as you use it.
 |---|---|
 | 1 | [references/run-files.md](references/run-files.md) – run folder and `choices.json` |
 | Fast mode | [references/fast-mode.md](references/fast-mode.md) |
-| 4 | [references/fix-catalog.md](references/fix-catalog.md) – every fix: recommended or not, variants, the M step, whether it changes the numbers |
+| 4 | [references/fix-catalog.md](references/fix-catalog.md) – every fix: recommended or not, variants, the M step, whether it changes the numbers – **only** when the user chooses "step by step" |
 | 4b | [references/modeling-guide.md](references/modeling-guide.md) – star schema rules and checklist; [references/model-review.md](references/model-review.md) – the six review points and their evidence |
-| 8 | [references/build-steps.md](references/build-steps.md) – commands, flags, the other skills, drift check (also before a `--resume` that rebuilds); [references/build-spec.md](references/build-spec.md) – the `build` spec; [references/source-model.md](references/source-model.md) – parse functions, CSV/Excel templates, staging, date table, DAX checks |
+| 8 | [references/build-steps.md](references/build-steps.md) – commands, flags, the other skills, drift check (also before a `--resume` that rebuilds); [references/build-spec.md](references/build-spec.md) – the `build` spec. **Not** [references/source-model.md](references/source-model.md) in a normal build: `build-model.js` writes all M and TMDL from the spec – read it only for a load or refresh error, or to write an `M` step or op by hand |
 | Any script | [references/scripts.md](references/scripts.md) – what each script does |
 | PBIP/TMDL load errors | `../supabase-medallion-powerbi/references/tmdl-templates.md` (sections 1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` |
 

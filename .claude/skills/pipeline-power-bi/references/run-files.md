@@ -9,6 +9,7 @@ whenever a step writes `choices.json`. The `build` key is in [build-spec.md](bui
 runs/<yyyy-MM-dd>_pbi_<name>/      # git-ignored
     data/                          # copies of the CSV/Excel files (unless the user keeps them in place)
     profile.json                   # Profile-Sources.ps1 output (reads CSV and Excel)
+    rows/                          # the rows of every table as the profile read them (-RowsDir; source-stats.js)
     choices.json                   # every answer – the single source for the build
     cleaning-log.md                # table → step → rows → choice (written at the build)
     expected-values.md             # rows and totals to check the report against
