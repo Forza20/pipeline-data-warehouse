@@ -384,7 +384,10 @@ if (!QUICK) {
   res = spawnSync('node', [path.join(SKILL, 'scripts', 'rebuild.js'), run], { encoding: 'utf8', env: { ...process.env, PYTHON: py } });
   let rb = {};
   try { rb = JSON.parse(res.stdout); } catch { /* reported below */ }
-  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,model-health,grounded-answers,check-results,dax-guide,handover,overview', res.stdout.slice(0, 800) + res.stderr);
+  check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,parse-model,model-health,grounded-answers,check-results,dax-guide,handover,overview', res.stdout.slice(0, 800) + res.stderr);
+  // the model is parsed once and the temp file removed afterwards
+  check('rebuild: parsed model passed on and cleaned up', (rb.steps || []).some((x) => x.step === 'parse-model' && x.ok && !x.skipped)
+    && !fs.readdirSync(require('os').tmpdir()).some((f) => f === `ppbi-parsed-${res.pid}.json`));
   // descriptions.py: every table, column and measure has a /// description after a rebuild, and the Excel list exists
   {
     const dr = spawnSync(py, ['-X', 'utf8', path.join(SKILL, 'scripts', 'descriptions.py'), path.join(run, 'pbip'), '--warn-only'], { encoding: 'utf8' });

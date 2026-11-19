@@ -6,8 +6,8 @@ and before a `--resume` that rebuilds or brings new files. Paths are relative to
 
 ## Step 8 – Build
 
-Power BI Desktop must be closed (`Check-Tools.ps1` again: `desktop.running` true → ask the user to save and
-close it).
+Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, not the full step-0 check:
+`desktop.running` true → ask the user to save and close it).
 
 1. Copy the files to `data/` when `copy_files` is true.
 2. **Expected values** – the one part that needs computing: from the source files (a short script over

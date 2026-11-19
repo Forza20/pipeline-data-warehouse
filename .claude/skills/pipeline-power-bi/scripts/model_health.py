@@ -107,15 +107,19 @@ def main():
     ap.add_argument('--profile')
     ap.add_argument('--out')
     ap.add_argument('--choices')
+    ap.add_argument('--parsed', help='parse_pbip.py output for this pbip (rebuild.js passes it)')
     a = ap.parse_args()
     pbip = Path(a.pbip).resolve()
     out = Path(a.out) if a.out else pbip.parent
-    if not PARSER.exists():
-        sys.exit(f'needs the pbip-governance skill next to this one ({PARSER})')
-    res = subprocess.run([sys.executable, '-X', 'utf8', str(PARSER), str(pbip)], capture_output=True)
-    if res.returncode:
-        sys.exit('parse_pbip.py failed:\n' + res.stderr.decode('utf-8', 'replace')[-800:])
-    data = json.loads(res.stdout.decode('utf-8-sig'))
+    if a.parsed:  # already parsed by rebuild.js (saves a second parse)
+        data = json.loads(Path(a.parsed).read_text(encoding='utf-8-sig'))
+    else:
+        if not PARSER.exists():
+            sys.exit(f'needs the pbip-governance skill next to this one ({PARSER})')
+        res = subprocess.run([sys.executable, '-X', 'utf8', str(PARSER), str(pbip)], capture_output=True)
+        if res.returncode:
+            sys.exit('parse_pbip.py failed:\n' + res.stderr.decode('utf-8', 'replace')[-800:])
+        data = json.loads(res.stdout.decode('utf-8-sig'))
     model = data['model']
     tmdl = '\n'.join(p.read_text(encoding='utf-8-sig', errors='replace')
                      for p in pbip.glob('*.SemanticModel/definition/**/*.tmdl'))

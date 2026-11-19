@@ -68,7 +68,7 @@ Every run lives in `runs/<yyyy-MM-dd>_pbi_<name>/` (git-ignored); every answer g
 ## Step 0 – Check the tools (show a short status line after the check)
 
 Windows 10/11 with Windows PowerShell 5.1 (Power BI Desktop needs Windows). Check without installing, in
-one call (about 4 seconds; add `-Catalog` when the catalog may be chosen – it also checks Python + openpyxl):
+one call (about 3–5 seconds; add `-Catalog` when the catalog may be chosen – it also checks Python + openpyxl):
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Check-Tools.ps1 [-Catalog]
 ```
@@ -371,7 +371,7 @@ proved again in `checks.dax` after the rebuild.
 **Read [references/build-steps.md](references/build-steps.md) before the build** – it holds the commands,
 flags and details of the eleven parts below, and the drift check for new files. What must hold in every run:
 
-1. Power BI Desktop is closed (`Check-Tools.ps1` again); the files are copied to `data/` when `copy_files`.
+1. Power BI Desktop is closed (`Check-Tools.ps1 -DesktopOnly` – not the full check again); the files are copied to `data/` when `copy_files`.
 2. **Expected values** come from the source files (a script over `data/` with the kept fixes), never from the
    model, into `choices.json` → `checks[]`; `build-docs.js` writes `expected-values.md` and `checks.dax`.
 3. **The model is generated, not hand-written:** the build spec in `choices.json` → `build`

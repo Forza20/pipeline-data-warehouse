@@ -201,7 +201,24 @@ def main():
     order = {'Measure': 0, 'Table': 1, 'Column': 2}
     rows.sort(key=lambda r: (order[r['type']], r['table'] or '', r['name'].lower()))
     xlsx = Path(a.xlsx) if a.xlsx else pbip / 'docs' / 'descriptions.xlsx'
-    write_xlsx(xlsx, rows)
+    # openpyxl takes about a second to import: skip the write when the list is the same as last time.
+    # The hash covers the rows and write_xlsx's own code, so a change to the layout rewrites the file.
+    import hashlib, inspect
+    digest = hashlib.sha256((json.dumps(rows, ensure_ascii=False, sort_keys=True)
+                             + inspect.getsource(write_xlsx)).encode('utf-8')).hexdigest()
+    stamp = xlsx.with_name('.' + xlsx.name + '.sha256')
+    try:
+        # an Excel file saved after the stamp (edited by hand) is rewritten too
+        unchanged = (xlsx.exists() and stamp.read_text(encoding='utf-8').strip() == digest
+                     and xlsx.stat().st_mtime <= stamp.stat().st_mtime)
+    except OSError:
+        unchanged = False
+    if not unchanged:
+        write_xlsx(xlsx, rows)
+        try:
+            stamp.write_text(digest, encoding='utf-8')
+        except OSError:
+            pass
     warnings = []
     if missing:
         warnings.append(f'{len(missing)} field(s) without a description: ' + ', '.join(missing[:10]))
@@ -212,7 +229,8 @@ def main():
     print(json.dumps({'total': len(rows), 'described': len(rows) - len(missing), 'filledFromAi': filled,
                       'redone': redone, 'toReview': sum(1 for r in rows if r['review']),
                       'written': bool(a.apply and (filled or redone) and not failed), 'selfCheckFailed': failed,
-                      'missing': missing + redo_missing, 'xlsx': str(xlsx), 'warnings': warnings},
+                      'missing': missing + redo_missing, 'xlsx': str(xlsx), 'xlsxWritten': not unchanged,
+                      'warnings': warnings},
                      ensure_ascii=False, indent=1))
     if failed:
         sys.exit(2)

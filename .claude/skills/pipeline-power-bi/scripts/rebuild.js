@@ -9,6 +9,7 @@
 //   – descriptions.py      pbip/docs/descriptions.xlsx (name | description of every measure, column, table)
 //   2 build-docs.js        cleaning log, expected values, checks.dax; stale checks and questions
 //   3 build-context.js     model-context.md
+//   – parse_pbip.py        the model parsed once to a temp file, read by steps 4, 5 and 7 (--parsed)
 //   4 model_health.py      model-health.md                           (needs profile.json)
 //   5 grounded_answers.py  grounded-answers.dax / .md                 (only with questions.json)
 //   – record-checks.js     the saved check result (check-results.json) back into the .md files, marked outdated
@@ -49,6 +50,16 @@ function python() {
 }
 const PY = python();
 
+// parse_pbip.py once, after the last step that changes the TMDL; model health, grounded answers and the
+// handover read this file instead of each parsing the model again
+const PARSER = path.join(S, '..', '..', 'pbip-governance', 'scripts', 'parse_pbip.py');
+const PARSED = path.join(require('os').tmpdir(), `ppbi-parsed-${process.pid}.json`);
+const hasProfile = fs.existsSync(path.join(runDir, 'profile.json'));
+const hasQuestions = fs.existsSync(path.join(runDir, 'questions.json'));
+const wantsHandover = !!((choices.extras || {}).governance || fs.existsSync(path.join(runDir, 'governance')));
+const parseOnce = fs.existsSync(PARSER) && (hasProfile || hasQuestions || wantsHandover);
+const parsedArg = parseOnce ? ['--parsed', PARSED] : [];
+
 const steps = [
   // build.naming = "snake_case": rename the spec first (idempotent), so every name in the model is snake_case
   ...(choices.build.naming === 'snake_case' ? [{ step: 'snake-names', cmd: ['node', path.join(S, 'snake-names.js'), runDir, '--apply'] }] : []),
@@ -56,15 +67,16 @@ const steps = [
   { step: 'descriptions', py: [path.join(S, 'descriptions.py'), pbip, '--warn-only'] },
   { step: 'build-docs', cmd: ['node', path.join(S, 'build-docs.js'), runDir, ...(flag('--checks-updated') ? ['--checks-updated'] : [])] },
   { step: 'build-context', cmd: ['node', path.join(S, 'build-context.js'), runDir] },
-  { step: 'model-health', py: [path.join(S, 'model_health.py'), pbip, '--profile', path.join(runDir, 'profile.json'), '--choices', path.join(runDir, 'choices.json')],
-    skip: !fs.existsSync(path.join(runDir, 'profile.json')) && 'no profile.json' },
-  { step: 'grounded-answers', py: [path.join(S, 'grounded_answers.py'), pbip, path.join(runDir, 'questions.json'), '--out', runDir],
-    skip: !fs.existsSync(path.join(runDir, 'questions.json')) && 'no questions.json yet (step 8.9)' },
+  { step: 'parse-model', py: [PARSER, pbip, '--output', PARSED], skip: !parseOnce && 'nothing reads the parsed model' },
+  { step: 'model-health', py: [path.join(S, 'model_health.py'), pbip, '--profile', path.join(runDir, 'profile.json'), '--choices', path.join(runDir, 'choices.json'), ...parsedArg],
+    skip: !hasProfile && 'no profile.json' },
+  { step: 'grounded-answers', py: [path.join(S, 'grounded_answers.py'), pbip, path.join(runDir, 'questions.json'), '--out', runDir, ...parsedArg],
+    skip: !hasQuestions && 'no questions.json yet (step 8.9)' },
   { step: 'check-results', cmd: ['node', path.join(S, 'record-checks.js'), runDir, '--apply-only'],
     skip: !fs.existsSync(path.join(runDir, 'check-results.json')) && 'no check result recorded yet (step 9)' },
   { step: 'dax-guide', cmd: ['node', path.join(S, 'build-dax-guide.js'), runDir] },
-  { step: 'handover', py: [path.join(S, 'build_handover.py'), runDir],
-    skip: !((choices.extras || {}).governance || fs.existsSync(path.join(runDir, 'governance'))) && 'governance not chosen' },
+  { step: 'handover', py: [path.join(S, 'build_handover.py'), runDir, ...parsedArg],
+    skip: !wantsHandover && 'governance not chosen' },
   { step: 'overview', cmd: ['node', path.join(S, 'build-overview.js'), runDir, ...(opt('--vault') ? ['--vault', opt('--vault'), '--folder', opt('--folder') || 'Pipeline'] : [])] },
 ];
 if (flag('--validate-report')) {
@@ -101,10 +113,14 @@ for (const s of steps) {
   out.steps.push(rec);
 }
 
+try { fs.unlinkSync(PARSED); } catch { /* not written */ }
+
 if (out.ok) {
-  out.next.push('Hand over the DAX guide (mandatory, step 9): node build-dax-guide.js <run> --lang <da|en> – writes the guide to the run folder next to checks.dax and grounded-answers.dax (no Downloads copy).');
+  // the dax-guide step above already wrote the guide; only ask for the user-language text when it is missing
+  if (!choices.dax_guide) out.next.push('DAX guide (step 9): write choices.json → dax_guide in the user\'s language, then node build-dax-guide.js <run> (the guide in the run folder is already written in the report language).');
   out.next.push('Validate the TMDL: powerbi-modeling-mcp connection_operations ConnectFolder on the definition folder, then Disconnect.');
-  if (!flag('--validate-report')) out.next.push(`Validate the report once: powerbi-report-author validate ${path.join(pbip, `${NAME}.Report`)} (or pass --validate-report).`);
+  // with the dashboard, pbip-layout validates the whole report after it adds its pages – one validation is enough
+  if (!flag('--validate-report') && !(choices.extras || {}).layout) out.next.push(`Validate the report once: powerbi-report-author validate ${path.join(pbip, `${NAME}.Report`)} (or pass --validate-report).`);
   if ((choices.extras || {}).catalog || fs.existsSync(path.join(pbip, 'docs', 'catalog.xlsx'))) out.next.push('Rerun the catalog through the pbip-catalog skill (--missing-only, then the full run).');
   if (fs.existsSync(path.join(runDir, 'governance', `${NAME}_azdo_wiki.zip`))) out.next.push('Rerun parse_pbip.py + generate_azdo_wiki.py through the pbip-governance skill (the handover is already rebuilt).');
   if (out.stale.length || out.staleQuestions.length) out.next.unshift('Recompute the stale expected values from the source files, then: node rebuild.js <run> --checks-updated.');
