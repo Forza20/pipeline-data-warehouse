@@ -116,8 +116,13 @@ for (const s of steps) {
 try { fs.unlinkSync(PARSED); } catch { /* not written */ }
 
 if (out.ok) {
-  // the dax-guide step above already wrote the guide; only ask for the user-language text when it is missing
-  if (!choices.dax_guide) out.next.push('DAX guide (step 9): write choices.json → dax_guide in the user\'s language, then node build-dax-guide.js <run> (the guide in the run folder is already written in the report language).');
+  // the dax-guide step above already wrote the guide, its "why" texts from the cleaning log
+  if (!choices.dax_guide) out.next.push('DAX guide (step 9): written, with the why texts from the cleaning log – add choices.json → dax_guide.why only for a business rule the log does not explain, then node build-dax-guide.js <run>.');
+  // a profile the layout step was told to use, but which is not there: pbip-layout falls back to the template colours
+  const lp = (choices.extras || {}).layout_profile;
+  if (lp && !fs.existsSync(path.resolve(lp)) && !fs.existsSync(path.resolve(runDir, path.basename(lp)))) {
+    out.warnings.push(`extras.layout_profile: ${lp} does not exist – write the colour/title answers there (pbip-layout profile.md) or remove the key`);
+  }
   out.next.push('Validate the TMDL: powerbi-modeling-mcp connection_operations ConnectFolder on the definition folder, then Disconnect.');
   // with the dashboard, pbip-layout validates the whole report after it adds its pages – one validation is enough
   if (!flag('--validate-report') && !(choices.extras || {}).layout) out.next.push(`Validate the report once: powerbi-report-author validate ${path.join(pbip, `${NAME}.Report`)} (or pass --validate-report).`);

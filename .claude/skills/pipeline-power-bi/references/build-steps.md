@@ -222,6 +222,38 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
     the hand-over's decision call (SKILL.md step 10), not a round of their own; a yes changes the build spec
     and rebuilds. A DAX warning is fixed in the measure's `expr` at once, never asked or accepted.
 
+## Step 9 – Check the numbers
+
+SKILL.md step 9 holds the rules; these are the commands.
+
+- **A – Claude runs the checks (default, with Desktop):** open `<Name>.pbip`, ask the user to click
+  **Refresh** (and approve the file access prompt for the folder). Run the text of `checks.dax` and of
+  `grounded-answers.dax` with powerbi-modeling-mcp `dax_query_operations`, save each tool result as it came
+  (JSON) to `runs/<run-id>/checks.result.json` and `grounded.result.json`, then
+  **`node .claude\skills\pipeline-power-bi\scripts\record-checks.js runs\<run-id> --checks runs\<run-id>\checks.result.json --grounded runs\<run-id>\grounded.result.json`**.
+  A query error in a step: read the error (it names the step, e.g. `F08 Parse order_date`), fix the step,
+  rebuild, refresh again.
+- **B – the user runs them (no MCP connection):** the user pastes `checks.dax` into Desktop → DAX query
+  view → Run, right-clicks the result → **Copy table**, and pastes it into the chat; same for
+  `grounded-answers.dax`. Save each paste as it is to `checks.result.txt` / `grounded.result.txt` in the run
+  folder and run the same `record-checks.js` command with those files (tab-separated, Danish or English
+  number format).
+- **The DAX guide.** It is the run's own guide to `checks.dax`
+  and `grounded-answers.dax`: the report name, run id, the number of checks, the key expected numbers and
+  why, and every grounded question with its expected answer. The "why" is written from the cleaning log
+  (each fix in the check's `assumes` with its row count: "20 exact copies removed (F12); …"); add
+  `choices.json` → `dax_guide` = `{ "lang": "en", "why": { "<check name>": "…" }, "questions": { "1": "<short question>" } }`
+  only where that text is not enough (a business rule such as "Completed orders only") – in English
+  (principle 7). Then run
+  **`node .claude\skills\pipeline-power-bi\scripts\build-dax-guide.js runs\<run-id>`**. It writes
+  `runs/<run-id>/checks.dax_grounded-answers.dax guide.html` next to `checks.dax`, `grounded-answers.dax` and
+  the run's other files. **No copy to Downloads** (never pass `--downloads`) – all three stay in the run
+  folder. Give the full path of the guide in the run folder in the hand-over. Run it
+  again after every rebuild that changes a check or a question (`rebuild.js` refreshes
+  it in the run folder as well).
+- `record-checks.js` also saves `check-results.json` and rebuilds `overview.html`; a later rebuild writes the
+  saved result back, marked ⚠️ outdated when the model changed since.
+
 ## Add or change a measure (`--resume <run-id>` → "Change the model, a measure or extras")
 
 For a measure asked for after the build – a new business question, a period comparison, a correction. The

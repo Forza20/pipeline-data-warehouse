@@ -12,7 +12,8 @@
 // Optional text from Claude in the user's language, choices.json → dax_guide:
 //   { "lang": "da", "why": { "<check name>": "text" }, "questions": { "1": "short question" },
 //     "key_checks": ["<check name>", …] }
-// Without it: lang from report_language, why from checks[].assumes, the question text from questions.json.
+// Without it: lang from report_language, why from the cleaning log (each fix in checks[].assumes with its kept
+// row count in the tables the check reads), else checks[].assumes; the question text from questions.json.
 // Prints JSON: { ok, file, downloads: [paths], lang, checks, keyChecks, questions }.
 
 const fs = require('fs');
@@ -137,8 +138,72 @@ const T = {
   },
 }[lang];
 
+// ---- "why this number" from the cleaning log: each fix code in checks[].assumes becomes a sentence with the
+// number of rows it touched in the tables the check reads (dax_guide.why still wins). Sections of the log are
+// "## <file> → staging `stg` → <model tables>", rows "| Fix | Column | Rows | Choice | Variant | Step |".
+const logRows = [];
+{
+  let targets = [];
+  for (const line of log.split(/\r?\n/)) {
+    const h = line.match(/^## .*→\s*([^→]+)$/);
+    if (h) { targets = h[1].split(',').map((s) => s.trim().replace(/`/g, '')); continue; }
+    if (/^## /.test(line)) { targets = ['*']; continue; }
+    const r = line.match(/^\|\s*(F\d\d|M\d\d)\s*\|\s*([^|]*?)\s*\|\s*(\d+)\s*\|\s*kept\s*\|\s*([^|]*?)\s*\|/);
+    if (r) logRows.push({ fix: r[1], column: r[2] === '–' ? '' : r[2], rows: Number(r[3]), variant: r[4] === '–' ? '' : r[4], targets });
+  }
+}
+const measuresByName = new Map(((choices.build || {}).measures || []).map((m) => [String(m.name).toLowerCase(), m.expr || '']));
+// the check's DAX with the measures it uses expanded (3 levels), and the model tables it names
+function expand(dax, depth = 0) {
+  let s = String(dax || '');
+  if (depth < 3) for (const x of s.matchAll(/(?<![\w'\]])\[([^\]]+)\]/g)) { const e = measuresByName.get(x[1].toLowerCase()); if (e) s += '\n' + expand(e, depth + 1); }
+  return s;
+}
+const logTables = new Set(logRows.flatMap((r) => r.targets));
+const tablesOf = (text) => new Set([...logTables].filter((t) => new RegExp(`(^|[^\\w])'?${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'?([^\\w]|$)`).test(text)));
+// fixes that change which rows count – always part of the why; the others only when the check names the column
+const ROW_FIX = new Set(['F03', 'F04', 'F12', 'F13', 'F14', 'F15', 'F16', 'F18', 'F20', 'F21', 'F27']);
+const snakeCol = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+const PHRASE = {
+  en: { F03: (n) => `${n} test or blank rows removed`, F04: (n) => `${n} total rows removed`, F05: (n, c) => `${c || 'text'} trimmed (${n} values)`,
+    F06: (n, c) => `${n} placeholder values in ${c || 'the columns'} made empty`, F07: (n, c) => `${n} spellings of ${c} unified`, F08: (n, c) => `${n} ${c} dates read from mixed formats`,
+    F09: (n, c) => `${n} ${c} numbers read from text`, F10: (n, c) => `${n} ${c} yes/no values read`, F11: (n, c) => `${n} ${c} ids normalised to one format`,
+    F12: (n) => `${n} exact copies removed`, F13: (n, c, v) => `${n} repeated ${c} values${/first/.test(v) ? ', first row kept' : ' removed'}`,
+    F14: (n, c, v) => `${n} ${c} values ${v === 'remove' ? 'removed' : 'flagged and left out'} (negative, zero or spike)`, F15: (n, c, v) => `${n} invalid or future ${c} values ${v === 'remove' ? 'removed' : 'flagged and left out'}`,
+    F16: (n) => `unpivoted from the month columns (${n} rows)`, F18: (n, c) => `${n} ${c} values only seen in the facts added as inferred members`, F20: (n) => `${n} short lines`,
+    F21: () => 'files appended', F23: (n, c) => `${c} split (${n} values)`, F24: (n, c) => `${n} multi-value ${c} cells split`, F27: (n) => `${n} test rows removed`,
+    F28: (n, c) => `${c} codes named`, other: (n, c, v, f) => `${f}${c ? ' on ' + c : ''} (${n} rows)` },
+  da: { F03: (n) => `${n} test- eller tomme rækker fjernet`, F04: (n) => `${n} totalrækker fjernet`, F05: (n, c) => `${c || 'tekst'} trimmet (${n} værdier)`,
+    F06: (n, c) => `${n} pladsholdere i ${c || 'kolonnerne'} gjort tomme`, F07: (n, c) => `${n} stavemåder af ${c} ensrettet`, F08: (n, c) => `${n} ${c}-datoer læst fra blandede formater`,
+    F09: (n, c) => `${n} ${c}-tal læst fra tekst`, F10: (n, c) => `${n} ja/nej-værdier i ${c} læst`, F11: (n, c) => `${n} ${c}-id'er ensrettet til ét format`,
+    F12: (n) => `${n} eksakte kopier fjernet`, F13: (n, c, v) => `${n} gentagne ${c}-værdier${/first/.test(v) ? ', første række beholdt' : ' fjernet'}`,
+    F14: (n, c, v) => `${n} ${c}-værdier ${v === 'remove' ? 'fjernet' : 'markeret og holdt ude'} (negative, nul eller spidser)`, F15: (n, c, v) => `${n} ugyldige eller fremtidige ${c}-værdier ${v === 'remove' ? 'fjernet' : 'markeret og holdt ude'}`,
+    F16: (n) => `pivoteret ud fra månedskolonnerne (${n} rækker)`, F18: (n, c) => `${n} ${c}-værdier, der kun findes i fakta, tilføjet som udledte medlemmer`, F20: (n) => `${n} korte linjer`,
+    F21: () => 'filer lagt sammen', F23: (n, c) => `${c} delt (${n} værdier)`, F24: (n, c) => `${n} ${c}-celler med flere værdier delt`, F27: (n) => `${n} testrækker fjernet`,
+    F28: (n, c) => `${c}-koder navngivet`, other: (n, c, v, f) => `${f}${c ? ' på ' + c : ''} (${n} rækker)` },
+}[lang];
+function autoWhy(c) {
+  const a = assumes[c.name];
+  if (!a || a === '-' || !logRows.length) return '';
+  const check = (choices.checks || []).find((x) => x.name === c.name) || {};
+  const text = expand(check.dax || '');
+  const tables = tablesOf(text);
+  const lower = text.toLowerCase();
+  const codes = [...new Set((String(a).match(/\b[FM]\d\d\b/g) || []))];
+  const parts = [];
+  for (const code of codes) {
+    const rows = logRows.filter((r) => r.fix === code && (r.targets.includes('*') || r.targets.some((t) => tables.has(t)))
+      && (ROW_FIX.has(code) || !r.column || lower.includes(snakeCol(r.column)) || lower.includes(r.column.toLowerCase())));
+    if (!rows.length) continue;
+    const byCol = new Map();
+    for (const r of rows) { const k = r.column; const p = byCol.get(k) || { n: 0, variant: r.variant }; p.n += r.rows; byCol.set(k, p); }
+    for (const [col, p] of byCol) parts.push(`${(PHRASE[code] || ((n, cc, v) => PHRASE.other(n, cc, v, code)))(num(p.n), col, p.variant)} (${code})`);
+  }
+  return parts.length ? parts.join('; ') + '.' : '';
+}
+
 const whyText = (c) => {
-  let w = (g.why || {})[c.name] || assumes[c.name] || '';
+  let w = (g.why || {})[c.name] || autoWhy(c) || assumes[c.name] || '';
   if (w === '-') w = '';
   if (/ rows without /.test(c.name) && c.expected !== 0) w = (w ? w + '. ' : '') + T.orphan(num(c.expected));
   return w;

@@ -228,5 +228,37 @@ const md = [
 ].join('\n');
 const out = path.resolve(opt('--out') || path.join(runDir, 'scorecard.md'));
 fs.writeFileSync(out, md);
-console.log(JSON.stringify({ ok: !failures.length, result, found: foundN, injected: injectedN, numbers: { equal, explained, unexplained }, failures, remarks, scorecard: out }, null, 1));
+
+// --- 4. runs/overview.md: one row per scored run (the same table /messy-pipeline keeps), newest first -------
+// The row for this run is replaced; the two lines under the table are recomputed from every row.
+// Technical errors and stops are /messy-pipeline's counts – a pipeline-power-bi run leaves an existing value.
+let overview = null;
+if (!args.includes('--no-overview')) {
+  overview = path.resolve(opt('--overview') || path.join(path.dirname(runDir), 'overview.md'));
+  const HEAD = ['| Date | Run | Domain | Seed | Rows | Error types | Found | Unexplained differences | Technical errors | Stops for the user | Result |',
+    '|---|---|---|---|---|---|---|---|---|---|---|'];
+  const runId = path.basename(runDir);
+  const old = fs.existsSync(overview) ? fs.readFileSync(overview, 'utf8').split(/\r?\n/) : [];
+  const rows = old.filter((l) => /^\| \d{4}-\d\d-\d\d \|/.test(l));
+  const cells = (l) => l.split('|').slice(1, -1).map((s) => s.trim());
+  const prev = rows.map(cells).find((c) => c[1].includes(`[${runId}]`));
+  const errs = (EF.errors || []).slice().sort((a, b) => a - b);
+  const date = (/^(\d{4}-\d\d-\d\d)/.exec(runId) || [])[1] || new Date().toISOString().slice(0, 10);
+  const scoreLink = path.relative(path.dirname(overview), out).replace(/\\/g, '/');
+  const row = [date, `[${runId}](${scoreLink})`, domain, EF.seed, Number(EF.rows || 0).toLocaleString('en-US'), `${errs.length}: ${errs.join(', ')}`,
+    `${foundN}/${injectedN}`, unexplained, prev ? prev[8] : '–', prev ? prev[9] : '–', result];
+  const kept = rows.filter((l) => !cells(l)[1].includes(`[${runId}]`));
+  const all = [`| ${row.join(' | ')} |`, ...kept].sort((a, b) => cells(b)[0].localeCompare(cells(a)[0]));
+  const full = new Set();
+  const stops = [];
+  for (const c of all.map(cells)) {
+    if (Number(String(c[4]).replace(/[^\d]/g, '')) >= 20000) for (const n of (c[5].split(':')[1] || '').split(',')) if (n.trim()) full.add(Number(n));
+    stops.push(`${(/\[([^\]]+)\]/.exec(c[1]) || [])[1] || c[1]}: ${c[9]}`);
+  }
+  const never = Array.from({ length: 13 }, (_, i) => i + 1).filter((n) => !full.has(n));
+  fs.writeFileSync(overview, ['# Pipeline runs', '', ...HEAD, ...all, '',
+    `Error types never tested at full size: ${never.length ? never.join(', ') : 'none'} (no run with ≥ 20,000 rows${never.length ? ' injecting them' : ''} yet).`, '',
+    `Stops for the user per run: ${stops.join('; ')}.`, ''].join('\n'));
+}
+console.log(JSON.stringify({ ok: !failures.length, result, found: foundN, injected: injectedN, numbers: { equal, explained, unexplained }, failures, remarks, scorecard: out, overview }, null, 1));
 process.exit(failures.length ? 1 : 0);

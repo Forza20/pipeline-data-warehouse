@@ -98,6 +98,11 @@ function buildCase(c) {
   if (fs.existsSync(answers)) {
     const sr = spawnSync('node', [path.join(S, 'score-run.js'), runDir, '--answers', answers], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     if (sr.status > 1) throw new Error(`score-run failed (exit ${sr.status}):\n${(sr.stderr || sr.stdout).slice(0, 2000)}`);
+    // the run gets its row in runs/overview.md (here: the temp folder's overview.md), once, after a second scoring too
+    spawnSync('node', [path.join(S, 'score-run.js'), runDir, '--answers', answers], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    const ov = fs.existsSync(path.join(path.dirname(runDir), 'overview.md')) ? fs.readFileSync(path.join(path.dirname(runDir), 'overview.md'), 'utf8') : '';
+    const runRows = ov.split(/\r?\n/).filter((l) => l.includes(`[${path.basename(runDir)}](`));
+    if (runRows.length !== 1 || !/\| \d+\/\d+ \|/.test(runRows[0])) throw new Error(`score-run: expected one overview.md row for the run, got ${runRows.length}:\n${ov.slice(0, 800)}`);
   }
 
   const profile = readJson(path.join(runDir, 'profile.json'));

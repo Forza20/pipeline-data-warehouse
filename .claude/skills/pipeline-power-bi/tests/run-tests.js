@@ -615,9 +615,20 @@ if (!QUICK) {
   check('handover: PII hidden and reviewed, grain, role filter, left out', hmd.includes('| Contact[Email] | hidden |') && hmd.includes('| Customer[Customer name] | visible – reviewed, not personal data |') &&
     hmd.includes('| Sales | fact | one order |') && hmd.includes('Role **Test role**') && hmd.includes('- Sheet1: copy of Products'), hmd);
   // rebuild.js: every script in order, the optional ones skipped with a reason, and a stop at the first failure
+  // (extras.layout_profile names a file that is not there: a warning, not a failure)
+  {
+    const cf = path.join(run, 'choices.json'); const cj = JSON.parse(fs.readFileSync(cf, 'utf8'));
+    cj.extras = { ...(cj.extras || {}), layout_profile: path.join(run, 'no-such-layout-profile.json') };
+    fs.writeFileSync(cf, JSON.stringify(cj, null, 2));
+  }
   res = spawnSync('node', [path.join(SKILL, 'scripts', 'rebuild.js'), run], { encoding: 'utf8', env: { ...process.env, PYTHON: py } });
   let rb = {};
   try { rb = JSON.parse(res.stdout); } catch { /* reported below */ }
+  check('rebuild: a missing extras.layout_profile file is a warning', (rb.warnings || []).some((w) => /extras\.layout_profile: .*no-such-layout-profile\.json does not exist/.test(w)), JSON.stringify(rb.warnings));
+  {
+    const cf = path.join(run, 'choices.json'); const cj = JSON.parse(fs.readFileSync(cf, 'utf8'));
+    delete cj.extras.layout_profile; fs.writeFileSync(cf, JSON.stringify(cj, null, 2));
+  }
   check('rebuild: all steps in order, ok', res.status === 0 && rb.ok && (rb.steps || []).map((x) => x.step).join(',') === 'build-model,descriptions,build-docs,build-context,parse-model,model-health,grounded-answers,check-results,dax-guide,handover,overview', res.stdout.slice(0, 800) + res.stderr);
   // the model is parsed once and the temp file removed afterwards
   check('rebuild: parsed model passed on and cleaned up', (rb.steps || []).some((x) => x.step === 'parse-model' && x.ok && !x.skipped)
@@ -725,6 +736,24 @@ if (!QUICK) {
     const nChecks = (fs.readFileSync(path.join(run, 'checks.dax'), 'utf8').match(/^\s*\(\s*"/gm) || []).length;
     check('dax guide: written by rebuild, names the run and the number of checks, no questions yet',
       gtxt.includes('<code>test</code>') && gtxt.includes(`in ${nChecks} rows`) && gtxt.includes('step 8.9'), gtxt.slice(0, 300));
+    // without dax_guide.why the "why" column is written from the cleaning log: "<n> … (Fxx)" per kept fix
+    // (a small run folder of its own: the test run above has no key checks)
+    const wr = path.join(TMP, 'why-run'); fs.mkdirSync(wr, { recursive: true });
+    fs.writeFileSync(path.join(wr, 'choices.json'), JSON.stringify({ name: 'Why', run_id: 'why', report_language: 'en',
+      build: { measures: [{ name: 'revenue', expr: 'CALCULATE ( SUM ( fact_sales[amount] ), fact_sales[amount_issue] = "ok" )' }] },
+      checks: [{ name: 'Revenue', dax: '[revenue]', expected: 100, assumes: 'F11, F12, F14 flag' }, { name: 'Rows fact_sales', dax: 'COUNTROWS ( fact_sales )', expected: 9, assumes: 'F12' }] }));
+    fs.writeFileSync(path.join(wr, 'checks.dax'), 'EVALUATE\nDATATABLE (\n  ( "Revenue", [revenue], 100 ),\n  ( "Rows fact_sales", COUNTROWS ( fact_sales ), 9 )\n)\n');
+    fs.writeFileSync(path.join(wr, 'cleaning-log.md'), ['# Cleaning log', '', '## orders.csv → staging `stg_orders` → fact_sales', '',
+      '| Fix | Column | Rows | Choice | Variant | Step |', '|---|---|---|---|---|---|',
+      '| F11 | customer_id | 40 | kept | C-999 | `F11 Normalise customer_id` |', '| F12 | – | 3 | kept | – | `F12 Remove exact duplicates` |',
+      '| F14 | amount | 2 | kept | flag | `F14 Flag amount` |', '| F14 | amount | 1 | kept | flag | `F14 Flag amount` |', ''].join('\n'));
+    spawnSync('node', [path.join(SKILL, 'scripts', 'build-dax-guide.js'), wr], { encoding: 'utf8' });
+    const wtxt = (() => { try { return fs.readFileSync(path.join(wr, 'checks.dax_grounded-answers.dax guide.html'), 'utf8'); } catch { return ''; } })();
+    const whys = [...wtxt.matchAll(/<tr><td>([^<]*)<\/td><td class="n">[^<]*<\/td><td>([^<]*)<\/td><\/tr>/g)].map((m) => [m[1], m[2]]);
+    const why = Object.fromEntries(whys);
+    check('dax guide: the why comes from the cleaning log – row counts per fix, F11 only when the check uses the column, COUNTROWS finds the table',
+      why.Revenue === '3 exact copies removed (F12); 3 amount values flagged and left out (negative, zero or spike) (F14).'
+      && why['Rows fact_sales'] === '3 exact copies removed (F12).', JSON.stringify(whys));
     const dl = fs.mkdtempSync(path.join(os.tmpdir(), 'daxguide-'));
     const gr = spawnSync('node', [path.join(SKILL, 'scripts', 'build-dax-guide.js'), run, '--lang', 'da', '--downloads', dl], { encoding: 'utf8' });
     let gj = {};
