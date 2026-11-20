@@ -185,7 +185,11 @@ Pick the checks the user wants (negative, spike, zero) – each is its own optio
     else "ok", type text),
 ```
 The spike limit is 10 × the median from the profile; write it as a literal with a comment and tell the
-user. Measures on the amount then use `CALCULATE(SUM(...), 'Table'[amount issue] = "ok")` – say so when
+user. **With quantity and unit price columns** the profile proposes a row-level spike instead
+(`spikeRule`: amount > 5 × quantity × unit price on the same row – the median misses a spike on a small
+order) and replaces the median finding. **With a status column** it proposes zeros only on the most common
+status (`zeroStatus`: a zero on *Completed* is an anomaly, a zero on *Cancelled* is normal); the plain
+"Zero values" finding stays not recommended. build-spec.md has both keys. Measures on the amount then use `CALCULATE(SUM(...), 'Table'[amount issue] = "ok")` – say so when
 the measures are proposed.
 *remove rows*: `Table.SelectRows(<prev>, each [amount] <> null and [amount] >= 0 and [amount] <= 7177.6)`.
 
@@ -269,6 +273,14 @@ dimension-detail table related to the dimension, and say that it filters the dim
 row. In step 4b: a dimension from `Table.Distinct` of the key + those columns (with a surrogate key), and
 the fact keeps the key + the daily measures. Measures that use such a column (budget) take it from the
 dimension, never a sum over the fact.
+
+## M03 History table (versioned rows)
+The key repeats and a validity column (`valid_from`, `effective_date`, `start_date` …) says from when each
+row holds: a price list, rate card or plan price with every change kept – a slowly changing history.
+*keep history* (default): no step and **never F13** on it (keep-first would delete the history). In step
+4b: the fact's own price (valid on its date) is the truth – amounts are not recalculated from the current
+list price. Load the table only when a report needs price over time; then relate it to the product
+dimension on the key and filter by the date range in DAX. Say how many keys have more than one version.
 
 ## F22 A table that is an exact copy of another
 `variant` = the original. No step: the copy is not built (`include: false`). Ask on the copy, with the

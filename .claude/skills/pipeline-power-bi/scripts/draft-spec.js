@@ -33,7 +33,8 @@ const F17_TYPE = { id: 'text', text: 'text', category: 'text', date: 'date', int
 const ORDER = ['F20', 'F03', 'F04', 'F27', 'F19', 'F25', 'F23', 'F24', 'F05', 'F06', 'F07', 'F11', 'F08', 'F09', 'F10', 'F12', 'F13', 'F15', 'F14', 'F16', 'F17'];
 const MODEL = { F01: 'source steps (header row)', F02: 'column names in the loaded table', F21: 'staging append', F22: 'copy left out',
   F26: 'column hidden in the loaded table', M01: 'date table: complete-month flag', F18: 'inferMembers op on the dimension',
-  F29: 'design choice (step 4b): primary rows when merged', M02: 'design choice (step 4b): a new dimension' };
+  F29: 'design choice (step 4b): primary rows when merged', M02: 'design choice (step 4b): a new dimension',
+  M03: 'history table: every version kept (no F13); the fact keeps its own price' };
 
 const tables = (P.tables || []).filter(included);
 const byName = new Map(tables.map((t) => [t.name, t]));
@@ -125,7 +126,9 @@ for (const [rootName, members] of groups) {
       case 'F14': {
         let s = steps.find((x) => x.fix === 'F14' && x.column === c);
         if (!s) { s = { fix: 'F14', column: c, checks: [] }; steps.push(s); added.push(`${c} issue`); types[`${c} issue`] = 'text'; if (types[c] !== 'number' && types[c] !== 'int') types[c] = 'number'; }
-        if (/negative/i.test(f.detail)) s.checks.push('negative');
+        if (f.spikeRule) { if (!s.checks.includes('spike')) s.checks.push('spike'); s.spikeRule = f.spikeRule; delete s.spike; }
+        else if (f.zeroStatus) { if (!s.checks.includes('zero')) s.checks.push('zero'); s.zeroStatus = f.zeroStatus; }
+        else if (/negative/i.test(f.detail)) s.checks.push('negative');
         else if (/above/i.test(f.detail)) {
           const m = /\(([\d.,]+)\)/.exec(f.detail);
           const limit = typeof f.limit === 'number' ? f.limit : m && /^\d+(\.\d+)?$/.test(m[1]) ? 10 * Number(m[1]) : null;

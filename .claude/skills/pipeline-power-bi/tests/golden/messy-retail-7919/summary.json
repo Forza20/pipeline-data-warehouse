@@ -65,8 +65,9 @@
     "F09 amount rows=1122 rec=true",
     "F14 amount rows=8 rec=true flag",
     "F14 amount rows=288 rec=false flag",
-    "F14 amount rows=4 rec=true flag",
     "F10 is_paid rows=2000 rec=true",
+    "F14 amount rows=6 rec=true flag",
+    "F14 amount rows=6 rec=true flag",
     "F02 - rows=10 rec=true",
     "F12 - rows=18 rec=true",
     "F13 order_id rows=25 rec=true keep-first",
@@ -81,6 +82,7 @@
    "columns": 4,
    "findings": [
     "F02 - rows=4 rec=true",
+    "M03 product_id rows=53 rec=true keep-history",
     "F17 - rows=4 rec=true",
     "M01 valid_from rows=0 rec=true"
    ]
@@ -121,6 +123,7 @@
    "erp_customers F02 -",
    "fact_orders F02 -",
    "hist_product_prices F02 -",
+   "hist_product_prices M03 product_id",
    "wide_monthly_targets F02 -",
    "fact_orders M01 order_date",
    "hist_product_prices M01 valid_from"

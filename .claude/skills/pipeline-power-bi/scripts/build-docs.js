@@ -97,7 +97,7 @@ for (const st of B.staging || []) {
   const notKept = [];
   const qSteps = querySteps[st.name] || [];
   for (const f of pt.findings || []) {
-    if (f.fix === 'M01' || f.fix === 'M02' || f.fix === 'F21' || f.fix === 'F22' || f.fix === 'F29') continue;   // model choices, not cleaning
+    if (f.fix === 'M01' || f.fix === 'M02' || f.fix === 'M03' || f.fix === 'F21' || f.fix === 'F22' || f.fix === 'F29') continue;   // model choices, not cleaning
     nFind++;
     const col = low(f.column);
     const built = (st.steps || []).filter((s) => s.fix === f.fix && (!col || !stepColumns(s).length || stepColumns(s).includes(col)));

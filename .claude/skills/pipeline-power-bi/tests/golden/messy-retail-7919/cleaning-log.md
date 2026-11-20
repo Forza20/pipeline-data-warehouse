@@ -61,8 +61,9 @@ Not kept: F02 (3 of 3 names can be made readable (e.g. customer_id -> Customer I
 | F09 | amount | 1122 | kept | – | `F09 Parse amount` |
 | F14 | amount | 8 | kept | flag | `F14 Flag amount` |
 | F14 | amount | 288 | kept | flag | `F14 Flag amount` |
-| F14 | amount | 4 | kept | flag | `F14 Flag amount` |
 | F10 | is_paid | 2000 | kept | – | `F10 Parse is_paid` |
+| F14 | amount | 6 | kept | flag | `F14 Flag amount` |
+| F14 | amount | 6 | kept | flag | `F14 Flag amount` |
 | F02 | – | 10 | kept | – | readable names in the model tables' final columns |
 | F12 | – | 18 | kept | – | `F12 Remove exact duplicates` |
 | F13 | order_id | 25 | kept | keep-first | `F13 Keep first row per order_id` |
