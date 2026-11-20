@@ -24,6 +24,10 @@ itself (repo layout, `.claude/skills/`, `~/.claude/skills/`, `/mnt/skills/user/`
 | `lineage.html` | **Optional** (`--html`): table-level lineage as one HTML page. The columns are the layers files → bronze/silver/gold → Power Query → Power BI tables → report pages. Tables that are not used further have a dashed red border, and a click highlights the whole path. See [format.md](format.md). |
 
 ## Prerequisites
+- **The `pbip-governance` skill must be installed** (it holds `scripts/parse_pbip.py`, which this skill
+  cannot run without). Without it `build_catalog.py` stops with "Could not find
+  pbip-governance/scripts/parse_pbip.py": install it next to this skill, or pass `--parser` / `PBIP_PARSER`.
+  `pbip-layout` is optional (its `docs/layout-config.json` only adds dashboard tags).
 - Python 3 with `openpyxl`. The commands below say `python3`. On Windows it is often `python` or `py`, and
   `python3` may open the Microsoft Store. Check once with `python --version` (or use the full path) and use
   the command that works for the whole run.

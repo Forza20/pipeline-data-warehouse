@@ -73,10 +73,14 @@ Every run lives in `runs/<yyyy-MM-dd>_pbi_<name>/` (git-ignored); every answer g
 ## Step 0 – Check the tools (show a short status line after the check)
 
 Windows 10/11 with Windows PowerShell 5.1 (Power BI Desktop needs Windows). Check without installing, in
-one call (about 3–5 seconds; add `-Catalog` when the catalog may be chosen – it also checks Python + openpyxl):
+one call (about 3–5 seconds; `-Catalog` also checks Python + openpyxl, which the catalog and governance
+skills need – they run in every run, step 6):
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Check-Tools.ps1 [-Catalog]
+powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Check-Tools.ps1 -Catalog
 ```
+In the same check, confirm the related skills are next to this one (`.claude/skills/<name>/SKILL.md` for
+`analysis-planning`, `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile`, `schema-dummy-data`,
+`messy-dataset`). A missing one: say which, and which part of the run it switches off.
 In the same turn, start the profiler's warm-up **in the background** (`run_in_background`) – it compiles and
 caches the profiler's C# parts once (about 5 seconds on a new PC), so step 2 does not wait for it:
 ```
@@ -90,7 +94,7 @@ It prints JSON: `node`, `reportCli`, `desktop` (installed, running, `unsavedTitl
 | Node.js 18+ | report validation |
 | Power BI report CLI | validating the report |
 | Power BI Desktop | loading the data, the first refresh, screenshots |
-| Python 3.12 + openpyxl | only for the data catalog (extra) |
+| Python 3.12 + openpyxl | the data catalog and governance (step 6) |
 
 Use the commands the project allows without a prompt (`.claude/settings.json`): run Python scripts as
 `python -X utf8 .claude\skills\…` or `python .claude\skills\…`, create folders and copy files with
@@ -105,10 +109,10 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
 ## Step 1 – The files
 
 1. **Which data.** With paths (or `demo`) in the arguments, use them. Otherwise ask (AskUserQuestion,
-   single-select): "My own files – CSV, Excel or a Power BI project (Recommended)" · "The demo files (two
-   small CSV files, about 5 minutes with `--fast`)" · "A new messy dataset (retail, hotel or SaaS with a
-   known answer key)". In fast mode ask this too when no path was given – it is the one thing only the user
-   knows.
+   single-select): "My own files – CSV, Excel or a Power BI project (Recommended)" · "Only a schema or a
+   few example rows – make dummy data first" · "The demo files (two small CSV files, about 5 minutes with
+   `--fast`)" · "A new messy dataset (retail, hotel or SaaS with a known answer key)". In fast mode ask this
+   too when no path was given – it is the one thing only the user knows.
    - **Own files:** ask in chat for the **path** of the file(s) or the folder – not an upload: the chat
      accepts only images and text as attachments and rejects `.xlsx`, `.pbix` (and often `.csv`). Tell the
      user how: "In File Explorer, hold Shift, right-click the file and choose *Copy as path*, then paste it
@@ -120,6 +124,10 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
      belongs to an earlier run. Do not start a new one silently: show `node .claude\skills\pipeline-power-bi\scripts\run-summary.js runs\<run-id>`
      and ask "Continue that run (Recommended)" – the same as `--resume <run-id>` · "Start a new run from
      these files" · "Stop".
+   - **Schema only:** load the **schema-dummy-data** skill (Skill call) and follow it in *pipeline mode*
+     (its section "Called from pipeline-power-bi"): `-OutDir runs/<run-id>/source/`, `-Format xlsx`, no
+     hand-off text. Its XLSX then goes into step 1.2 as the user's own file; the hand-over says the numbers
+     are made up.
    - **Demo:** the `demo/` folder of this repository (two CSV files; `demo/README.md` has the expected totals).
    - **Messy dataset:** load the `messy-dataset` skill and generate with `-Rows 2000` (about 10 seconds)
      into `runs/<run-id>/source/`, with `-AnswersDir runs/<run-id>_answers/` – outside the run folder. Do
@@ -346,14 +354,20 @@ away are dropped.
    measure (`build.measures[].term`, written to the model as `annotation Term`). A term that two measures
    claim, or a definition the formula does not match, goes back to the user.
 
-## Step 6 – Extras (one AskUserQuestion call, multiSelect)
+## Step 6 – Extras (one AskUserQuestion call)
 
 The run always ends with an **overview page** (`overview.html`, step 8.7) and a **DAX check file**
-(`checks.dax`) – they are part of the hand-over, not extras. Ask about the rest (two questions, max 4
-options each, recommended ones first):
+(`checks.dax`) – they are part of the hand-over, not extras.
 
-1. *Report and documentation* (multiSelect): "Dashboard pages – the **pbip-layout** skill (Recommended)" –
-  then **always** ask which template and which pages with pbip-layout's step 3 questions. The
+**The related skills run automatically.** Dashboard (**pbip-layout**), catalog (**pbip-catalog**) and
+governance (**pbip-governance**) are on in every run, normal and fast – `extras.layout`, `extras.catalog`
+and `extras.governance` are `true` without a question. Say it in one line ("Dashboard, catalog and
+governance run automatically – say 'skip <name>' to leave one out"). A skill is off only when the user says
+so (then `false` and the reason in `choices.json`), when it is not installed next to this one, or when its
+program is missing (catalog and governance need Python + openpyxl – step 0 always checks with `-Catalog`).
+Name a skipped skill and why in the hand-over. Ask only what the user must decide (max 4 questions):
+
+1. *Dashboard*: **always** ask which template and which pages with pbip-layout's step 3 questions. The
   **dashboard plan** (`analysis.dashboard_plan`) decides the recommendation: its template first and its pages
   marked "(Recommended)". Check the plan against the designed model first: a page or visual the model can no
   longer fill (a dropped KPI or dimension) leaves the plan with its reason. Then show the **final plan**
@@ -365,16 +379,15 @@ options each, recommended ones first):
   and the title as in `/messy-pipeline` section 2b. Save the template to
   `extras.layout_template`, the page keys to `extras.layout_pages`, the colours and title to a pbip-layout
   profile (`runs/<run-id>/layout-profile.json`, `extras.layout_profile`). The Business template's build
-  steps are in build-steps.md, step 8.6 ·
-  "Data catalog, lineage page and dbdiagram model – the **pbip-catalog** skill (Recommended)" (needs
-  Python + openpyxl) · "Governance and handover – the **pbip-governance** skill (Recommended)": PII
-  audit (visible personal data), RLS inventory, data sources, handover Markdown and an Azure DevOps wiki
-  bundle · "Obsidian note" (only when `pipeline.config.json` has `obsidian.enabled: true` – say the vault path).
+  steps are in build-steps.md, step 8.6. The catalog (data catalog, lineage page, dbdiagram model) and
+  governance (PII audit, RLS inventory, data sources, handover Markdown, Azure DevOps wiki bundle) need no
+  question. An "Obsidian note" is added when `pipeline.config.json` has `obsidian.enabled: true` – say the
+  vault path.
 2. *Check and publish* (multiSelect): "Open in Power BI Desktop, refresh and check the numbers
    (Recommended)" (only if Desktop is installed; skip it when free memory is below 1.5 GB and say why) ·
    "Publish the overview page as a private page I can share" (only when the Artifact tool is available).
 
-Without the dashboard the report gets one simple page (a card per measure and a table of the main fact)
+Without the dashboard (the user skipped it, or pbip-layout is missing) the report gets one simple page (a card per measure and a table of the main fact)
 so it opens.
 
 ## Step 7 – Review before the build
@@ -461,8 +474,9 @@ flags and details of the eleven parts below, and the drift check for new files. 
   again after every rebuild that changes a check or a question (`rebuild.js` refreshes
   it in the run folder as well).
 - Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
-  explain at once: follow the **reconcile** skill (`.claude/skills/reconcile/SKILL.md`) – split it by the
-  dimensions until it sits in one slice and name the rows behind it. After a fix: rebuild, refresh, run
+  explain at once: load the **reconcile** skill (Skill call, automatically – never imitate it; read
+  `.claude/skills/reconcile/SKILL.md` only if the Skill tool cannot load it) – split it by the dimensions
+  until it sits in one slice and name the rows behind it. After a fix: rebuild, refresh, run
   the checks again and `record-checks.js` again (it rebuilds the overview page).
 
 ## Step 10 – Hand-over (5–8 lines)
@@ -513,7 +527,27 @@ This skill is never finished. Improve it as you use it.
 | Any script | [references/scripts.md](references/scripts.md) – what each script does |
 | PBIP/TMDL load errors | `../supabase-medallion-powerbi/references/tmdl-templates.md` (sections 1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` |
 
-Other skills used: `analysis-planning`, `pbip-layout`, `pbip-catalog`, `pbip-governance`, `reconcile` (all in `.claude/skills/`).
+**Related skills – loaded automatically in a run, each also usable alone** (all in `.claude/skills/`, each
+loaded with the Skill tool at its step, never imitated):
+
+| Skill | Loaded in a run | Alone |
+|---|---|---|
+| `analysis-planning` | step 2b, always | `/analysis-planning` on a `profile.json` or a data folder |
+| `schema-dummy-data` | step 1, "Only a schema" | `/schema-dummy-data` – XLSX to Downloads |
+| `messy-dataset` | step 1, "A new messy dataset" | `/messy-dataset` |
+| `pbip-layout` | step 6 + 8.6, always | `apply layout.md` on any PBIP |
+| `pbip-catalog` | step 6 + 8.6, always | `Catalog: <project>` |
+| `pbip-governance` | step 6 + 8.6, always | `/pbip-governance` on any PBIP |
+| `reconcile` | step 9, on any difference not explained at once | `/reconcile` on two numbers |
+
+None of them may set `disable-model-invocation` (the Skill tool could not load it in a run);
+`tests/standalone.js` checks this.
+
+**Needs next to this skill (relative paths):** `pbip-governance` is required – `build_handover.py`,
+`grounded_answers.py`, `model_health.py`, `pbip_sources.py` and `rebuild.js` load
+`../pbip-governance/scripts/parse_pbip.py` and stop with "needs the pbip-governance skill next to this one"
+without it. If any other related skill is missing, tell the user which and skip that part – never imitate it. `pbip-catalog` itself needs
+`pbip-governance`, so install both. Check with `node .claude\skills\pipeline-power-bi\tests\standalone.js`.
 
 **After changing any script of this skill, or `parse_pbip.py`/`build_catalog.py`, run**
 `node .claude\skills\pipeline-power-bi\tests\run-tests.js` (and

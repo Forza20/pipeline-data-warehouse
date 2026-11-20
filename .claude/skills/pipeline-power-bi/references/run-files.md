@@ -48,7 +48,7 @@ left out, status).
   },
   "model": { "relationships": ["Sales[customer_id] -> Customer[customer_id]"], "date_table": true,
              "incomplete_month": "flag", "measures": ["Total amount", "Orders"] },
-  "extras": { "layout": false, "layout_template": "adventureworks", "catalog": false, "desktop": true },
+  "extras": { "layout": true, "layout_template": "adventureworks", "catalog": true, "governance": true, "desktop": true },
   "status": { "profile": "done", "questions": "done", "build": "pending", "verify": "pending" }
 }
 ```

@@ -21,6 +21,10 @@ a profile ([profile.md](profile.md)).
 Work with the user in their language (English by default).
 
 ## Prerequisites
+- Outside this repo, install first: Node.js 18+, the two `powerbi-authoring` skills below and the
+  `powerbi-report-author` CLI (`/plugin marketplace add microsoft/skills-for-fabric`,
+  `/plugin install powerbi-authoring@fabric-collection`). No other skill is needed to run this one;
+  pipeline mode (below) additionally needs an orchestrator that supplies `run.json`.
 - Load the skills `powerbi-authoring:semantic-model-authoring` (measures) and
   `powerbi-authoring:powerbi-report-cli` (PBIR, validate, preview) and follow their rules.
 - `powerbi-report-author` CLI installed (`npm install -g @microsoft/powerbi-report-authoring-cli@latest`).
