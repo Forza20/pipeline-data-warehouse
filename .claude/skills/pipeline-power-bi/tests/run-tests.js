@@ -1065,6 +1065,23 @@ Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, b
     check('source-stats replays the row rules: 1 spike, 2 zero, 33 ok', v.spike === 1 && v.zero === 2 && v.ok === 33, JSON.stringify(v));
   }
 
+  // draft-spec on the demo files: F27 takes the key from the example row (K-100), F07 keeps the most common
+  // spelling of each region group – both used to be skipped, so fast mode left the test row and nord/SYD in.
+  {
+    const dm = path.join(TMP, 'demo-draft'); const ds = path.join(dm, 'src'); fs.mkdirSync(ds, { recursive: true });
+    for (const f of ['customers.csv', 'orders.csv']) fs.copyFileSync(path.join(__dirname, 'fixtures', f), path.join(ds, f));
+    const prof = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
+      '-Path', ds, '-OutFile', path.join(dm, 'profile.json')], { encoding: 'utf8' });
+    const d = spawnSync('node', [path.join(SKILL, 'scripts', 'draft-spec.js'), dm, '--write', '--name', 'Demo'], { encoding: 'utf8' });
+    const out = (() => { try { return JSON.parse(d.stdout); } catch { return {}; } })();
+    const spec = (() => { try { return JSON.parse(fs.readFileSync(path.join(dm, 'choices.json'), 'utf8')).build; } catch { return { staging: [] }; } })();
+    const stepOf = (stg, fix) => ((spec.staging.find((s) => s.name === stg) || { steps: [] }).steps.find((s) => s.fix === fix)) || {};
+    const f27 = stepOf('stg_customers', 'F27'); const f07 = stepOf('stg_orders', 'F07');
+    check('draft-spec: F27 removes K-100 by KundeID from the example row', prof.status === 0 && f27.column === 'KundeID' && JSON.stringify(f27.values) === '["K-100"]' && f27.mode === 'remove', JSON.stringify(f27) + prof.stderr.slice(0, 200));
+    check('draft-spec: F07 maps nord -> Nord and syd -> Syd in Region', f07.column === 'Region' && f07.map && f07.map.nord === 'Nord' && f07.map.syd === 'Syd', JSON.stringify(f07));
+    check('draft-spec: demo skips only F28', (out.skipped || []).every((x) => x.fix === 'F28'), JSON.stringify(out.skipped));
+  }
+
   // score-run.js: without an answer key it stops with exit 2 and names what is missing (scoring itself is
   // covered by golden-run.js, which scores messy retail seed 7919 and snapshots scorecard.md).
   {

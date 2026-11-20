@@ -9,6 +9,7 @@ added by `build-docs.js`.
 | fact_orders rows | 11 | – | | |
 | fact_orders sum of beloeb | 4,049.70 | – | | |
 | fact_orders sum of kanal | 210 | – | | |
-| dim_customers rows | 6 | – | | |
+| dim_customers rows | 5 | – | | |
 | fact_orders rows without dim_customers (auto) | 0 | relationship fact_orders[kunde_id] → dim_customers[kunde_id] | | |
 | fact_orders rows without dim_date (auto) | 0 | relationship fact_orders[dato] → dim_date[date] | | |
+| Test rows left in dim_customers (K-100) (auto) | 0 | F27 | | |

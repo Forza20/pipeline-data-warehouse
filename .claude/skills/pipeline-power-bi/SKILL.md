@@ -427,7 +427,9 @@ flags and details of the eleven parts below, and the drift check for new files. 
 5. **Validate** the TMDL (powerbi-modeling-mcp `ConnectFolder`, then `Disconnect` – an open connection locks
    the folder) and the report (`powerbi-report-author validate`, once). No build is done with errors.
 6. **The other skills are loaded, not imitated** (pbip-layout, pbip-catalog, pbip-governance – parallel Skill
-   calls). A visible column the PII audit flags goes back to the user: hide, keep or remove;
+   calls). The Skill tool may load a user-level copy written in another language (`~/.claude/skills`, e.g.
+   Danish): principle 7 still wins – pass "English" in the Skill args, and write every description, mapping,
+   decision and text they produce in English. A visible column the PII audit flags goes back to the user: hide, keep or remove;
    `pii_not_personal[]` for reviewed false positives.
 7. **Overview page** (`overview.html`; published as `overview.page.html` only when the user chose it).
 8. **`checks.dax`** – one `EVALUATE` with a Difference per check.

@@ -97,7 +97,9 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
    one not switched off in `extras` is loaded with the
    Skill tool (`pbip-layout`, `pbip-catalog`, `pbip-governance`) or, when the Skill tool cannot load it,
    by reading its `SKILL.md` by path (`.claude/skills/<name>/SKILL.md`) and following it step by step.
-   Never call only their scripts – the skills hold the steps that make the output right. To save time,
+   Never call only their scripts – the skills hold the steps that make the output right. A loaded copy
+   in another language (a Danish user-level install) does not change the run's language: its AI
+   descriptions, `layout-mapping.md`, `layout-decisions.json` and texts are written in English (principle 7). To save time,
    load all chosen skills in one turn (parallel Skill calls), then run the scripts that do not depend on
    each other in one command: the catalog's first run and governance's `parse_pbip.py` + wiki bundle
    (both after pbip-layout, which changes the report they read).

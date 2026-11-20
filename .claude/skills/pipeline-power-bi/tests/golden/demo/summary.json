@@ -44,7 +44,7 @@
   "staging": 2,
   "tables": 2,
   "relationships": 2,
-  "steps": 14,
+  "steps": 16,
   "model": [
    "orders F01 -",
    "orders F02 -",
@@ -52,9 +52,7 @@
    "orders F18 KundeID"
   ],
   "skipped": [
-   "orders F28 Kanal: code names are known only by the user – kept as codes (ask in step 4)",
-   "orders F07 Region: the profile shows the case variants but not which spelling is most common – choose the spelling (step 4)",
-   "customers F27 -: the profile names the test rows but not their key column and values – ask which rows (step 4)"
+   "orders F28 Kanal: code names are known only by the user – kept as codes (ask in step 4)"
   ]
  },
  "expected": [
@@ -75,7 +73,7 @@
   },
   {
    "name": "dim_customers rows",
-   "value": 6,
+   "value": 5,
    "approx": false
   }
  ],

@@ -964,7 +964,11 @@ foreach ($src in $sources) {
             $groups = @(@($col.Values.Keys) | Group-Object { $_.ToLowerInvariant() } | Where-Object { $_.Count -gt 1 })
             $affected = 0
             foreach ($g in $groups) { $vals = @($g.Group | ForEach-Object { $col.Values[$_] } | Sort-Object -Descending); $affected += ($vals | Measure-Object -Sum).Sum - $vals[0] }
-            $findings.Add((New-Finding $tableName 'F07' $cname $affected ("$($groups.Count) value(s) written in more than one case: " + (($groups | Select-Object -First 3 | ForEach-Object { ($_.Group -join ' / ') }) -join '; ')) @() $true $null))
+            # each group's spellings, the most common first (ties: Proper case, then upper, then lower) -
+            # draft-spec.js keeps that one
+            $caseRank = { param($s) if ($s -cmatch '^\p{Lu}[^\p{Lu}]*$') { 0 } elseif ($s -ceq $s.ToUpperInvariant()) { 1 } else { 2 } }
+            $spell = @($groups | ForEach-Object { (@($_.Group | Sort-Object @{ Expression = { $col.Values[$_] }; Descending = $true }, @{ Expression = { & $caseRank $_ } }) -join ' / ') })
+            $findings.Add((New-Finding $tableName 'F07' $cname $affected ("$($groups.Count) value(s) written in more than one case: " + (($spell | Select-Object -First 3) -join '; ')) $spell $true $null))
         }
 
         $min = $null; $max = $null; $sumAll = $null

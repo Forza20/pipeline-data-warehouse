@@ -78,6 +78,7 @@ const out = (r) => `${r.stdout || ''}${r.stderr || ''}`;
     check(`${n}: listed as auto-loaded in pipeline-power-bi`, new RegExp('\\|\\s*`' + n + '`\\s*\\|').test(main));
   }
   check('step 6 runs layout, catalog and governance without a question', /related skills run automatically/i.test(main));
+  check('a loaded skill in another language does not change the run language', /principle 7 still wins/.test(main));
 }
 
 // schema-dummy-data alone: plan-only run on its own fixture.

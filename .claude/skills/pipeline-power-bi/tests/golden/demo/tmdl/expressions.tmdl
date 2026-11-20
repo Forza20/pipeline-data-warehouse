@@ -114,7 +114,8 @@ expression stg_orders =
 			#"F04 Remove total rows" = Table.SelectRows(#"F03 Remove empty rows", each let first = Text.Lower(Text.Trim(Text.From(List.First(List.Select(Record.FieldValues(_), each _ <> null and _ <> ""), "")))) in not List.AnyTrue(List.Transform({"total", "grand total", "subtotal", "sum", "i alt", "samlet", "totalt"}, each Text.StartsWith(first, _)))),
 			#"F19 Remove empty column Note" = Table.RemoveColumns(#"F04 Remove total rows", {"Note"}),
 			#"F05 Trim KundeID" = Table.TransformColumns(#"F19 Remove empty column Note", {{"KundeID", each if _ is text then Text.Trim(Text.Clean(_)) else _}}),
-			#"F11 Normalise KundeID" = Table.TransformColumns(#"F05 Trim KundeID", {{"KundeID", each fnNormaliseId(_, "K", "-", 3), type text}}),
+			#"F07 Unify Region spelling" = Table.TransformColumns(#"F05 Trim KundeID", {{"Region", each if _ is text then Record.FieldOrDefault([nord = "Nord", syd = "Syd"], Text.Lower(Text.Trim(_)), _) else _}}),
+			#"F11 Normalise KundeID" = Table.TransformColumns(#"F07 Unify Region spelling", {{"KundeID", each fnNormaliseId(_, "K", "-", 3), type text}}),
 			#"F08 Parse Dato" = Table.TransformColumns(#"F11 Normalise KundeID", {{"Dato", each fnParseDate(_, true), type nullable date}}),
 			#"F09 Parse Beløb" = Table.TransformColumns(#"F08 Parse Dato", {{"Beløb", each fnParseNumber(_), type nullable number}}),
 			#"F10 Parse Betalt" = Table.TransformColumns(#"F09 Parse Beløb", {{"Betalt", each fnParseBool(_), type nullable logical}}),
@@ -136,7 +137,8 @@ expression stg_customers =
 			Source = Csv.Document(File.Contents(SourceFolder & "customers.csv"), [Delimiter = ",", Columns = 3, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
 			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
 			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"KundeID", "Navn", "Segment"}),
-			#"F17 Empty text to null" = Table.TransformColumns(#"F01 Keep data columns", List.Transform({"KundeID", "Navn", "Segment"}, (c) => {c, each if _ = "" then null else _})),
+			#"F27 Remove test rows" = Table.SelectRows(#"F01 Keep data columns", each not List.Contains({"K-100"}, [KundeID])),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F27 Remove test rows", List.Transform({"KundeID", "Navn", "Segment"}, (c) => {c, each if _ = "" then null else _})),
 			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"KundeID", type text}, {"Navn", type text}, {"Segment", type text}}, "en-US")
 		in
 			#"F17 Set types"

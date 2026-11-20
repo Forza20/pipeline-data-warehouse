@@ -546,6 +546,12 @@ for (const p of pages) {
   const d = path.join(pagesDir, p.id);
   fs.mkdirSync(path.join(d, 'visuals'), { recursive: true });
   if (pageSchema && p.page.$schema && pageSchema > p.page.$schema) p.page.$schema = pageSchema;
+  // interactions that name a dropped visual (PBIR_VISUAL_INTERACTION_REF_MISSING) go with it
+  if (Array.isArray(p.page.visualInteractions)) {
+    const kept = new Set(p.visuals.map((v) => v.name));
+    p.page.visualInteractions = p.page.visualInteractions.filter((x) => kept.has(x.source) && kept.has(x.target));
+    if (!p.page.visualInteractions.length) delete p.page.visualInteractions;
+  }
   fs.writeFileSync(path.join(d, 'page.json'), JSON.stringify(p.page, null, 2) + '\n');
   for (const v of p.visuals) {
     fs.mkdirSync(path.join(d, 'visuals', v.name), { recursive: true });
