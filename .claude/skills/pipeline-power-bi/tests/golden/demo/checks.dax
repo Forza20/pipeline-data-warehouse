@@ -8,9 +8,10 @@ VAR Checks =
         ( "fact_orders rows", COUNTROWS ( fact_orders ), 11 ),
         ( "fact_orders sum of beloeb", SUM ( fact_orders[beloeb] ), 4049.7 ),
         ( "fact_orders sum of kanal", SUM ( fact_orders[kanal] ), 210 ),
-        ( "dim_customers rows", COUNTROWS ( dim_customers ), 6 ),
+        ( "dim_customers rows", COUNTROWS ( dim_customers ), 5 ),
         ( "fact_orders rows without dim_customers", COUNTROWS ( FILTER ( 'fact_orders', ISBLANK ( RELATED ( 'dim_customers'[kunde_id] ) ) ) ), 0 ),
-        ( "fact_orders rows without dim_date", COUNTROWS ( FILTER ( 'fact_orders', ISBLANK ( RELATED ( 'dim_date'[date] ) ) ) ), 0 )
+        ( "fact_orders rows without dim_date", COUNTROWS ( FILTER ( 'fact_orders', ISBLANK ( RELATED ( 'dim_date'[date] ) ) ) ), 0 ),
+        ( "Test rows left in dim_customers (K-100)", COUNTROWS ( FILTER ( 'dim_customers', 'dim_customers'[kunde_id] IN { "K-100" } ) ) + 0, 0 )
     }
 RETURN
     SELECTCOLUMNS (

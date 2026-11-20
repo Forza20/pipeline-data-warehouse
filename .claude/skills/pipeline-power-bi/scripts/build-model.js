@@ -510,12 +510,20 @@ const stop = (e, restored) => {
   console.log(JSON.stringify({ ok: false, errors: [why], previousModel: restored ? 'restored' : 'untouched', warnings }, null, 1));
   process.exit(3);
 };
+// A lock that lasts a moment (a virus scanner or the search indexer reading files another script just
+// wrote, e.g. pbip-catalog) is retried for about 3 seconds before it counts as held open.
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const retry = (fn) => {
+  for (let i = 0; ; i++) {
+    try { return fn(); } catch (e) { if (!locked(e) || i >= 6) throw e; sleep(500); }
+  }
+};
 try {
-  if (fs.existsSync(bak)) fs.rmSync(bak, { recursive: true, force: true });
-  if (fs.existsSync(finalDef)) fs.renameSync(finalDef, bak);
+  if (fs.existsSync(bak)) retry(() => fs.rmSync(bak, { recursive: true, force: true }));
+  if (fs.existsSync(finalDef)) retry(() => fs.renameSync(finalDef, bak));
 } catch (e) { stop(e, false); }
 try {
-  fs.renameSync(def, finalDef);
+  retry(() => fs.renameSync(def, finalDef));
 } catch (e) {
   if (fs.existsSync(bak) && !fs.existsSync(finalDef)) fs.renameSync(bak, finalDef);
   stop(e, true);

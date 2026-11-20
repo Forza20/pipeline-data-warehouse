@@ -8,7 +8,8 @@
 // (step 4b) then reshapes. Every recommended finding ends up in one of three places, never silently dropped:
 //   steps     – a staging step (build-spec.md), or an op/column setting of the loaded table
 //   model     – handled by the model, not a step (F02 names, F21 append, F22 left out, F26 hidden, M01 date)
-//   skipped   – needs something the profile does not hold (F28 code names, F07 spellings …), with the reason
+//   skipped   – needs something the profile does not hold (F28 code names …), with the reason. F27 takes its
+//               key from the example rows, F07 keeps the most common spelling of each group.
 // Prints JSON { ok, staging, tables, relationships, steps, model[], skipped[] }. With --write it merges the
 // spec into choices.json → build (other keys are kept). Without choices.json it writes a new one.
 'use strict';
@@ -99,9 +100,21 @@ for (const [rootName, members] of groups) {
         if (t.kind !== 'csv') { note(skipped, f._t, f, 'F20 applies to CSV files only'); break; }
         steps.push({ fix: 'F20', column: src.columns[src.columns.length - 1] }); added.push('Row check'); types['Row check'] = 'text'; break;
       case 'F03': case 'F04': case 'F12': steps.push({ fix: f.fix }); break;
-      case 'F27':
-        if (!c || !(f.examples || []).length) { note(skipped, f._t, f, 'the profile names the test rows but not their key column and values – ask which rows (step 4)'); break; }
-        steps.push({ fix: 'F27', column: c, values: f.examples }); break;
+      case 'F27': {
+        // Without a column the examples are whole rows ("K-100 | TEST ACCOUNT | SMB"): the key is the
+        // table's first id column (else its first column) and its value is that field of each row.
+        const ex = f.examples || [];
+        let col = c; let values = ex;
+        if (!col && ex.length) {
+          const all = src.columns;
+          const idCol = (f._t.columns || []).find((x) => x.kind === 'id');
+          col = idCol ? idCol.name : all[0];
+          const at = Math.max(0, all.indexOf(col));
+          values = ex.map((r) => String(r).split(' | ')[at]).filter((v) => v != null && v.trim() !== '').map((v) => v.trim());
+        }
+        if (!col || !values.length) { note(skipped, f._t, f, 'the profile names the test rows but not their key column and values – ask which rows (step 4)'); break; }
+        steps.push({ fix: 'F27', column: col, values, mode: f.variant === 'flag' ? 'flag' : 'remove' }); break;
+      }
       case 'F19': case 'F25': steps.push({ fix: f.fix, columns: [c] }); cols = cols.filter((x) => x !== c); delete types[c]; break;
       case 'F23': {
         const v = f.variant || {};
@@ -112,7 +125,19 @@ for (const [rootName, members] of groups) {
       case 'F24': steps.push({ fix: 'F24', column: c }); break;
       case 'F05': steps.push({ fix: 'F05', columns: [c] }); break;
       case 'F06': steps.push({ fix: 'F06', columns: [c], tokens: (f.examples || []).length ? f.examples : undefined }); break;
-      case 'F07': note(skipped, f._t, f, 'the profile shows the case variants but not which spelling is most common – choose the spelling (step 4)'); break;
+      case 'F07': {
+        // detail "2 value(s) written in more than one case: Nord / nord; Syd / SYD" – the profile lists the
+        // most common spelling first, so it becomes the target of every variant.
+        // examples hold every group ("Nord / nord"); older profiles only the first 3 in detail
+        const groups = (f.examples || []).length ? f.examples : String(f.detail || '').split(':').slice(1).join(':').split(';');
+        const map = {};
+        for (const group of groups) {
+          const spell = group.split(' / ').map((s) => s.trim()).filter(Boolean);
+          if (spell.length > 1) map[spell[0].toLowerCase()] = spell[0];
+        }
+        if (!c || !Object.keys(map).length) { note(skipped, f._t, f, 'the profile shows the case variants but not which spelling to keep – choose the spelling (step 4)'); break; }
+        steps.push({ fix: 'F07', column: c, map }); break;
+      }
       case 'F11': {
         const fmt = idFormat(f.variant);
         if (!fmt) { note(skipped, f._t, f, `target format "${f.variant}" is plain numbers – the odd ids need a decision (step 4)`); break; }
