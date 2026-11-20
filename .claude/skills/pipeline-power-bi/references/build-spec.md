@@ -92,7 +92,9 @@ F01 is built from `kind`/`header`/`columns`; F02, F26 come from the table column
 | `inferMembers` (F18) | `key`, `fromColumns` [`query[column]`], `defaults` {column: M expression on `_`, `_` = the missing key value}, `flag`. Matches ignore case. Can be used more than once on a table with different keys (product name from the order lines, product code from the campaigns); they share the flag column. |
 | `m` | `label`, `expr` with `<prev>` |
 - `columns`: the final columns in order – `name` (in the report), `from` (column in the query, default
-  `name`), `type` (`text`, `int`, `key`, `number`, `currency`, `percent`, `date`, `datetime`, `bool`),
+  `name`), `type` (`text`, `int`, `key`, `number`, `currency`, `percent`, `date`, `datetime`, `bool`;
+  `key` and `int` are whole numbers (Int64) – a text id such as `K-001` or `CUST-0001` is `text`, and the
+  build stops when a `key`/`int` column has an F11 prefix or non-numeric values in the profile),
   optional `format`, `hidden`, `summarize`, `description`, `sortBy` (another column of the table that orders
   this one – a stage by its stage order; written as `sortByColumn`). The table ends with select + rename + types.
   A column listed in `choices.json` → `pii_not_personal` ("Customer[Customer name]") gets
@@ -108,7 +110,9 @@ F01 is built from `kind`/`header`/`columns`; F02, F26 come from the table column
 ```
 The date table is marked (`dataCategory: Time`), spans whole years of the listed columns, has `Date`,
 `Year`, `Quarter`, `Month no` (hidden), `Month`, `Month start` and `Week start` (Monday), and with
-`completeMonth` gets `Is complete month` (snake_case: `date`, `year`, … `week_start`). Multi-line DAX: use
+`completeMonth` gets `Is complete month` (snake_case: `date`, `year`, … `week_start`). When that column has an
+F15 flag (mode `flag`) and the flag column is loaded, only rows flagged `ok` decide the first and last complete
+month – a future date does not make empty months "complete". Multi-line DAX: use
 `\n` in `expr`. `term` names the glossary term (`choices.json` → `glossary[]`) and is written as
 `annotation Term` on the measure. Relationships are many-to-one, single direction.
 
