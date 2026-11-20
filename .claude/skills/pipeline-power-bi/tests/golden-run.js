@@ -93,6 +93,13 @@ function buildCase(c) {
   const rb = json(run('node', [path.join(S, 'rebuild.js'), runDir], 'rebuild'));
   if (!rb.ok) throw new Error(`rebuild failed at ${rb.failedAt}: ${JSON.stringify(rb.steps.find((s) => !s.ok))}`);
 
+  // A messy dataset has an answer key: score the run (exit 1 = Failed is a result, not an error here).
+  const answers = path.join(tmp, 'answers');
+  if (fs.existsSync(answers)) {
+    const sr = spawnSync('node', [path.join(S, 'score-run.js'), runDir, '--answers', answers], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    if (sr.status > 1) throw new Error(`score-run failed (exit ${sr.status}):\n${(sr.stderr || sr.stdout).slice(0, 2000)}`);
+  }
+
   const profile = readJson(path.join(runDir, 'profile.json'));
   const summary = {
     tables: profile.tables.map((t) => ({
@@ -107,7 +114,7 @@ function buildCase(c) {
   };
 
   const files = { 'summary.json': JSON.stringify(summary, null, 1) + '\n' };
-  for (const f of ['cleaning-log.md', 'expected-values.md', 'checks.dax', 'model-context.md', 'model-health.md']) {
+  for (const f of ['cleaning-log.md', 'expected-values.md', 'checks.dax', 'model-context.md', 'model-health.md', 'scorecard.md']) {
     const p = path.join(runDir, f);
     if (fs.existsSync(p)) files[f] = fs.readFileSync(p, 'utf8');
   }
