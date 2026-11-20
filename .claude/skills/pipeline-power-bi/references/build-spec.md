@@ -112,7 +112,8 @@ The date table is marked (`dataCategory: Time`), spans whole years of the listed
 `Year`, `Quarter`, `Month no` (hidden), `Month`, `Month start` and `Week start` (Monday), and with
 `completeMonth` gets `Is complete month` (snake_case: `date`, `year`, … `week_start`). When that column has an
 F15 flag (mode `flag`) and the flag column is loaded, only rows flagged `ok` decide the first and last complete
-month – a future date does not make empty months "complete". Multi-line DAX: use
+month – a future date does not make empty months "complete". The same holds for the calendar's span: a listed
+column with a loaded F15 flag adds only its `ok` dates, so one order dated 2099 does not add empty years. Multi-line DAX: use
 `\n` in `expr`. `term` names the glossary term (`choices.json` → `glossary[]`) and is written as
 `annotation Term` on the measure. Relationships are many-to-one, single direction.
 
@@ -145,6 +146,46 @@ same rows in a test query before the measure is saved. `snake-names.js` renames 
 - `list`: a fixed list in its order – `<name>` sorted by `<name>_order` (hidden; `<name> Order` without
   snake_case); pbip-layout's Business template uses it for the funnel stages (`gen-measures.js --spec`).
 - All are written to `tables/<name>.tmdl` with descriptions; `snake-names.js` renames them (no prefix).
+
+## Design patch – `apply-design.js`
+
+The design (step 4b), the model choices (step 5) and the extras (step 6) go onto the drafted spec as one
+JSON file, not as a script: `node scripts/apply-design.js runs/<run-id> <patch.json> [--dry-run]`.
+
+```json
+{
+  "build": { "naming": "snake_case", "name": "Sales" },
+  "tables": {
+    "erp_customers": { "drop": true },
+    "fact_orders": { "rename": "Sales", "description": "One row per order.",
+      "addOps": [ { "op": "filter", "expr": "[status] <> \"Test\"" } ],
+      "columns": [ "order_id", { "name": "amount", "type": "currency" }, { "name": "order_date_status", "from": "order_date status" } ] },
+    "dim_customers": { "rename": "Customer",
+      "prependOps": [ { "op": "merge", "with": "stg_bridge_customer_sales_reps", "on": ["customer_id"], "columns": ["sales_rep_name"] } ],
+      "columns": [ "customer_id", "customer_name", { "name": "sales_rep", "from": "sales_rep_name" } ] }
+  },
+  "dropStaging": ["stg_erp_customers"],
+  "date": { "name": "dim_date", "columns": ["Sales[order_date]"], "completeMonth": "Sales[order_date]" },
+  "relationships": [ { "from": "Sales[customer_id]", "to": "Customer[customer_id]" } ],
+  "measures": [ { "name": "revenue", "expr": "SUM ( Sales[amount] )", "format": "#,0", "folder": "Sales" },
+                { "name": "revenue_previous_month", "previousMonth": "[revenue]", "folder": "Previous month" } ],
+  "parameters": [], "removeMeasures": [],
+  "choices": { "glossary": [ … ], "design": { … }, "handover_notes": [ … ], "extras": { "layout_pages": ["exec"] } },
+  "settleReview": false
+}
+```
+- `tables.<name>`: `rename`, `kind`, `description`, `hidden`, `from`; `ops` replaces the drafted ops,
+  `prependOps` / `addOps` put ops before / after them; `columns` is the final list – a string keeps the drafted
+  column, an object without `type` takes the drafted type (so a text id stays `text`). `drop: true` removes a
+  table and its relationships; `new: true` adds one. A rename follows into relationships, the date table,
+  merges, `from` and the DAX of measures and roles.
+- `dropStaging` is refused while a table, merge or inferMembers still reads the query.
+- `measures` upsert by name; `previousMonth: "[base]"` writes the previous-month DAX on the date table with a
+  filter contract (`additive` false when the base is a distinct count, ratio or average) and the base's format.
+- `choices` merges into the top level of `choices.json` (objects merge, arrays replace); `settleReview: true`
+  marks every `design.review` point settled.
+- Checked before writing: unknown tables or query columns, relationship/date references, duplicate names,
+  field-parameter measures. Exit 2 = errors, nothing written. Warnings: a measure naming a table the spec lacks.
 
 ## After a change
 

@@ -85,7 +85,7 @@ table dim_date
 		queryGroup: 03_Facts
 		source =
 				let
-					Dates = List.RemoveNulls(List.Combine({fact_orders[dato]})),
+					Dates = List.RemoveNulls(List.Combine({Table.SelectRows(fact_orders, each [dato_status] = "ok")[dato]})),
 					Start = #date(Date.Year(List.Min(Dates)), 1, 1),
 					End = #date(Date.Year(List.Max(Dates)), 12, 31),
 					Days = List.Dates(Start, Duration.Days(End - Start) + 1, #duration(1, 0, 0, 0)),

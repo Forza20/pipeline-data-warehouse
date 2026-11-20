@@ -31,7 +31,14 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
 3. **The model is generated, not hand-written.** Write the build spec into `choices.json` → `build`
    ([build-spec.md](build-spec.md)): staging per source with its kept steps by fix
    id, the design's tables with their ops and final columns, date, relationships, measures, roles, and
-   `"naming": "snake_case"` (always). Then rename it to snake_case and build:
+   `"naming": "snake_case"` (always). Start from `draft-spec.js --write` and reshape it to the design with
+   **one design patch** (JSON, [build-spec.md](build-spec.md) → "Design patch") – never a one-off script that
+   edits `choices.json`:
+   ```
+   node .claude\skills\pipeline-power-bi\scripts\apply-design.js runs\<run-id> runs\<run-id>\design-patch.json
+   ```
+   It checks every column, relationship and date reference before it writes (exit 2 = nothing written; fix
+   the patch and run it again). Then rename it to snake_case and build:
    ```
    node .claude\skills\pipeline-power-bi\scripts\snake-names.js runs\<run-id> --apply
    node .claude\skills\pipeline-power-bi\scripts\build-model.js runs\<run-id>
@@ -112,6 +119,13 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
      run folder** (page → template field → model field → value → fallback → open points). The measures and
      parameters the pages need (its `measures.md`) go into `choices.json → build.measures[]` and
      `build.parameters[]`, then `rebuild.js` – so a later rebuild keeps them. Do this after the model validates.
+     **AdventureWorks template:** after `suggest-fields.js … --config runs/<run-id>/layout-config.json` (with
+     the dashboard plan's base measures mapped in the config), run
+     `node .claude\skills\pipeline-power-bi\scripts\template-measures.js runs\<run-id> [--growth 0.10]` – previous
+     month, targets and gaps, price adjustment, revenue per customer and the two field parameters go into the
+     spec (folder `Template`), the fields into `layout-config.json`, the questions (growth, no profit) into
+     `layout-decisions.json`; then `rebuild.js` and `suggest-fields.js` once more. Only a field it cannot make
+     (named in `nulls`) is mapped by hand in the config.
      **Business template:** before `rebuild.js`, map the data contract (`suggest-fields.js … --config
      runs/<run-id>/layout-config.json`, check the values with the profile's distinct values) and run
      `gen-measures.js runs/<run-id>/layout-config.json --spec runs/<run-id>/choices.json --write-config` – the

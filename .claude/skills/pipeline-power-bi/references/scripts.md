@@ -15,6 +15,15 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
   table. Findings it cannot draft (F28 names, F07 spelling, F27 without a key column, F11 to plain numbers)
   are listed in `skipped` with the reason – ask them; model choices (F02, F21, F22, F26, F18, M01) in
   `model`. A starting point for step 8.3: reshape it to the step 4b design. `--write` saves it.
+- `apply-design.js` – applies the design, model choices and extras to the drafted spec from one JSON patch
+  (build-spec.md → "Design patch"): renames that follow into relationships and DAX, final columns that keep
+  the drafted types, previous-month measures, `choices` merged. Checks every reference first; exit 2 writes
+  nothing. Replaces the one-off `patch-*.js` scripts earlier runs needed.
+- `template-measures.js` – pbip-layout's AdventureWorks template measures (previous month, targets + gaps,
+  price adjustment, revenue per customer, field parameters) from the base measures mapped in
+  `layout-config.json`, into the spec (folder `Template`, replaced on a rerun), the config and
+  `layout-decisions.json`. No profit measure (Total Profit mapped to a stand-in): no profit target, adjusted
+  revenue instead of adjusted profit – both asked. `--growth` sets the target growth (default 0.10).
 - `score-run.js` – only for a run on a messy dataset, after step 9 when the user asks to score it: reads
   the answer key (`runs/<run-id>_answers/`, `--answers` to override) into memory and writes `scorecard.md`:
   error types 1–13 found and kept (from `cleaning-log.md`, the profile and the design review), the answer
