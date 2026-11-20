@@ -989,6 +989,41 @@ res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-overview.js'), run],
 const ovLight = fs.readFileSync(path.join(run, 'overview.html'), 'utf8');
 check('overview: theme light uses the light palette and its keys', /<style>\n:root\{--bg:#f6f4fb;/.test(ovLight) && ovLight.includes(':root{--plate:#fafafa}'));
 fs.unlinkSync(path.join(run, 'overview-colors.json'));
+// fast mode: no tables[].fixes, the kept steps are in build.staging (stg_<source>); report pages come from the PBIR
+{
+  const pb = path.join(run, 'pbip');
+  const hadRep = fs.readdirSync(pb).find((d) => d.endsWith('.Report'));
+  const repDir = path.join(pb, hadRep || 'OvTest.Report');
+  const pdir = path.join(repDir, 'definition', 'pages');
+  const made = [];
+  const page = (id, name, nVis, vis) => {
+    const d = path.join(pdir, id); fs.mkdirSync(path.join(d, 'visuals'), { recursive: true }); made.push(d);
+    fs.writeFileSync(path.join(d, 'page.json'), JSON.stringify({ name: id, displayName: name, ...(vis ? { visibility: vis } : {}) }));
+    for (let v = 0; v < nVis; v++) fs.mkdirSync(path.join(d, 'visuals', 'v' + v), { recursive: true });
+  };
+  const pagesJson = path.join(pdir, 'pages.json');
+  const oldPages = fs.existsSync(pagesJson) ? fs.readFileSync(pagesJson, 'utf8') : null;
+  page('ovp1', 'Exec Dashboard', 3); page('ovp2', 'Tooltip', 2, 'HiddenInViewMode'); page('ovp3', 'Page 1', 0);
+  fs.writeFileSync(pagesJson, JSON.stringify({ pageOrder: ['ovp1', 'ovp2', 'ovp3'] }));
+  fs.mkdirSync(path.join(pb, 'docs'), { recursive: true });
+  const lcfg = path.join(pb, 'docs', 'layout-config.json');
+  const oldL = fs.existsSync(lcfg) ? fs.readFileSync(lcfg, 'utf8') : null;
+  fs.writeFileSync(lcfg, JSON.stringify({ template: 'adventureworks', pages: ['exec'], title: 'Demo Sales' }));
+  fs.writeFileSync(path.join(run, 'choices.json'), JSON.stringify({ run_id: 'test', name: 'Test', tables: { orders: { include: true } },
+    build: { ...spec, staging: [{ name: 'stg_orders', steps: [{ fix: 'F08', column: 'Dato' }, { fix: 'F12' }, { fix: 'F17' }, { fix: 'M' }] }] } }));
+  res = spawnSync('node', [path.join(SKILL, 'scripts', 'build-overview.js'), run], { encoding: 'utf8' });
+  const ovFast = fs.readFileSync(path.join(run, 'overview.html'), 'utf8');
+  check('overview: fast mode counts the kept steps from build.staging (F17 and M left out)',
+    ovFast.includes('<div class="l">Cleaning steps kept</div><div class="v">2</div>'),
+    (ovFast.match(/Cleaning steps kept.{0,60}/) || [''])[0]);
+  check('overview: fast mode lists the kept steps per source', ovFast.includes('<b>F08</b>') && ovFast.includes('<b>F12</b>') && !ovFast.includes('<b>F17</b>'));
+  check('overview: report pages from the PBIR – template, non-empty pages in order, hidden marked, no KPI-tile count',
+    ovFast.includes('Template <b>AdventureWorks</b>') && ovFast.includes('Page <b>Exec Dashboard</b> <span class="dim">– 3 visuals</span>') &&
+    ovFast.includes('Page <b>Tooltip</b> <span class="dim">– 2 visuals, hidden') && !ovFast.includes('Page 1') && !ovFast.includes('KPI tiles'));
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true });
+  if (oldPages != null) fs.writeFileSync(pagesJson, oldPages); else if (!hadRep) fs.rmSync(repDir, { recursive: true, force: true }); else fs.rmSync(pagesJson, { force: true });
+  if (oldL != null) fs.writeFileSync(lcfg, oldL); else fs.rmSync(lcfg, { force: true });
+}
 
 // ---------- 4. drift checks started in the background after the profiler ----------
 Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, biz, real]) => {

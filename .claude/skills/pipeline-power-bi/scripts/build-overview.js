@@ -40,6 +40,20 @@ const def = smDir ? path.join(pbipDir, smDir, 'definition') : null;
 if (!def) warn.push('no SemanticModel found under pbip/');
 const catalog = json(path.join(pbipDir, 'docs', 'catalog.json'));
 const layout = json(path.join(pbipDir, 'docs', 'layout-config.json'));
+// the report's own pages (PBIR), in page order; empty pages (no visuals) are left out
+const reportPages = (() => {
+  const rep = fs.existsSync(pbipDir) ? fs.readdirSync(pbipDir).find((d) => d.endsWith('.Report')) : null;
+  const pdir = rep ? path.join(pbipDir, rep, 'definition', 'pages') : null;
+  if (!pdir || !fs.existsSync(pdir)) return [];
+  const meta = json(path.join(pdir, 'pages.json')) || {};
+  const ids = meta.pageOrder || fs.readdirSync(pdir).filter((d) => fs.existsSync(path.join(pdir, d, 'page.json')));
+  return ids.map((id) => {
+    const p = json(path.join(pdir, id, 'page.json')) || {};
+    const vdir = path.join(pdir, id, 'visuals');
+    const visuals = fs.existsSync(vdir) ? fs.readdirSync(vdir).length : 0;
+    return { name: p.displayName || id, hidden: p.visibility === 'HiddenInViewMode', visuals };
+  }).filter((p) => p.visuals > 0);
+})();
 
 // ---------- model from TMDL ----------
 const model = { tables: [], rels: [], roles: [], staging: [] };
@@ -100,7 +114,14 @@ const FIX = {
 const srcRows = [];
 for (const t of profile.tables || []) {
   const c = (choices.tables || {})[t.name] || {};
-  const kept = (c.fixes || []).filter((f) => f.keep && !['F17', 'F02'].includes(f.fix));
+  let fixes = c.fixes || [];
+  // fast mode: the kept fixes are only in the drafted staging query (draft-spec.js names it stg_<source>)
+  if (!fixes.length) {
+    const slug = String(t.name).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const stg = (((choices.build || {}).staging) || []).find((s) => s.name === `stg_${slug}`);
+    if (stg) fixes = (stg.steps || []).filter((s) => s.fix && s.fix !== 'M').map((s) => ({ fix: s.fix, column: s.column || (s.columns || []).join(', ') || null, keep: true }));
+  }
+  const kept = fixes.filter((f) => f.keep && !['F17', 'F02'].includes(f.fix));
   srcRows.push({ name: t.name, kind: t.kind || 'csv', rows: t.dataRows, cols: t.columnsCount, findings: (t.findings || []).filter((f) => !['F17', 'F02'].includes(f.fix)).length, include: c.include !== false, reason: c.reason || (c.appended_to ? 'appended to ' + c.appended_to : ''), kept });
 }
 const design = choices.design || null;
@@ -340,7 +361,11 @@ footer{margin-top:90px;padding-top:16px;border-top:1px solid var(--line);font-fa
 </style>
 ${userCss}`;
 
-const reportItems = layout ? [`Page <b>${esc(layout.pageName || 'Dashboard')}</b>${layout.title ? ` <span class="dim">– ${esc(layout.title)}</span>` : ''}`, `${(layout.kpis || []).length} KPI tiles`, 'Trend with forecast', `${(layout.monthly || []).length} monthly cards`, layout.bar ? 'Bar chart' : '', layout.table ? 'Top-10 table' : '', `${(layout.highlights || []).length} highlight tiles`].filter(Boolean) : ['<span class="dim">no dashboard layout</span>'];
+const TEMPLATE = { adventureworks: 'AdventureWorks', business: 'Business' };
+const reportItems = reportPages.length ? [
+  ...(layout && layout.template ? [`Template <b>${esc(TEMPLATE[layout.template] || layout.template)}</b>${layout.title ? ` <span class="dim">– ${esc(layout.title)}</span>` : ''}`] : []),
+  ...reportPages.map((p) => `Page <b>${esc(p.name)}</b> <span class="dim">– ${p.visuals} visuals${p.hidden ? ', hidden (tooltip or drillthrough)' : ''}</span>`),
+] : layout ? [`Page <b>${esc(layout.pageName || 'Dashboard')}</b>${layout.title ? ` <span class="dim">– ${esc(layout.title)}</span>` : ''}`, `${(layout.kpis || []).length} KPI tiles`, 'Trend with forecast', `${(layout.monthly || []).length} monthly cards`, layout.bar ? 'Bar chart' : '', layout.table ? 'Top-10 table' : '', `${(layout.highlights || []).length} highlight tiles`].filter(Boolean) : ['<span class="dim">no dashboard layout</span>'];
 
 const body = `<nav><span class="brand">${esc(runId)}</span>${navItems.map(([id, t]) => `<a class="p" href="#${id}">${t}</a>`).join('')}<span class="built">built ${esc(built)}</span><button class="cbtn" id="cbtn" type="button" aria-expanded="false" aria-controls="cpanel">Colours</button></nav>
 <div class="cpanel" id="cpanel" hidden><h3>Colours <span class="dim" id="cmode"></span></h3>
@@ -356,7 +381,7 @@ ${sec('flow', 'From sheet to report', 'Every source sheet, the staging queries t
 ${layer('sources', srcRows.length, 'sheets', srcRows.map((s) => `${esc(s.name)}<span class="r">${s.rows ?? 0}</span>${s.include ? '' : `<span class="why">${esc(s.reason || 'left out')}</span>`}`), 'src')}${arrow}
 ${layer('staging', model.staging.length, 'queries', model.staging.length ? model.staging.map((s) => `<code>${esc(s.name)}</code><span class="r">${s.steps.length} steps</span>`) : ['<span class="dim">one query per table (no staging layer)</span>'], 'stage')}${arrow}
 ${layer('model', modelTables.length, 'tables', [...facts.map((t) => `<b>${esc(t.name)}</b> ${kindTag('fact')}`), ...dims.map((t) => `${esc(t.name)} ${kindTag(t.kind)}`), ...others.map((t) => `${esc(t.name)} ${kindTag(t.kind)}`)], 'model')}${arrow}
-${layer('report', layout ? 1 : 0, layout ? 'page' : 'pages', reportItems, 'report')}
+${((n) => layer('report', n, n === 1 ? 'page' : 'pages', reportItems, 'report'))(reportPages.length || (layout ? 1 : 0))}
 </div>`)}
 
 ${sec('star', 'Star schema', 'Facts on the left, the dimensions they filter by on the right. Hover a line for its columns.', `<div class="paper"><div class="tw er">${star()}</div>
