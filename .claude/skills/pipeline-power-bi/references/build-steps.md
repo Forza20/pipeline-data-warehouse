@@ -93,7 +93,8 @@ Power BI Desktop must be closed (`Check-Tools.ps1 -DesktopOnly` – only this, n
      about 10 seconds, so run it once: when the dashboard is chosen, pbip-layout's step 8 validates the
      whole report after it adds its page – skip it here.
    - Fix and repeat until clean. Do not report a build as done with validation errors.
-6. **The other skills – load them, do not imitate them.** Run each chosen one by loading it with the
+6. **The other skills – load them, do not imitate them.** They run automatically (SKILL.md step 6): every
+   one not switched off in `extras` is loaded with the
    Skill tool (`pbip-layout`, `pbip-catalog`, `pbip-governance`) or, when the Skill tool cannot load it,
    by reading its `SKILL.md` by path (`.claude/skills/<name>/SKILL.md`) and following it step by step.
    Never call only their scripts – the skills hold the steps that make the output right. To save time,

@@ -23,6 +23,13 @@ part, the **dashboard plan** (below), turns the answers into the recommended pag
 short questions, one at a time, then a dashboard plan you approve.") and end with the plan, so the user can
 see that it ran and what it decided.
 
+## Needs (install next to this skill)
+
+- `pbip-layout` – the dashboard plan reads `../pbip-layout/layout.md` and `layout-business.md`. Without it,
+  skip the dashboard plan, say so, and write `dashboard_plan.status: "declined"`.
+- `pipeline-power-bi` – only for standalone mode on raw files: `scripts/Profile-Sources.ps1` makes the
+  `profile.json`. With a `profile.json` (or a PBIP on the "Keep my model" path) it is not needed.
+
 ## Input
 
 - `runs/<run-id>/profile.json` (from pipeline-power-bi step 2) – tables, columns with `kind`, `min`/`max`,

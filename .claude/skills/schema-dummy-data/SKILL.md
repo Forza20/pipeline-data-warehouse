@@ -108,6 +108,18 @@ path of `<name>_dummy.xlsx` (every sheet becomes a table). Say plainly that:
 - when the real data arrives later, the consultant reruns `pipeline-power-bi` on the real files –
   this skill's output is never mixed with real rows in the same run.
 
+## Called from pipeline-power-bi (pipeline mode)
+
+When pipeline-power-bi loads this skill (its step 1, "Only a schema or a few example rows"), run steps
+1–2 as above with these changes, then return to pipeline-power-bi:
+
+- `-OutDir runs/<run-id>/source/` and `-Format xlsx` – not Downloads; the run reads the file from there.
+- The locale question is skipped when pipeline-power-bi runs in fast mode: take the recommendation.
+- Skip step 3's hand-off text; give back only the XLSX path and the `-PlanOnly` lines. Pipeline-power-bi's
+  hand-over says the numbers are made up and adds "example data" to the dashboard title.
+
+Alone (`/schema-dummy-data`), the skill needs no other skill and works as written above.
+
 ## How the generator decides things
 
 [references/pattern-dictionary.md](references/pattern-dictionary.md) lists every column-name

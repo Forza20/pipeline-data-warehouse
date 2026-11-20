@@ -33,6 +33,15 @@ One HTML file: the two numbers on top, the difference, the drill-down from the t
 
 - the web page only
 
+## In a pipeline-power-bi run
+
+pipeline-power-bi loads this skill in its step 9 when a check's Difference is not 0 and no fix id explains
+it. The two sides are the expected value (`expected-values.md`, from the source rows in `rows/`) and the
+model's value (`checks.result.json`). Split with `source-stats.js runs/<run-id> --raw --queries <file>` on
+the source side and DAX queries on the model side. Write the page to `runs/<run-id>/reconcile-<check>.html`
+and hand the cause back to pipeline-power-bi, which fixes the step and rebuilds. Alone, this skill needs
+no other skill.
+
 ## Never
 
 - Never changes a number on either side.
