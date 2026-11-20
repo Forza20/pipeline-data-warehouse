@@ -5,7 +5,12 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
 
 - `Profile-Sources.ps1` – the read-only profiler for CSV and Excel (Windows PowerShell 5.1; Excel need not
   be installed). Step 2. `-RowsDir` also writes each table's rows to `rows/` (Excel cells with their type);
-  `-WarmUp` only compiles and caches the C# parts (step 0, in the background).
+  `-WarmUp` only compiles and caches the C# parts (step 0, in the background). `profile.json`: per table
+  `kind` = `csv` / `sheet` / `excel table`, `file`, `sheet`, `excelTable`, `range`, `hidden`, `isEmpty`, `encoding`,
+  `delimiter`, `headerRow`, `headerCells`, `dataRows`, `columns[]` with `kind`/`readable`/`min`/`max`/`sum`,
+  `findings[]` with `fix`, `column`, `rows`, `detail`, `recommended`, `variant`; plus `relations[]`, where
+  `matchedBy` = `name` or `values`. Read it with `Get-Content -Raw -Encoding UTF8 | ConvertFrom-Json`, one
+  table at a time – never paste it whole.
 - `source-stats.js` – expected values and evidence from the source files: replays the build spec's staging
   steps and model-table ops (or, with `--raw`, the profile tables as read) on the exported rows and answers
   queries (rows, count, distinct, sum, avg, min, max; M `where`, `join`, `by`); `--apply` writes the exact
@@ -24,7 +29,8 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
   `layout-config.json`, into the spec (folder `Template`, replaced on a rerun), the config and
   `layout-decisions.json`. No profit measure (Total Profit mapped to a stand-in): no profit target, adjusted
   revenue instead of adjusted profit – both asked. `--growth` sets the target growth (default 0.10).
-- `score-run.js` – only for a run on a messy dataset, after step 9 when the user asks to score it: reads
+- `score-run.js` – only for a run on a messy dataset, after step 9 when the user asks to score it (it also
+  writes the run's row in `runs/overview.md`, the table /messy-pipeline keeps; `--no-overview` skips it): reads
   the answer key (`runs/<run-id>_answers/`, `--answers` to override) into memory and writes `scorecard.md`:
   error types 1–13 found and kept (from `cleaning-log.md`, the profile and the design review), the answer
   key's numbers recomputed from the source files with the run's cleaning (via `source-stats.js`) with an

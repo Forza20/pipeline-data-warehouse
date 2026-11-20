@@ -90,14 +90,8 @@ caches the profiler's C# parts once (about 5 seconds on a new PC), so step 2 doe
 powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-power-bi\scripts\Profile-Sources.ps1 -WarmUp
 ```
 It prints JSON: `node`, `reportCli`, `desktop` (installed, running, `unsavedTitle`), `python`,
-`freeMemoryGB`, and `missing[]` with the install command of each missing program:
-
-| Program | Needed for |
-|---|---|
-| Node.js 18+ | report validation |
-| Power BI report CLI | validating the report |
-| Power BI Desktop | loading the data, the first refresh, screenshots |
-| Python 3.12 + openpyxl | the data catalog and governance (step 6) |
+`freeMemoryGB`, and `missing[]` with the install command of each missing program (Node and the report CLI validate the
+report, Desktop loads and refreshes it, Python + openpyxl run the catalog and governance).
 
 Use the commands the project allows without a prompt (`.claude/settings.json`): run Python scripts as
 `python -X utf8 .claude\skills\…` or `python .claude\skills\…`, create folders and copy files with
@@ -172,11 +166,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\pipeline-powe
 ```
 Read-only for the source files; prints one line per table. `-RowsDir` keeps each table's rows as the profile
 read them (`rows/`), so `source-stats.js` computes evidence and expected values later without parsing the
-files again. Then read `profile.json` (per table: `kind` = `csv` / `sheet` /
-`excel table`, `file`, `sheet`, `excelTable`, `range`, `hidden`, `isEmpty`, `encoding`, `delimiter`,
-`headerRow`, `headerCells`, `dataRows`, `columns[]` with `kind`/`readable`/`min`/`max`/`sum`,
-`findings[]` with `fix`, `column`, `rows`, `detail`, `recommended`, `variant`; plus `relations[]`, where
-`matchedBy` = `name` or `values`). Read it with `Get-Content -Raw -Encoding UTF8 | ConvertFrom-Json`,
+files again. Then read `profile.json` (its fields: [references/scripts.md](references/scripts.md) → Profile-Sources.ps1)
 one table at a time – never paste it whole.
 
 Show the user one overview table: file (and sheet / Excel table) → rows · columns · problems found (not
@@ -446,43 +436,22 @@ flags and details of the eleven parts below, and the drift check for new files. 
 
 ## Step 9 – Check the numbers
 
+Commands and both ways to run the checks: [references/build-steps.md](references/build-steps.md) → "Step 9".
+
 - **The user never fills in "In Power BI" by hand** – `record-checks.js` writes it, the Difference column and
-  one result line ("✅ 41/41 checks and 4/4 grounded answers: Difference 0 – no errors", or ❌ with the rows
-  that are not 0) into `expected-values.md` and `grounded-answers.md`, saves `check-results.json` and
-  rebuilds `overview.html`. A later rebuild writes the saved result back, marked ⚠️ outdated when the model
-  changed since.
-- **A – Claude runs the checks (default, with Desktop):** open `<Name>.pbip`, ask the user to click
-  **Refresh** (and approve the file access prompt for the folder). Run the text of `checks.dax` and of
-  `grounded-answers.dax` with powerbi-modeling-mcp `dax_query_operations`, save each tool result as it came
-  (JSON) to `runs/<run-id>/checks.result.json` and `grounded.result.json`, then
-  **`node .claude\skills\pipeline-power-bi\scripts\record-checks.js runs\<run-id> --checks runs\<run-id>\checks.result.json --grounded runs\<run-id>\grounded.result.json`**.
-  A query error in a step: read the error (it names the step, e.g. `F08 Parse order_date`), fix the step,
-  rebuild, refresh again.
-- **B – the user runs them (no MCP connection):** the user pastes `checks.dax` into Desktop → DAX query
-  view → Run, right-clicks the result → **Copy table**, and pastes it into the chat; same for
-  `grounded-answers.dax`. Save each paste as it is to `checks.result.txt` / `grounded.result.txt` in the run
-  folder and run the same `record-checks.js` command with those files (tab-separated, Danish or English
-  number format).
-- Tell the user the result line in one sentence. Then confirm each role row once with Modeling →
-  **View as** → the role + *Other user*. A question with a difference is handled like any other
-  difference (below).
-- **The DAX guide is always handed over – never ask, never skip.** It is the run's own guide to `checks.dax`
-  and `grounded-answers.dax`: the report name, run id, the number of checks, the key expected numbers and
-  why, and every grounded question with its expected answer. Write it in English (principle 7): put
-  `choices.json` → `dax_guide` = `{ "lang": "en",
-  "why": { "<check name>": "<why this number, plain words>" }, "questions": { "1": "<short question>" } }`
-  (the why/questions text in English, for the key checks), then run
-  **`node .claude\skills\pipeline-power-bi\scripts\build-dax-guide.js runs\<run-id>`**. It writes
-  `runs/<run-id>/checks.dax_grounded-answers.dax guide.html` next to `checks.dax`, `grounded-answers.dax` and
-  the run's other files. **No copy to Downloads** (never pass `--downloads`) – all three stay in the run
-  folder. Give the full path of the guide in the run folder in the hand-over. Run it
-  again after every rebuild that changes a check or a question (`rebuild.js` refreshes
-  it in the run folder as well).
-- Every difference is either explained by a choice (cite the fix id) or fixed. A difference you cannot
-  explain at once: load the **reconcile** skill (Skill call, automatically – never imitate it; read
-  `.claude/skills/reconcile/SKILL.md` only if the Skill tool cannot load it) – split it by the dimensions
-  until it sits in one slice and name the rows behind it. After a fix: rebuild, refresh, run
-  the checks again and `record-checks.js` again (it rebuilds the overview page).
+  one result line ("✅ 41/41 checks and 4/4 grounded answers: Difference 0 – no errors") into
+  `expected-values.md` and `grounded-answers.md`.
+- **A – Claude runs the checks** (default, with Desktop and powerbi-modeling-mcp) after the user clicks
+  **Refresh**; **B – the user runs them** in DAX query view and pastes the result (Copy table). A query
+  error names a step (`F08 Parse order_date`): fix the step, rebuild, refresh again.
+- Tell the user the result line in one sentence; each role row is confirmed once with Modeling → **View as**.
+- **The DAX guide is always handed over – never ask, never skip** (`build-dax-guide.js`, in the run folder,
+  never `--downloads`). Its "why" per key check comes from the cleaning log; `choices.json` → `dax_guide.why`
+  only for a business rule the log does not explain – in English (principle 7). Give its full path in the
+  hand-over.
+- Every difference is either explained by a choice (cite the fix id) or fixed. One you cannot explain at
+  once: load the **reconcile** skill (Skill call – never imitate it) and split it until the rows behind it
+  are named. After a fix: rebuild, refresh, checks and `record-checks.js` again.
 
 ## Step 10 – Hand-over (5–8 lines)
 
@@ -529,6 +498,7 @@ This skill is never finished. Improve it as you use it.
 | 4 | [references/fix-catalog.md](references/fix-catalog.md) – every fix: recommended or not, variants, the M step, whether it changes the numbers – **only** when the user chooses "step by step" |
 | 4b | [references/modeling-guide.md](references/modeling-guide.md) – star schema rules and checklist; [references/model-review.md](references/model-review.md) – the six review points and their evidence |
 | 8 | [references/build-steps.md](references/build-steps.md) – commands, flags, the other skills, drift check (also before a `--resume` that rebuilds); [references/build-spec.md](references/build-spec.md) – the `build` spec. **Not** [references/source-model.md](references/source-model.md) in a normal build: `build-model.js` writes all M and TMDL from the spec – read it only for a load or refresh error, or to write an `M` step or op by hand |
+| 9 | [references/build-steps.md](references/build-steps.md) → "Step 9" – the two ways to run the checks, `record-checks.js`, the DAX guide |
 | Any script | [references/scripts.md](references/scripts.md) – what each script does |
 | PBIP/TMDL load errors | `../supabase-medallion-powerbi/references/tmdl-templates.md` (sections 1, 2, 4, 6–11) and `../supabase-medallion-powerbi/references/troubleshooting.md` |
 
