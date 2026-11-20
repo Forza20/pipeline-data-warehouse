@@ -560,7 +560,19 @@ for (const p of pages) {
     fs.writeFileSync(path.join(d, 'visuals', v.name, 'visual.json'), JSON.stringify(v.json, null, 2) + '\n');
   }
 }
-pagesJson.pageOrder = [...pages.map((p) => p.id), ...(pagesJson.pageOrder || []).filter((id) => !ours.has(id))];
+// the blank report's default page ("Page 1"/"Side 1", no visuals) would sit after the template pages; a page
+// with a visual or a name of the user's own is always kept
+const removedPages = [];
+for (const id of pagesJson.pageOrder || []) {
+  if (ours.has(id)) continue;
+  const d = path.join(pagesDir, id);
+  let pj = null;
+  try { pj = readJ(path.join(d, 'page.json')); } catch (_) { continue; }
+  const vdir = path.join(d, 'visuals');
+  const empty = !fs.existsSync(vdir) || !fs.readdirSync(vdir).length;
+  if (empty && /^(Page|Side) \d+$/.test(pj.displayName || '')) { fs.rmSync(d, { recursive: true, force: true }); removedPages.push(id); notes.push(`removed the empty default page "${pj.displayName}"`); }
+}
+pagesJson.pageOrder = [...pages.map((p) => p.id), ...(pagesJson.pageOrder || []).filter((id) => !ours.has(id) && !removedPages.includes(id))];
 pagesJson.activePageName = pages.find((p) => byKey[p.key].type !== 'Tooltip').id;
 fs.writeFileSync(path.join(pagesDir, 'pages.json'), JSON.stringify(pagesJson, null, 2) + '\n');
 
