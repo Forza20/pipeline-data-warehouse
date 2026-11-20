@@ -1,5 +1,27 @@
 # pipeline-data-warehouse
 
+## Start here: CSV or Excel to a Power BI report in 20 minutes
+
+`/pipeline-power-bi` turns CSV files or Excel workbooks into a cleaned Power BI project (PBIP) with a star
+schema, a dashboard, a data catalog and checks that prove the numbers match the source. No database, no
+account, no setup command.
+
+1. **Download** the ZIP from the [latest release](https://github.com/Forza20/pipeline-data-warehouse/releases/latest)
+   and unzip it (or `git clone` this repository).
+2. **Open the folder in [Claude Code](https://claude.com/claude-code)**: open it in VS Code or the Claude
+   desktop app, or type `claude` in a terminal in the folder. The skills are inside the folder
+   (`.claude/skills/`) and load by themselves: nothing to install.
+3. **Type** `/pipeline-power-bi demo --name Demo --fast` to try it on the demo data, or `/pipeline-power-bi`
+   and the path of your own CSV/Excel files or folder.
+
+You need Windows 10 or 11 and Claude Code. The skill checks the rest – Node.js, the Power BI report CLI,
+Python + openpyxl (catalog and governance) and Power BI Desktop (to open the report) – and installs only what
+you say yes to. Once, in Claude Code: `/plugin marketplace add microsoft/skills-for-fabric`, then
+`/plugin install powerbi-authoring@fabric-collection`, and restart Claude Code. Details:
+[Without Supabase](#without-supabase-pipeline-power-bi).
+
+## The full test bench
+
 A test bench for Claude Code skills that build a data warehouse. Every run:
 
 1. **generates a deliberately messy dataset** (retail, hotel or SaaS – duplicates, mixed formats, orphan keys,
@@ -54,7 +76,7 @@ BI Desktop and refresh with the `powerbi_reader` login), `pbip/docs/catalog.xlsx
 Have CSV files or Excel workbooks and want a cleaned Power BI report, without a database? Type
 `/pipeline-power-bi` and attach the files (or give their folder). In a workbook every sheet – or the Excel
 table on it – becomes a table, and you choose which sheets to include. It needs no setup command, no Supabase and no GitHub, only Windows, Node.js,
-the Power BI report CLI and, to load the data, Power BI Desktop.
+the Power BI report CLI, Python + openpyxl for the catalog and governance and, to load the data, Power BI Desktop.
 
 **Your own data, the demo or a messy dataset.** Typed without a path, the skill asks which data to use:
 
@@ -69,7 +91,7 @@ Give a path, not an upload: the chat does not accept `.xlsx` or `.pbix` files as
 Explorer, hold Shift, right-click the file, choose *Copy as path* and paste it. A project that reads from a
 database (SQL Server, SharePoint …) needs CSV or Excel exports of those tables.
 
-**Try it in about 20 minutes.** Clone the repository, start Claude Code in the folder (type `claude` in a
+**Try it in about 20 minutes.** Download the release ZIP or clone the repository, start Claude Code in the folder (type `claude` in a
 terminal there, or open the folder in VS Code or the Claude desktop app) and type
 `/pipeline-power-bi demo --name Demo --fast`. The `demo/` folder holds two small, made-up CSV files full of typical
 problems ([demo/README.md](demo/README.md) lists them). `--fast` accepts every recommended choice and asks
@@ -114,8 +136,8 @@ not a hand edit.
 To skip the approval prompt for the profiler, add
 `"PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File *Profile-Sources.ps1*)"` to `permissions.allow` in
 `.claude/settings.json` (or your own `settings.local.json`). After changing the skill's scripts, run its tests:
-`node .claude/skills/pipeline-power-bi/tests/run-tests.js` (all 103 checks, 25–30 seconds). Add `--quick` for
-83 checks in about 15 seconds while you work: it skips the drift checks and the Python checks (model health, grounded answers, catalog). Run the full
+`node .claude/skills/pipeline-power-bi/tests/run-tests.js` (all 232 checks). Add `--quick` for
+162 checks while you work: it skips the drift checks and the Python checks (model health, grounded answers, catalog). Run the full
 set before a commit. The first run after a change to the profiler takes about 15 seconds longer, because it
 compiles the profiler's C# code once.
 
