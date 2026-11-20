@@ -1023,6 +1023,14 @@ Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, b
     check('drift --save-profile: the new profile is kept', fs.existsSync(path.join(TMP, 'drift-new-profile.json')));
   }
 
+  // score-run.js: without an answer key it stops with exit 2 and names what is missing (scoring itself is
+  // covered by golden-run.js, which scores messy retail seed 7919 and snapshots scorecard.md).
+  {
+    const sr = spawnSync('node', [path.join(SKILL, 'scripts', 'score-run.js'), run, '--answers', path.join(TMP, 'no-answers')], { encoding: 'utf8' });
+    check('score-run: no answer key gives exit 2', sr.status === 2 && /expected_findings\.json/.test(sr.stderr), sr.status + sr.stderr);
+    check('score-run: no scorecard written without an answer key', !fs.existsSync(path.join(run, 'scorecard.md')));
+  }
+
   fs.rmSync(TMP, { recursive: true, force: true });
   console.log(`${pass} passed, ${fails.length} failed` + (QUICK ? ' (quick: drift and Python checks skipped – run without --quick before a commit)' : ''));
   for (const f of fails) console.log('  FAIL ' + f);

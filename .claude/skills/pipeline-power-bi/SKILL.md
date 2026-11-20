@@ -124,8 +124,9 @@ Power BI Desktop the project is written but not loaded; the user opens it on ano
    - **Messy dataset:** load the `messy-dataset` skill and generate with `-Rows 2000` (about 10 seconds)
      into `runs/<run-id>/source/`, with `-AnswersDir runs/<run-id>_answers/` – outside the run folder. Do
      **not** read the answer folder or the skill's error catalog until the user asks to score the run after
-     step 9; then compare `expected_findings.json` with the cleaning log and `expected_values.json` with
-     `expected-values.md`.
+     step 9; then run `node .claude\skills\pipeline-power-bi\scripts\score-run.js runs\<run-id>` – it
+     writes `scorecard.md` (error types found, the answer key's numbers recomputed with this run's cleaning,
+     Passed / Passed with remarks / Failed) – and explain every **?** from a logged choice or fix it.
    - **A Power BI project** (`.pbip`, its folder, or a `.pbix`): run
      `python .claude\skills\pipeline-power-bi\scripts\pbip_sources.py "<path>"`. It is read-only and lists
      the CSV/Excel files the model reads (`files[]` with `exists` and the model tables built from each) and

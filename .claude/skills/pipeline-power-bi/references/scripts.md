@@ -15,6 +15,11 @@ changing a script. Commands and flags per step are in [build-steps.md](build-ste
   table. Findings it cannot draft (F28 names, F07 spelling, F27 without a key column, F11 to plain numbers)
   are listed in `skipped` with the reason – ask them; model choices (F02, F21, F22, F26, F18, M01) in
   `model`. A starting point for step 8.3: reshape it to the step 4b design. `--write` saves it.
+- `score-run.js` – only for a run on a messy dataset, after step 9 when the user asks to score it: reads
+  the answer key (`runs/<run-id>_answers/`, `--answers` to override) into memory and writes `scorecard.md`:
+  error types 1–13 found and kept (from `cleaning-log.md`, the profile and the design review), the answer
+  key's numbers recomputed from the source files with the run's cleaning (via `source-stats.js`) with an
+  automatic explanation when a fix behind a difference was not kept, and the result. Exit 1 = Failed.
 - `build-model.js` + [build-spec.md](build-spec.md) – the model generator and its spec (choices.json →
   `build`). Step 8.
 - `pbip_sources.py` – the CSV/Excel files behind the user's own Power BI project (step 1), read-only;
