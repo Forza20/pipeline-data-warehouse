@@ -363,7 +363,12 @@ function dateFlagColumn(tableName, columnName) {
 }
 function dateTmdl(d) {
   const name = d.name || (SNAKE ? 'dim_date' : 'Date');
-  const refs = d.columns.map((r) => { const x = colRef(r); return `${mid(x.table)}[${x.column}]`; }).join(', ');
+  // A column with an F15 flag spans the calendar only with its "ok" rows: one order dated 2099 would otherwise
+  // add 70 empty years to the date table (and to every date slicer).
+  const refs = d.columns.map((r) => {
+    const x = colRef(r); const flag = dateFlagColumn(x.table, x.column);
+    return flag ? `Table.SelectRows(${mid(x.table)}, each [${flag}] = "ok")[${x.column}]` : `${mid(x.table)}[${x.column}]`;
+  }).join(', ');
   const DD = { Date: 'One row per day; filters every fact table by date.', Year: 'Calendar year.', Quarter: 'Calendar quarter (Q1-Q4).',
     'Month no': 'Month number 1-12; sorts Month - technical field.', Month: 'Month name, sorted by month number.',
     'Month start': 'First day of the month; use it for monthly trends across years.',

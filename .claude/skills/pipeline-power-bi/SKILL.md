@@ -48,6 +48,9 @@ Arguments: file paths or a folder – CSV, Excel, a `.pbip` project or a `.pbix`
    in English, whatever language the user writes in. The AdventureWorks template is always "Generic
    layout" (its colours "Generic colors") in that text – the word "AdventureWorks" appears only in keys
    and file names (`adventureworks`), never in what the user reads.
+8. **No one-off scripts on `choices.json`.** The spec is drafted (`draft-spec.js`), reshaped with one JSON
+   design patch (`apply-design.js`) and given the template's measures (`template-measures.js`). A need
+   these scripts do not cover is a change to them (self-improvement), not a `patch-*.js` in the run folder.
 
 ## Fast mode (`--fast`)
 

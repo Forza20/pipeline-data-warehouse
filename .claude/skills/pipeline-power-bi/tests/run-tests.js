@@ -1094,6 +1094,9 @@ Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, b
     check('build-model: complete months skip F15-flagged dates (Table.SelectRows on the flag = "ok")',
       bm.status === 0 && fcol && dateTmdl.includes(`DataEnd = List.Max(List.RemoveNulls(Table.SelectRows(${fact.name}, each [${fcol}] = "ok")[${dcol}]))`),
       `${bm.stdout.slice(0, 300)} ${(dateTmdl.match(/DataEnd = .*/) || [''])[0]}`);
+    // the calendar spans only the "ok" dates too: order 1010 (2030) must not stretch it to 2030
+    check('build-model: the date table spans F15 "ok" dates only',
+      dateTmdl.includes(`Dates = List.RemoveNulls(List.Combine({Table.SelectRows(${fact.name}, each [${fcol}] = "ok")[${dcol}]}))`), (dateTmdl.match(/Dates = .*/) || [''])[0]);
     // without the flag column in the loaded table, the plain column is used (no reference to a missing column)
     fact.columns = fact.columns.filter((c) => c.name !== fcol);
     fs.writeFileSync(path.join(dm, 'choices.json'), JSON.stringify(ch, null, 2));
@@ -1111,6 +1114,68 @@ Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, b
     check('build-model: a text id typed "key" stops the build with the reason; a numeric id typed "key" does not',
       bk.status === 2 && (bkOut.errors || []).some((e) => /KundeID holds text ids such as "K-\d+"/.test(e)) && !(bkOut.errors || []).some((e) => /Ordrenr/.test(e)),
       JSON.stringify(bkOut.errors));
+
+    // apply-design.js: the design as a JSON patch instead of a one-off script. A fresh draft first.
+    spawnSync('node', [path.join(SKILL, 'scripts', 'draft-spec.js'), dm, '--write', '--name', 'Demo'], { encoding: 'utf8' });
+    const ad = (patch) => { const pf = path.join(dm, 'patch.json'); fs.writeFileSync(pf, JSON.stringify(patch)); const r = spawnSync('node', [path.join(SKILL, 'scripts', 'apply-design.js'), dm, pf], { encoding: 'utf8' }); let j = {}; try { j = JSON.parse(r.stdout); } catch { /* */ } return { status: r.status, j, out: r.stdout + r.stderr }; };
+    const draftTables = JSON.parse(fs.readFileSync(path.join(dm, 'choices.json'), 'utf8')).build.tables;
+    const factName = draftTables.find((t) => t.kind === 'fact').name; const dimName = draftTables.find((t) => t.kind === 'dimension').name;
+    const before = fs.readFileSync(path.join(dm, 'choices.json'), 'utf8');
+    const bad = ad({ tables: { [factName]: { columns: [{ name: 'Order ID', from: 'NoSuchColumn' }] } }, relationships: [{ from: 'Sales[X]', to: 'Customer[Y]' }] });
+    check('apply-design: an unknown query column and a broken relationship give exit 2 and change nothing',
+      bad.status === 2 && bad.j.errors.some((e) => /NoSuchColumn/.test(e)) && bad.j.errors.some((e) => /no table "Sales"/.test(e)) && fs.readFileSync(path.join(dm, 'choices.json'), 'utf8') === before, bad.out.slice(0, 400));
+    const dropUsed = ad({ dropStaging: [draftTables.find((t) => t.kind === 'fact').from] });
+    check('apply-design: refuses to drop a staging query a table still uses', dropUsed.status === 2 && /still used by/.test(dropUsed.j.errors.join(' ')), dropUsed.out.slice(0, 300));
+    const good = ad({
+      build: { naming: 'snake_case' },
+      tables: {
+        [factName]: { rename: 'Sales', columns: [{ name: 'order_id', from: 'Ordrenr' }, { name: 'order_date', from: 'Dato' }, { name: 'customer_id', from: 'KundeID' },
+          { name: 'amount', from: 'Beløb', type: 'currency' }, { name: 'order_date_status', from: 'Dato status' }] },
+        [dimName]: { rename: 'Customer', columns: [{ name: 'customer_id', from: 'KundeID' }, { name: 'customer_name', from: 'Navn' }, { name: 'is_inferred', from: 'IsInferred' }] },
+      },
+      date: { name: 'dim_date', columns: ['Sales[order_date]'], completeMonth: 'Sales[order_date]' },
+      relationships: [{ from: 'Sales[customer_id]', to: 'Customer[customer_id]' }, { from: 'Sales[order_date]', to: 'dim_date[date]' }],
+      measures: [{ name: 'revenue', expr: 'SUM ( Sales[amount] )', format: '#,0' }, { name: 'orders', expr: 'DISTINCTCOUNT ( Sales[order_id] )', format: '#,0' },
+        { name: 'customers', expr: 'DISTINCTCOUNT ( Sales[customer_id] )', format: '#,0' }, { name: 'revenue_previous_month', previousMonth: '[revenue]' }],
+      choices: { glossary: [{ term: 'Revenue', definition: 'Sum of amounts.' }], extras: { layout_pages: ['exec'] } },
+    });
+    const ch2 = JSON.parse(fs.readFileSync(path.join(dm, 'choices.json'), 'utf8'));
+    const sales = ch2.build.tables.find((t) => t.name === 'Sales') || { columns: [] };
+    const draftOrderId = draftTables.find((t) => t.name === factName).columns.find((c) => (c.from || c.name) === 'Ordrenr');
+    const pm = ch2.build.measures.find((m) => m.name === 'revenue_previous_month') || {};
+    check('apply-design: renames, keeps the drafted type when the patch gives none, writes previousMonth DAX with a filter contract',
+      good.status === 0 && sales.columns.find((c) => c.name === 'order_id').type === draftOrderId.type && sales.columns.find((c) => c.name === 'amount').type === 'currency'
+      && /REMOVEFILTERS \( dim_date \), dim_date\[month_start\] = EDATE \( m, -1 \)/.test(pm.expr || '') && pm.filters && pm.filters.additive === true && pm.format === '#,0'
+      && ch2.glossary.length === 1 && ch2.extras && ch2.extras.layout_pages[0] === 'exec', good.out.slice(0, 500));
+    const sn = spawnSync('node', [path.join(SKILL, 'scripts', 'snake-names.js'), dm, '--apply'], { encoding: 'utf8' });
+    const bd = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), dm], { encoding: 'utf8' });
+    check('apply-design: the patched spec builds (after snake-names)', sn.status === 0 && bd.status === 0, (sn.stdout + bd.stdout).slice(0, 500));
+
+    // template-measures.js: AdventureWorks template measures from the mapped base measures; customers stands
+    // in for Total Profit, so no profit target and adjusted revenue instead of adjusted profit
+    const lc = path.join(dm, 'layout-config.json');
+    fs.writeFileSync(lc, JSON.stringify({ template: 'adventureworks', pages: ['exec', 'product', 'customer'], fields: {
+      'Measure Table[Total Revenue]': '_measures[revenue]', 'Measure Table[Total Orders]': '_measures[orders]', 'Measure Table[Total Customers]': '_measures[customers]',
+      'Measure Table[Total Profit]': '_measures[customers]', 'Measure Table[Previous Month Revenue]': null, 'Measure Table[Previous Month Orders]': null,
+      'Measure Table[Revenue Target]': null, 'Measure Table[Revenue Target Gap]': null, 'Measure Table[Profit Target]': null, 'Measure Table[Adjusted Profit]': null,
+      'Price Adjustment (%)[Price Adjustment (%)]': null, 'Measure Table[Average Revenue per Customer]': null,
+      'Customer Metric Selection[Customer Metric Selection]': null, 'Customer Metric Selection[Customer Metric Selection Fields]': null } }));
+    const tm = spawnSync('node', [path.join(SKILL, 'scripts', 'template-measures.js'), dm], { encoding: 'utf8' });
+    const tmo = (() => { try { return JSON.parse(tm.stdout); } catch { return {}; } })();
+    const lcj = JSON.parse(fs.readFileSync(lc, 'utf8')).fields;
+    const ch3 = JSON.parse(fs.readFileSync(path.join(dm, 'choices.json'), 'utf8'));
+    check('template-measures: keeps the spec\'s revenue_previous_month, makes orders_previous_month, targets, adjusted revenue, revenue per customer',
+      tm.status === 0 && tmo.realProfit === false && lcj['Measure Table[Previous Month Revenue]'] === '_measures[revenue_previous_month]'
+      && (tmo.made || []).includes('orders_previous_month') && (tmo.made || []).includes('sales_target') && (tmo.made || []).includes('adjusted_revenue')
+      && lcj['Measure Table[Profit Target]'] === null && lcj['Measure Table[Adjusted Profit]'] === '_measures[adjusted_revenue]'
+      && lcj['Price Adjustment (%)[Price Adjustment (%)]'] === 'price_adjustment_pct[price_adjustment_pct]'
+      && (ch3.build.parameters || []).some((p) => p.kind === 'fields' && p.name === 'customer_metric_selection'), tm.stdout.slice(0, 600) + tm.stderr.slice(0, 200));
+    const decs = (() => { try { return JSON.parse(fs.readFileSync(path.join(dm, 'layout-decisions.json'), 'utf8')).map((d) => d.id); } catch { return []; } })();
+    check('template-measures: asks the growth, adjusted-profit and profit-tile decisions', ['template-growth', 'adjusted-profit', 'profit-tile'].every((d) => decs.includes(d)), JSON.stringify(decs));
+    const c1 = fs.readFileSync(path.join(dm, 'choices.json'), 'utf8');
+    spawnSync('node', [path.join(SKILL, 'scripts', 'template-measures.js'), dm], { encoding: 'utf8' });
+    const bt = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), dm], { encoding: 'utf8' });
+    check('template-measures: a second run changes nothing, and the model builds', fs.readFileSync(path.join(dm, 'choices.json'), 'utf8') === c1 && bt.status === 0, bt.stdout.slice(0, 400));
   }
 
   // F15 without F08: dates in one format stay text until F17, so the flag must parse them (fnParseDate) –
