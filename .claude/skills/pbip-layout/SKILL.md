@@ -145,7 +145,8 @@ Work with the user in their language (English by default).
    trend), `PBIR_VISUAL_TYPE_DEPRECATED` (`map`, `qnaVisual`), `PBIR_DRILLTHROUGH_BACK_BUTTON_MISSING`,
    `PBIR_JSON_FILE_NO_SCHEMA` on `.pbip`/`definition.pbir`, `PBIR_SCHEMA_UNREACHABLE` offline – do not
    "fix" them. Fix every finding in `new`. A rerun replaces the pages of the earlier run (same ids) and
-   leaves the report's own pages alone.
+   leaves the report's own pages alone – except the blank report's empty default page (`Page 1`/`Side 1`,
+   no visuals), which the generator removes and names in `notes`.
 
 10. **Show it in Desktop and take a screenshot** following powerbi-report-cli's preview rules (`--status` →
     open/reload → `--screenshot`), one per page. With `hasUnsavedChanges: true`: ask the user to save
@@ -164,7 +165,7 @@ Work with the user in their language (English by default).
 - Pages are 1280 × 720 and keep the template's layout, formats and display units (K, M).
 - The user chooses the pages, every time. Never build a page the user did not choose.
 - Never change the report's own pages. What the generator changes besides its pages: `pages.json` (its
-  pages first), bookmarks of its pages, its icons and a logo, the base theme (→ the template's) and the
+  pages first; an empty default page `Page 1`/`Side 1` removed), bookmarks of its pages, its icons and a logo, the base theme (→ the template's) and the
   colour theme `pbip-layout-theme.json` (colours only).
 - Never publish to Fabric without an explicit instruction.
 

@@ -71,6 +71,29 @@ const tplColours = new Set(Object.values(TPL.colors).map((c) => c.toUpperCase())
 check('Standard: the pages use exactly the template colours', [...stdColours].every((c) => tplColours.has(c)), [...stdColours].filter((c) => !tplColours.has(c)).join(','));
 const pj = JSON.parse(fs.readFileSync(path.join(std.dir, 'definition', 'pages', 'pages.json'), 'utf8'));
 check('Standard: template pages first, the own page kept last', pj.pageOrder.length === 9 && pj.pageOrder[8] === 'own0000000000000001');
+// the blank report's empty default page goes; a default-named page with a visual and the user's own empty page stay
+{
+  const dir = path.join(TMP, 'defaultpage', 'Test.Report');
+  makeReport(dir);
+  const pd = path.join(dir, 'definition', 'pages');
+  const addPage = (id, name, withVisual) => {
+    fs.mkdirSync(path.join(pd, id, 'visuals'), { recursive: true });
+    fs.writeFileSync(path.join(pd, id, 'page.json'), JSON.stringify({ name: id, displayName: name, width: 1280, height: 720 }));
+    if (withVisual) { fs.mkdirSync(path.join(pd, id, 'visuals', 'v1')); fs.writeFileSync(path.join(pd, id, 'visuals', 'v1', 'visual.json'), '{}'); }
+  };
+  addPage('blank00000000000001', 'Page 1', false);
+  addPage('blank00000000000002', 'Side 2', true);
+  fs.writeFileSync(path.join(pd, 'pages.json'), JSON.stringify({ pageOrder: ['blank00000000000001', 'own0000000000000001', 'blank00000000000002'], activePageName: 'blank00000000000001' }));
+  const cfgFile = path.join(TMP, 'defaultpage', 'config.json');
+  fs.writeFileSync(cfgFile, JSON.stringify({ template: 'adventureworks', pages: ['exec'], fields: identity, title: 'Sales overview' }));
+  const r = spawnSync('node', [GEN, dir, cfgFile], { encoding: 'utf8' });
+  let o = {}; try { o = JSON.parse(r.stdout); } catch { /* reported below */ }
+  const order = JSON.parse(fs.readFileSync(path.join(pd, 'pages.json'), 'utf8')).pageOrder;
+  check('empty default page "Page 1" removed; own empty page and a default-named page with a visual kept',
+    r.status === 0 && !fs.existsSync(path.join(pd, 'blank00000000000001')) && !order.includes('blank00000000000001') &&
+    order.slice(-2).join() === 'own0000000000000001,blank00000000000002' && (o.notes || []).some((n) => /empty default page "Page 1"/.test(n)),
+    r.stderr + JSON.stringify(order) + JSON.stringify(o.notes));
+}
 const rj = JSON.parse(fs.readFileSync(path.join(std.dir, 'definition', 'report.json'), 'utf8'));
 const units = Object.values(stdText).flatMap((t) => [...t.matchAll(/"\w*[dD]isplayUnits": \{\s*"expr": \{\s*"Literal": \{\s*"Value": "([^"]+)"/g)].map((m) => m[1]));
 check('Standard: display units are None (1D) everywhere – never "tusind", K or mio.', units.length > 20 && units.every((u) => u === '1D'), units.filter((u) => u !== '1D').join(','));
