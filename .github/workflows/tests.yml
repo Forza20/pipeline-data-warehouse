@@ -1,0 +1,42 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # The profiler and the dataset generator need Windows PowerShell 5.1.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install openpyxl
+        run: python -m pip install --disable-pip-version-check openpyxl
+
+      - name: pipeline-power-bi unit tests
+        run: node .claude/skills/pipeline-power-bi/tests/run-tests.js
+
+      - name: pbip-catalog unit tests
+        run: python -m unittest discover -s .claude/skills/pbip-catalog/tests
+
+      - name: Golden run (demo + messy retail seed 42)
+        run: node .claude/skills/pipeline-power-bi/tests/golden-run.js

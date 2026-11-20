@@ -1,0 +1,146 @@
+/// Folder that holds the source files. Ends with a backslash. Change it in Transform data > Manage parameters if the files move.
+expression SourceFolder = "<SRC>\" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: <guid>
+	queryGroup: Parameters
+
+	annotation PBI_ResultType = Text
+
+/// Rewrites C0001, CUST0001, 0001 and CUST-0001 to one format: prefix & separator & the number padded to digits.
+expression fnNormaliseId =
+		(value as any, prefix as text, separator as text, digits as number) as nullable text =>
+		let
+			t = if value = null then "" else Text.Trim(Text.From(value)),
+			num = Text.Select(t, {"0".."9"})
+		in
+			if t = "" then null
+			else if num = "" then t
+			else prefix & separator & Text.PadStart(Text.From(Number.From(num)), digits, "0")
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Reads yyyy-MM-dd, yyyyMMdd, dd.MM.yyyy, d/M/yyyy, d-M-yyyy, MMM d yyyy and d MMM yyyy (English and Danish month names). dayFirst decides 03/04/2025 when both parts are 12 or lower.
+expression fnParseDate =
+		(value as any, optional dayFirst as nullable logical) as nullable date =>
+		let
+			typed =
+				if value is date then value
+				else if value is datetime then DateTime.Date(value)
+				else if value is datetimezone then DateTime.Date(DateTimeZone.RemoveZone(value))
+				else null,
+			t = if value = null or typed <> null then "" else if value is number then Text.From(Number.RoundDown(value)) else Text.Trim(Text.From(value)),
+			serial = if value is number and not (value >= 19000101 and value < 21000101) then Date.From(value) else null,
+			useDayFirst = if dayFirst = null then true else dayFirst,
+			isNum = (x as text) as logical => x <> "" and Text.Select(x, {"0".."9"}) = x,
+			months = [jan = 1, feb = 2, mar = 3, apr = 4, may = 5, maj = 5, jun = 6, jul = 7, aug = 8, sep = 9, oct = 10, okt = 10, nov = 11, dec = 12],
+			monthOf = (x as text) as nullable number => Record.FieldOrDefault(months, Text.Lower(Text.Start(x, 3)), null),
+			parts = List.Select(Text.SplitAny(t, "-./ ,"), each _ <> ""),
+			num = (x as text) as number => Number.From(Text.Select(Text.Start(x, 2), {"0".."9"})),
+			result =
+				if typed <> null then typed
+				else if serial <> null then serial
+				else if t = "" then null
+				else if isNum(t) and Text.Length(t) = 8 then #date(Number.From(Text.Start(t, 4)), Number.From(Text.Middle(t, 4, 2)), Number.From(Text.End(t, 2)))
+				else if List.Count(parts) < 3 then null
+				else if isNum(parts{0}) and Text.Length(parts{0}) = 4 then #date(Number.From(parts{0}), Number.From(parts{1}), num(parts{2}))
+				else if not isNum(parts{0}) then #date(Number.From(parts{2}), monthOf(parts{0}), Number.From(parts{1}))
+				else if not isNum(parts{1}) then #date(Number.From(parts{2}), monthOf(parts{1}), Number.From(parts{0}))
+				else
+					let
+						a = Number.From(parts{0}), b = Number.From(parts{1}), y = Number.From(Text.Start(parts{2}, 4)),
+						dayFirstHere = if a > 12 then true else if b > 12 then false else useDayFirst
+					in
+						if dayFirstHere then #date(y, b, a) else #date(y, a, b)
+		in
+			try result otherwise null
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Reads 1234.50, 1,234.50, 1.234,50, 1 234,50, 12,5, (50.00), $ 12, 12 USD and 12 kr. The last separator is the decimal separator when both occur; a single comma followed by exactly 3 digits is a thousands separator.
+expression fnParseNumber =
+		(value as any) as nullable number =>
+		let
+			raw = if value = null or value is number then "" else Text.Trim(Text.From(value)),
+			negativeParens = Text.StartsWith(raw, "(") and Text.EndsWith(raw, ")"),
+			cleaned = Text.Select(raw, {"0".."9", "-", ".", ","}),
+			lastDot = Text.PositionOf(cleaned, ".", Occurrence.Last),
+			lastComma = Text.PositionOf(cleaned, ",", Occurrence.Last),
+			dots = List.Count(Text.PositionOf(cleaned, ".", Occurrence.All)),
+			commas = List.Count(Text.PositionOf(cleaned, ",", Occurrence.All)),
+			decimalSep =
+				if dots > 0 and commas > 0 then (if lastDot > lastComma then "." else ",")
+				else if commas = 1 and Text.Length(cleaned) - lastComma - 1 <> 3 then ","
+				else if dots = 1 then "."
+				else null,
+			thousandSep = if decimalSep = "." then "," else if decimalSep = "," then "." else if commas > 0 then "," else ".",
+			noThousands = Text.Remove(cleaned, {thousandSep}),
+			normal = if decimalSep = null then noThousands else Text.Replace(noThousands, decimalSep, "."),
+			number = if normal = "" or normal = "-" then null else Number.FromText(normal, "en-US"),
+			result = if value is number then value else if number = null then null else if negativeParens then -number else number
+		in
+			try result otherwise null
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// true for true/yes/y/t/1/ja/j/sand/x, false for false/no/n/f/0/nej/falsk (any case); null otherwise.
+expression fnParseBool =
+		(value as any) as nullable logical =>
+		let
+			t = if value = null or value is logical then "" else Text.Lower(Text.Trim(Text.From(value)))
+		in
+			if value is logical then value
+			else if t = "" then null
+			else if List.Contains({"true", "yes", "y", "t", "1", "ja", "j", "sand", "x"}, t) then true
+			else if List.Contains({"false", "no", "n", "f", "0", "nej", "falsk"}, t) then false
+			else null
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_orders =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "orders.csv"), [Delimiter = ";", Columns = 8, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Skip 2 title lines" = Table.Skip(Source, 2),
+			#"F01 Promote headers" = Table.PromoteHeaders(#"F01 Skip 2 title lines", [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"Ordrenr", "Dato", "KundeID", "Region", "Beløb", "Betalt", "Kanal", "Note"}),
+			#"F03 Remove empty rows" = Table.SelectRows(#"F01 Keep data columns", each List.NonNullCount(List.ReplaceValue(Record.FieldValues(_), "", null, Replacer.ReplaceValue)) > 0),
+			#"F04 Remove total rows" = Table.SelectRows(#"F03 Remove empty rows", each let first = Text.Lower(Text.Trim(Text.From(List.First(List.Select(Record.FieldValues(_), each _ <> null and _ <> ""), "")))) in not List.AnyTrue(List.Transform({"total", "grand total", "subtotal", "sum", "i alt", "samlet", "totalt"}, each Text.StartsWith(first, _)))),
+			#"F19 Remove empty column Note" = Table.RemoveColumns(#"F04 Remove total rows", {"Note"}),
+			#"F05 Trim KundeID" = Table.TransformColumns(#"F19 Remove empty column Note", {{"KundeID", each if _ is text then Text.Trim(Text.Clean(_)) else _}}),
+			#"F11 Normalise KundeID" = Table.TransformColumns(#"F05 Trim KundeID", {{"KundeID", each fnNormaliseId(_, "K", "-", 3), type text}}),
+			#"F08 Parse Dato" = Table.TransformColumns(#"F11 Normalise KundeID", {{"Dato", each fnParseDate(_, true), type nullable date}}),
+			#"F09 Parse Beløb" = Table.TransformColumns(#"F08 Parse Dato", {{"Beløb", each fnParseNumber(_), type nullable number}}),
+			#"F10 Parse Betalt" = Table.TransformColumns(#"F09 Parse Beløb", {{"Betalt", each fnParseBool(_), type nullable logical}}),
+			#"F12 Remove exact duplicates" = Table.Distinct(#"F10 Parse Betalt"),
+			#"F15 Flag Dato" = Table.AddColumn(#"F12 Remove exact duplicates", "Dato status", each if [Dato] = null then "missing or invalid" else if [Dato] > #date(2026, 11, 19) then "future" else if Date.Year([Dato]) < 1900 then "too old" else "ok", type text),
+			#"F14 Flag Beløb" = Table.AddColumn(#"F15 Flag Dato", "Beløb issue", each if [Beløb] = null then "missing" else if [Beløb] < 0 then "negative" else "ok", type text),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F14 Flag Beløb", List.Transform({"Ordrenr", "Dato", "KundeID", "Region", "Beløb", "Betalt", "Kanal"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"Ordrenr", type text}, {"Dato", type date}, {"KundeID", type text}, {"Region", type text}, {"Beløb", type number}, {"Betalt", type logical}, {"Kanal", Int64.Type}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_customers =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "customers.csv"), [Delimiter = ",", Columns = 3, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"KundeID", "Navn", "Segment"}),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F01 Keep data columns", List.Transform({"KundeID", "Navn", "Segment"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"KundeID", type text}, {"Navn", type text}, {"Segment", type text}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table

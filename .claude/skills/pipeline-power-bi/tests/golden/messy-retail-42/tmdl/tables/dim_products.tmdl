@@ -1,0 +1,49 @@
+/// Drafted from dim_products.csv.
+table dim_products
+	lineageTag: <guid>
+
+	column product_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_name
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: product_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column category
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: category
+
+		annotation SummarizationSetBy = Automatic
+
+	column list_price
+		dataType: double
+		formatString: #,0.00
+		lineageTag: <guid>
+		summarizeBy: sum
+		sourceColumn: list_price
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_products = m
+		mode: import
+		queryGroup: 02_Dimensions
+		source =
+				let
+					Source = stg_dim_products,
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(Source, {"product_id", "product_name", "category", "list_price"}), {}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"product_id", type text}, {"product_name", type text}, {"category", type text}, {"list_price", type number}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

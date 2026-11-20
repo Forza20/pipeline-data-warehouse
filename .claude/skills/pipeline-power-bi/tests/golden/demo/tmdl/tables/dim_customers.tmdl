@@ -1,0 +1,54 @@
+/// Drafted from customers.csv.
+table dim_customers
+	lineageTag: <guid>
+
+	column kunde_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: kunde_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column navn
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: navn
+
+		annotation SummarizationSetBy = Automatic
+
+	column segment
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: segment
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_inferred
+		dataType: boolean
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: is_inferred
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_customers = m
+		mode: import
+		queryGroup: 02_Dimensions
+		source =
+				let
+					Source = stg_customers,
+					#"F18 Missing KundeID values" = let
+						Known = List.Transform(Table.Column(Source, "KundeID"), each Text.Lower(Text.From(_))),
+						Used = List.Distinct(List.RemoveNulls(List.Combine({Table.Column(stg_orders, "KundeID")})))
+					in
+						List.Distinct(List.Select(Used, each not List.Contains(Known, Text.Lower(Text.From(_)))), Comparer.OrdinalIgnoreCase),
+					#"F18 Add missing KundeID values" = Table.Combine({if Table.HasColumns(Source, "IsInferred") then Source else Table.AddColumn(Source, "IsInferred", each false, type logical), Table.FromRecords(List.Transform(#"F18 Missing KundeID values", each [KundeID = _, IsInferred = true]))}),
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(#"F18 Add missing KundeID values", {"KundeID", "Navn", "Segment", "IsInferred"}), {{"KundeID", "kunde_id"}, {"Navn", "navn"}, {"Segment", "segment"}, {"IsInferred", "is_inferred"}}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"kunde_id", type text}, {"navn", type text}, {"segment", type text}, {"is_inferred", type logical}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,39 @@
+relationship <guid>
+	fromColumn: fact_orders.customer_id
+	toColumn: dim_customers.customer_id
+
+relationship <guid>
+	fromColumn: bridge_customer_sales_reps.customer_id
+	toColumn: dim_customers.customer_id
+
+relationship <guid>
+	fromColumn: fact_orders.product_id
+	toColumn: dim_products.product_id
+
+relationship <guid>
+	fromColumn: fact_wide_monthly_targets.location_id
+	toColumn: dim_locations.location_id
+
+relationship <guid>
+	fromColumn: fact_hist_product_prices.product_id
+	toColumn: dim_products.product_id
+
+relationship <guid>
+	fromColumn: fact_erp_customers.customer_id
+	toColumn: dim_customers.customer_id
+
+relationship <guid>
+	fromColumn: fact_orders.location_id
+	toColumn: dim_locations.location_id
+
+relationship <guid>
+	fromColumn: fact_orders.order_date
+	toColumn: dim_date.date
+
+relationship <guid>
+	fromColumn: fact_hist_product_prices.valid_from
+	toColumn: dim_date.date
+
+relationship <guid>
+	fromColumn: fact_wide_monthly_targets.period_start
+	toColumn: dim_date.date

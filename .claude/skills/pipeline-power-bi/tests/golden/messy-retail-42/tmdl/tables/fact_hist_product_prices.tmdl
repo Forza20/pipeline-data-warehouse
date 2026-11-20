@@ -1,0 +1,55 @@
+/// Drafted from hist_product_prices.csv.
+table fact_hist_product_prices
+	lineageTag: <guid>
+
+	column product_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column price
+		dataType: double
+		formatString: #,0.00
+		lineageTag: <guid>
+		summarizeBy: sum
+		sourceColumn: price
+
+		annotation SummarizationSetBy = Automatic
+
+	column valid_from
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: valid_from
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column valid_to
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: valid_to
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition fact_hist_product_prices = m
+		mode: import
+		queryGroup: 03_Facts
+		source =
+				let
+					Source = stg_hist_product_prices,
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(Source, {"product_id", "price", "valid_from", "valid_to"}), {}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"product_id", type text}, {"price", type number}, {"valid_from", type date}, {"valid_to", type date}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

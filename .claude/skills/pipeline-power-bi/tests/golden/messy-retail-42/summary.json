@@ -1,0 +1,218 @@
+{
+ "tables": [
+  {
+   "name": "bridge_customer_sales_reps",
+   "kind": "csv",
+   "dataRows": 133,
+   "columns": 3,
+   "findings": [
+    "F11 customer_id rows=104 rec=true CUST-9999",
+    "F02 - rows=3 rec=true",
+    "F17 - rows=3 rec=true"
+   ]
+  },
+  {
+   "name": "dim_customers",
+   "kind": "csv",
+   "dataRows": 133,
+   "columns": 5,
+   "findings": [
+    "F02 - rows=5 rec=true",
+    "F17 - rows=5 rec=true"
+   ]
+  },
+  {
+   "name": "dim_locations",
+   "kind": "csv",
+   "dataRows": 12,
+   "columns": 4,
+   "findings": [
+    "F02 - rows=4 rec=true",
+    "F17 - rows=4 rec=true"
+   ]
+  },
+  {
+   "name": "dim_products",
+   "kind": "csv",
+   "dataRows": 60,
+   "columns": 4,
+   "findings": [
+    "F02 - rows=4 rec=true",
+    "F17 - rows=4 rec=true"
+   ]
+  },
+  {
+   "name": "erp_customers",
+   "kind": "csv",
+   "dataRows": 133,
+   "columns": 3,
+   "findings": [
+    "F02 - rows=3 rec=true",
+    "F17 - rows=3 rec=true",
+    "F11 customer_id rows=133 rec=true CUST-9999"
+   ]
+  },
+  {
+   "name": "fact_orders",
+   "kind": "csv",
+   "dataRows": 2000,
+   "columns": 10,
+   "findings": [
+    "F08 order_date rows=1467 rec=true day-first",
+    "F11 customer_id rows=1488 rec=true CUST-9999",
+    "F11 product_id rows=1494 rec=true PROD-9999",
+    "F09 amount rows=1153 rec=true",
+    "F14 amount rows=8 rec=true flag",
+    "F14 amount rows=268 rec=false flag",
+    "F14 amount rows=3 rec=true flag",
+    "F10 is_paid rows=2000 rec=true",
+    "F02 - rows=10 rec=true",
+    "F17 - rows=10 rec=true",
+    "F18 customer_id rows=34 rec=true add-members",
+    "M01 order_date rows=0 rec=true"
+   ]
+  },
+  {
+   "name": "hist_product_prices",
+   "kind": "csv",
+   "dataRows": 98,
+   "columns": 4,
+   "findings": [
+    "F02 - rows=4 rec=true",
+    "F17 - rows=4 rec=true"
+   ]
+  },
+  {
+   "name": "wide_monthly_targets",
+   "kind": "csv",
+   "dataRows": 36,
+   "columns": 14,
+   "findings": [
+    "F02 - rows=14 rec=true",
+    "F16 jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec rows=397 rec=true",
+    "F17 - rows=14 rec=true"
+   ]
+  }
+ ],
+ "relations": [
+  "fact_orders[customer_id] -> bridge_customer_sales_reps[customer_id] many-to-one by name preferred=false matched=133 orphanRows=34",
+  "fact_orders[customer_id] -> dim_customers[customer_id] many-to-one by name preferred=true matched=133 orphanRows=34",
+  "fact_orders[customer_id] -> erp_customers[customer_id] many-to-one by name preferred=false matched=133 orphanRows=34",
+  "bridge_customer_sales_reps[customer_id] -> dim_customers[customer_id] one-to-one by name preferred=true matched=133 orphanRows=0",
+  "fact_orders[product_id] -> dim_products[product_id] many-to-one by name preferred=true matched=60 orphanRows=0",
+  "wide_monthly_targets[location_id] -> dim_locations[location_id] many-to-one by name preferred=true matched=12 orphanRows=0",
+  "hist_product_prices[product_id] -> dim_products[product_id] many-to-one by name preferred=true matched=60 orphanRows=0",
+  "erp_customers[customer_id] -> dim_customers[customer_id] one-to-one by name preferred=true matched=133 orphanRows=0",
+  "fact_orders[location_id] -> dim_locations[location_id] many-to-one by name preferred=true matched=12 orphanRows=0"
+ ],
+ "draft": {
+  "staging": 8,
+  "tables": 8,
+  "relationships": 10,
+  "steps": 18,
+  "model": [
+   "bridge_customer_sales_reps F02 -",
+   "dim_customers F02 -",
+   "dim_locations F02 -",
+   "dim_products F02 -",
+   "erp_customers F02 -",
+   "fact_orders F02 -",
+   "hist_product_prices F02 -",
+   "wide_monthly_targets F02 -",
+   "fact_orders F18 customer_id",
+   "fact_orders M01 order_date"
+  ],
+  "skipped": []
+ },
+ "expected": [
+  {
+   "name": "bridge_customer_sales_reps rows",
+   "value": 133,
+   "approx": false
+  },
+  {
+   "name": "dim_customers rows",
+   "value": 155,
+   "approx": false
+  },
+  {
+   "name": "dim_locations rows",
+   "value": 12,
+   "approx": false
+  },
+  {
+   "name": "dim_products rows",
+   "value": 60,
+   "approx": false
+  },
+  {
+   "name": "dim_products sum of list_price",
+   "value": 15835.26,
+   "approx": false
+  },
+  {
+   "name": "fact_erp_customers rows",
+   "value": 133,
+   "approx": false
+  },
+  {
+   "name": "fact_orders rows",
+   "value": 2000,
+   "approx": false
+  },
+  {
+   "name": "fact_orders sum of quantity",
+   "value": 7099,
+   "approx": false
+  },
+  {
+   "name": "fact_orders sum of unit_price",
+   "value": 518999.39,
+   "approx": false
+  },
+  {
+   "name": "fact_orders sum of amount",
+   "value": 1640687.12,
+   "approx": false
+  },
+  {
+   "name": "fact_hist_product_prices rows",
+   "value": 98,
+   "approx": false
+  },
+  {
+   "name": "fact_hist_product_prices sum of price",
+   "value": 25772.88,
+   "approx": false
+  },
+  {
+   "name": "fact_wide_monthly_targets rows",
+   "value": 432,
+   "approx": false
+  },
+  {
+   "name": "fact_wide_monthly_targets sum of year",
+   "value": 874800,
+   "approx": false
+  },
+  {
+   "name": "fact_wide_monthly_targets sum of value",
+   "value": 1646500,
+   "approx": false
+  }
+ ],
+ "rebuildSteps": [
+  "snake-names ok",
+  "build-model ok",
+  "descriptions ok",
+  "build-docs ok",
+  "build-context ok",
+  "parse-model ok",
+  "model-health ok",
+  "grounded-answers ok (skipped)",
+  "check-results ok (skipped)",
+  "dax-guide ok",
+  "handover ok (skipped)",
+  "overview ok"
+ ]
+}
