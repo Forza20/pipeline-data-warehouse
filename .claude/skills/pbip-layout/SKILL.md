@@ -122,7 +122,11 @@ Work with the user in their language (English by default).
 8. **config.json** (scratchpad) like [config.example.json](config.example.json) (Business:
    [config.example-business.json](config.example-business.json) – also `contract`, `values`, `currencyFormat`): `template`, `pages`,
    `fields` (`Table[Field]` or `null`), `labels`, `texts`, `reverseScales` (template fields whose colour
-   scales run the other way), `title`/`subtitle` or `logo`, `colors`, `theme`.
+   scales run the other way), `title`/`subtitle` or `logo`, `colors`, `theme`,
+   `completeMonth` (`Table[Column]`, a true/false column in the date table that is true for complete
+   months, e.g. `dim_date[is_complete_month]`; `suggest-fields.js` suggests it). The month cards (KPI) are
+   filtered to complete months, otherwise they end in an empty or partial month and show "(Blank)" / -100 %.
+   Column missing: suggest adding it to the date table (recommended) or accept the warning.
    Save a copy as `<project folder>/docs/layout-config.json` (create `docs/`), so pbip-catalog can tag the
    fields with their page.
 
