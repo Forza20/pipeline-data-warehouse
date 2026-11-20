@@ -25,12 +25,20 @@ A point with nothing to measure gets `"evidence": { "value": "not measurable", "
 is visible. The summary, the overview page, the model context and the handover show the evidence next to
 the point.
 
+**Bridge tables (F24 output, or any many-to-many) must be named in point 2.** Write the point's `note` with
+the word "bridge" and "fan-out": which dimension pair the bridge links, how many duplicate pairs the
+cleaning removed (F12), and how measures avoid the fan-out (the measure counts or allocates on one side,
+e.g. `DISTINCTCOUNT` or 1/n weight; or the bridge is left out of the headline measures). `score-run.js`
+scores messy-dataset type 5 as found only when the review, a measure or a check names it.
+
 Write the result as:
 
 ```json
 "review": [
   { "point": "grain", "status": "confirmed", "note": "Sales = order line; Order process = order",
     "evidence": { "value": "200 rows, 200 distinct LineID", "how": "order_line_items after the kept fixes" } },
+  { "point": "joins", "status": "confirmed", "note": "bridge_guest_agencies links dim_guests to agencies; fan-out: a guest with 2 agencies repeats – headline measures do not use the bridge",
+    "evidence": { "value": "11 duplicate pairs removed (F12)", "how": "bridge_guest_agencies rows before vs after the kept fix" } },
   { "point": "history", "status": "open", "note": "Account manager changes are not tracked – current value only",
     "evidence": { "value": "not measurable", "how": "the sheets hold only the current account manager" } }
 ]
