@@ -740,18 +740,18 @@ if (!QUICK) {
     // (a small run folder of its own: the test run above has no key checks)
     const wr = path.join(TMP, 'why-run'); fs.mkdirSync(wr, { recursive: true });
     fs.writeFileSync(path.join(wr, 'choices.json'), JSON.stringify({ name: 'Why', run_id: 'why', report_language: 'en',
-      build: { measures: [{ name: 'revenue', expr: 'CALCULATE ( SUM ( fact_sales[amount] ), fact_sales[amount_issue] = "ok" )' }] },
+      build: { tables: [{ name: 'fact_sales', columns: [{ name: 'amount', from: 'Beløb' }] }], measures: [{ name: 'revenue', expr: 'CALCULATE ( SUM ( fact_sales[amount] ), fact_sales[amount_issue] = "ok" )' }] },
       checks: [{ name: 'Revenue', dax: '[revenue]', expected: 100, assumes: 'F11, F12, F14 flag' }, { name: 'Rows fact_sales', dax: 'COUNTROWS ( fact_sales )', expected: 9, assumes: 'F12' }] }));
     fs.writeFileSync(path.join(wr, 'checks.dax'), 'EVALUATE\nDATATABLE (\n  ( "Revenue", [revenue], 100 ),\n  ( "Rows fact_sales", COUNTROWS ( fact_sales ), 9 )\n)\n');
     fs.writeFileSync(path.join(wr, 'cleaning-log.md'), ['# Cleaning log', '', '## orders.csv → staging `stg_orders` → fact_sales', '',
       '| Fix | Column | Rows | Choice | Variant | Step |', '|---|---|---|---|---|---|',
       '| F11 | customer_id | 40 | kept | C-999 | `F11 Normalise customer_id` |', '| F12 | – | 3 | kept | – | `F12 Remove exact duplicates` |',
-      '| F14 | amount | 2 | kept | flag | `F14 Flag amount` |', '| F14 | amount | 1 | kept | flag | `F14 Flag amount` |', ''].join('\n'));
+      '| F14 | Beløb | 2 | kept | flag | `F14 Flag Beløb` |', '| F14 | Beløb | 1 | kept | flag | `F14 Flag Beløb` |', ''].join('\n'));
     spawnSync('node', [path.join(SKILL, 'scripts', 'build-dax-guide.js'), wr], { encoding: 'utf8' });
     const wtxt = (() => { try { return fs.readFileSync(path.join(wr, 'checks.dax_grounded-answers.dax guide.html'), 'utf8'); } catch { return ''; } })();
     const whys = [...wtxt.matchAll(/<tr><td>([^<]*)<\/td><td class="n">[^<]*<\/td><td>([^<]*)<\/td><\/tr>/g)].map((m) => [m[1], m[2]]);
     const why = Object.fromEntries(whys);
-    check('dax guide: the why comes from the cleaning log – row counts per fix, F11 only when the check uses the column, COUNTROWS finds the table',
+    check('dax guide: the why comes from the cleaning log – row counts per fix, F11 only when the check uses the column, COUNTROWS finds the table, source columns shown by their model name',
       why.Revenue === '3 exact copies removed (F12); 3 amount values flagged and left out (negative, zero or spike) (F14).'
       && why['Rows fact_sales'] === '3 exact copies removed (F12).', JSON.stringify(whys));
     const dl = fs.mkdtempSync(path.join(os.tmpdir(), 'daxguide-'));
