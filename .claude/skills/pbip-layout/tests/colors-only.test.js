@@ -17,6 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { withThemeDefaults } = require('../scripts/display-units.js');
 
 const SKILL = path.resolve(__dirname, '..');
 const GEN = path.join(SKILL, 'scripts', 'gen-report.js');
@@ -118,7 +119,12 @@ for (const [name, colors] of Object.entries(variants)) {
   const th = fs.readFileSync(path.join(v.dir, 'StaticResources', 'RegisteredResources', 'pbip-layout-theme.json'), 'utf8');
   check(`${name}: every chosen colour is used (pages or theme)`, missing.every(([, hex]) => th.toUpperCase().includes(String(hex).toUpperCase())), JSON.stringify(missing));
   const thStd = fs.readFileSync(path.join(std.dir, 'StaticResources', 'RegisteredResources', 'pbip-layout-theme.json'), 'utf8');
-  check(`${name}: the theme differs from Standard's in colour values only`, mask(th) === mask(thStd) && !/"show"|font|textClasses|visualStyles/i.test(th));
+  // visualStyles may only hold the display-units defaults from display-units.js; nothing else (fonts, show, textClasses)
+  const thObj = JSON.parse(th);
+  const unitsOnly = JSON.stringify(thObj.visualStyles || null) === JSON.stringify(withThemeDefaults({}).visualStyles);
+  delete thObj.visualStyles;
+  check(`${name}: the theme differs from Standard's in colour values only`, mask(th) === mask(thStd) && unitsOnly
+    && !/"show"|font|textClasses|visualStyles/i.test(JSON.stringify(thObj)));
   // icons: same files, recoloured where their key changed
   const icS = files(std.dir, 'StaticResources/RegisteredResources'); const icV = files(v.dir, 'StaticResources/RegisteredResources');
   const pngs = Object.keys(icS).filter((k) => k.endsWith('.png'));
