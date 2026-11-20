@@ -1,6 +1,6 @@
 # Model health
 
-Model: `pbip` · 48 columns · 10 relationships · facts: bridge_customer_sales_reps, fact_erp_customers, fact_hist_product_prices, fact_orders, fact_wide_monthly_targets
+Model: `pbip` · 47 columns · 10 relationships · facts: bridge_customer_sales_reps, fact_erp_customers, fact_hist_product_prices, fact_orders, fact_wide_monthly_targets
 
 **14 warnings, 9 info.**
 

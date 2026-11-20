@@ -10,7 +10,7 @@
 // The chain per case is "Accept all recommended" without the questions:
 //   Profile-Sources.ps1 (-Today fixed) → draft-spec.js --write → snake_case names (snake-names.js --apply)
 //   → source-stats.js --apply (rows per table and the sum of every number column, as checks[]) → rebuild.js
-// Cases: demo (demo/*.csv) and messy-retail-42 (messy-dataset retail, seed 42, 2000 rows, end month 2026-09;
+// Cases: demo (demo/*.csv) and messy-retail-7919 (messy-dataset retail, seed 7919 – a seed no scored run uses, 2000 rows, end month 2026-09;
 // its answer key is written to the temp folder and never read).
 // Snapshots: the TMDL files, cleaning-log.md, expected-values.md, checks.dax, model-context.md,
 // model-health.md and summary.json (findings, draft result, expected values). GUIDs, temp paths and
@@ -35,12 +35,12 @@ const py = process.env.PYTHON || 'python';
 const CASES = [
   { name: 'demo', model: 'Demo', source: () => path.join(REPO, 'demo'), files: ['orders.csv', 'customers.csv'] },
   {
-    name: 'messy-retail-42', model: 'Retail',
+    name: 'messy-retail-7919', model: 'Retail',
     source: (tmp) => {
       const out = path.join(tmp, 'source');
       run('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
         path.join(REPO, '.claude', 'skills', 'messy-dataset', 'scripts', 'New-MessyDataset.ps1'),
-        '-Domain', 'retail', '-Seed', '42', '-Rows', '2000', '-EndMonth', '2026-09',
+        '-Domain', 'retail', '-Seed', '7919', '-Rows', '2000', '-EndMonth', '2026-09',
         '-OutDir', out, '-AnswersDir', path.join(tmp, 'answers'), '-RunId', 'golden'], 'messy-dataset');
       return out;
     },

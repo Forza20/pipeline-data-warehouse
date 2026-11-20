@@ -38,5 +38,5 @@ jobs:
       - name: pbip-catalog unit tests
         run: python -m unittest discover -s .claude/skills/pbip-catalog/tests
 
-      - name: Golden run (demo + messy retail seed 42)
+      - name: Golden run (demo + messy retail seed 7919)
         run: node .claude/skills/pipeline-power-bi/tests/golden-run.js
