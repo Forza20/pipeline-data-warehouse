@@ -1,0 +1,96 @@
+{
+ "tables": [
+  {
+   "name": "orders",
+   "kind": "csv",
+   "dataRows": 12,
+   "columns": 8,
+   "findings": [
+    "F01 - rows=2 rec=true",
+    "F08 Dato rows=4 rec=true day-first",
+    "F15 Dato rows=1 rec=true flag",
+    "F05 KundeID rows=1 rec=true",
+    "F11 KundeID rows=2 rec=true K-999",
+    "F07 Region rows=3 rec=true",
+    "F09 Beløb rows=12 rec=true",
+    "F14 Beløb rows=1 rec=true flag",
+    "F10 Betalt rows=12 rec=true",
+    "F19 Note rows=12 rec=true",
+    "F28 Kanal rows=12 rec=true ask-names",
+    "F02 - rows=1 rec=true",
+    "F03 - rows=1 rec=true",
+    "F04 - rows=1 rec=true",
+    "F12 - rows=1 rec=true",
+    "F17 - rows=8 rec=true",
+    "F18 KundeID rows=1 rec=true add-members"
+   ]
+  },
+  {
+   "name": "customers",
+   "kind": "csv",
+   "dataRows": 5,
+   "columns": 3,
+   "findings": [
+    "F27 - rows=1 rec=true remove",
+    "F02 - rows=1 rec=true",
+    "F17 - rows=3 rec=true"
+   ]
+  }
+ ],
+ "relations": [
+  "orders[KundeID] -> customers[KundeID] many-to-one by name preferred=true matched=4 orphanRows=1"
+ ],
+ "draft": {
+  "staging": 2,
+  "tables": 2,
+  "relationships": 2,
+  "steps": 14,
+  "model": [
+   "orders F01 -",
+   "orders F02 -",
+   "customers F02 -",
+   "orders F18 KundeID"
+  ],
+  "skipped": [
+   "orders F28 Kanal: code names are known only by the user – kept as codes (ask in step 4)",
+   "orders F07 Region: the profile shows the case variants but not which spelling is most common – choose the spelling (step 4)",
+   "customers F27 -: the profile names the test rows but not their key column and values – ask which rows (step 4)"
+  ]
+ },
+ "expected": [
+  {
+   "name": "fact_orders rows",
+   "value": 11,
+   "approx": false
+  },
+  {
+   "name": "fact_orders sum of beloeb",
+   "value": 4049.7,
+   "approx": false
+  },
+  {
+   "name": "fact_orders sum of kanal",
+   "value": 210,
+   "approx": false
+  },
+  {
+   "name": "dim_customers rows",
+   "value": 6,
+   "approx": false
+  }
+ ],
+ "rebuildSteps": [
+  "snake-names ok",
+  "build-model ok",
+  "descriptions ok",
+  "build-docs ok",
+  "build-context ok",
+  "parse-model ok",
+  "model-health ok",
+  "grounded-answers ok (skipped)",
+  "check-results ok (skipped)",
+  "dax-guide ok",
+  "handover ok (skipped)",
+  "overview ok"
+ ]
+}

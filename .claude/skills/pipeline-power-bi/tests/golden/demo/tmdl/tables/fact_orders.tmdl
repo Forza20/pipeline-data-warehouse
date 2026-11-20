@@ -1,0 +1,93 @@
+/// Drafted from orders.csv.
+table fact_orders
+	lineageTag: <guid>
+
+	column ordrenr
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: ordrenr
+
+		annotation SummarizationSetBy = Automatic
+
+	column dato
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: dato
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column kunde_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: kunde_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column beloeb
+		dataType: double
+		formatString: #,0.00
+		lineageTag: <guid>
+		summarizeBy: sum
+		sourceColumn: beloeb
+
+		annotation SummarizationSetBy = Automatic
+
+	column betalt
+		dataType: boolean
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: betalt
+
+		annotation SummarizationSetBy = Automatic
+
+	column kanal
+		dataType: int64
+		formatString: #,0
+		lineageTag: <guid>
+		summarizeBy: sum
+		sourceColumn: kanal
+
+		annotation SummarizationSetBy = Automatic
+
+	column dato_status
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: dato_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column beloeb_issue
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: beloeb_issue
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_orders = m
+		mode: import
+		queryGroup: 03_Facts
+		source =
+				let
+					Source = stg_orders,
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(Source, {"Ordrenr", "Dato", "KundeID", "Region", "Beløb", "Betalt", "Kanal", "Dato status", "Beløb issue"}), {{"Ordrenr", "ordrenr"}, {"Dato", "dato"}, {"KundeID", "kunde_id"}, {"Region", "region"}, {"Beløb", "beloeb"}, {"Betalt", "betalt"}, {"Kanal", "kanal"}, {"Dato status", "dato_status"}, {"Beløb issue", "beloeb_issue"}}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"ordrenr", type text}, {"dato", type date}, {"kunde_id", type text}, {"region", type text}, {"beloeb", type number}, {"betalt", type logical}, {"kanal", Int64.Type}, {"dato_status", type text}, {"beloeb_issue", type text}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

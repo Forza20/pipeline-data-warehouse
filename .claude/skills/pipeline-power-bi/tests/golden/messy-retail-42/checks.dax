@@ -1,0 +1,41 @@
+// Control check for Retail (run). Written by build-docs.js.
+// Power BI Desktop → Refresh → DAX query view (left bar) → paste this → Run.
+// Every Difference should be 0. Expected values: expected-values.md (computed from the source files).
+
+EVALUATE
+VAR Checks =
+    {
+        ( "bridge_customer_sales_reps rows", COUNTROWS ( bridge_customer_sales_reps ), 133 ),
+        ( "dim_customers rows", COUNTROWS ( dim_customers ), 155 ),
+        ( "dim_locations rows", COUNTROWS ( dim_locations ), 12 ),
+        ( "dim_products rows", COUNTROWS ( dim_products ), 60 ),
+        ( "dim_products sum of list_price", SUM ( dim_products[list_price] ), 15835.26 ),
+        ( "fact_erp_customers rows", COUNTROWS ( fact_erp_customers ), 133 ),
+        ( "fact_orders rows", COUNTROWS ( fact_orders ), 2000 ),
+        ( "fact_orders sum of quantity", SUM ( fact_orders[quantity] ), 7099 ),
+        ( "fact_orders sum of unit_price", SUM ( fact_orders[unit_price] ), 518999.39 ),
+        ( "fact_orders sum of amount", SUM ( fact_orders[amount] ), 1640687.12 ),
+        ( "fact_hist_product_prices rows", COUNTROWS ( fact_hist_product_prices ), 98 ),
+        ( "fact_hist_product_prices sum of price", SUM ( fact_hist_product_prices[price] ), 25772.88 ),
+        ( "fact_wide_monthly_targets rows", COUNTROWS ( fact_wide_monthly_targets ), 432 ),
+        ( "fact_wide_monthly_targets sum of year", SUM ( fact_wide_monthly_targets[year] ), 874800 ),
+        ( "fact_wide_monthly_targets sum of value", SUM ( fact_wide_monthly_targets[value] ), 1646500 ),
+        ( "fact_orders rows without dim_customers", COUNTROWS ( FILTER ( 'fact_orders', ISBLANK ( RELATED ( 'dim_customers'[customer_id] ) ) ) ), 0 ),
+        ( "bridge_customer_sales_reps rows without dim_customers", COUNTROWS ( FILTER ( 'bridge_customer_sales_reps', ISBLANK ( RELATED ( 'dim_customers'[customer_id] ) ) ) ), 0 ),
+        ( "fact_orders rows without dim_products", COUNTROWS ( FILTER ( 'fact_orders', ISBLANK ( RELATED ( 'dim_products'[product_id] ) ) ) ), 0 ),
+        ( "fact_wide_monthly_targets rows without dim_locations", COUNTROWS ( FILTER ( 'fact_wide_monthly_targets', ISBLANK ( RELATED ( 'dim_locations'[location_id] ) ) ) ), 0 ),
+        ( "fact_hist_product_prices rows without dim_products", COUNTROWS ( FILTER ( 'fact_hist_product_prices', ISBLANK ( RELATED ( 'dim_products'[product_id] ) ) ) ), 0 ),
+        ( "fact_erp_customers rows without dim_customers", COUNTROWS ( FILTER ( 'fact_erp_customers', ISBLANK ( RELATED ( 'dim_customers'[customer_id] ) ) ) ), 0 ),
+        ( "fact_orders rows without dim_locations", COUNTROWS ( FILTER ( 'fact_orders', ISBLANK ( RELATED ( 'dim_locations'[location_id] ) ) ) ), 0 ),
+        ( "fact_orders rows without dim_date", COUNTROWS ( FILTER ( 'fact_orders', ISBLANK ( RELATED ( 'dim_date'[date] ) ) ) ), 0 ),
+        ( "fact_hist_product_prices rows without dim_date", COUNTROWS ( FILTER ( 'fact_hist_product_prices', ISBLANK ( RELATED ( 'dim_date'[date] ) ) ) ), 0 ),
+        ( "fact_wide_monthly_targets rows without dim_date", COUNTROWS ( FILTER ( 'fact_wide_monthly_targets', ISBLANK ( RELATED ( 'dim_date'[date] ) ) ) ), 0 )
+    }
+RETURN
+    SELECTCOLUMNS (
+        Checks,
+        "Check", [Value1],
+        "In Power BI", [Value2],
+        "Expected", [Value3],
+        "Difference", ROUND ( [Value2] - [Value3], 2 )
+    )

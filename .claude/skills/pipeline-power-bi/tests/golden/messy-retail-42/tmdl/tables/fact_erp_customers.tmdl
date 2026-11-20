@@ -1,0 +1,40 @@
+/// Drafted from erp_customers.csv.
+table fact_erp_customers
+	lineageTag: <guid>
+
+	column customer_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_name
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: customer_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_erp_customers = m
+		mode: import
+		queryGroup: 03_Facts
+		source =
+				let
+					Source = stg_erp_customers,
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(Source, {"customer_id", "customer_name", "region"}), {}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"customer_id", type text}, {"customer_name", type text}, {"region", type text}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

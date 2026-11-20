@@ -1,0 +1,234 @@
+/// Folder that holds the source files. Ends with a backslash. Change it in Transform data > Manage parameters if the files move.
+expression SourceFolder = "<SRC>\" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: <guid>
+	queryGroup: Parameters
+
+	annotation PBI_ResultType = Text
+
+/// Rewrites C0001, CUST0001, 0001 and CUST-0001 to one format: prefix & separator & the number padded to digits.
+expression fnNormaliseId =
+		(value as any, prefix as text, separator as text, digits as number) as nullable text =>
+		let
+			t = if value = null then "" else Text.Trim(Text.From(value)),
+			num = Text.Select(t, {"0".."9"})
+		in
+			if t = "" then null
+			else if num = "" then t
+			else prefix & separator & Text.PadStart(Text.From(Number.From(num)), digits, "0")
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Reads yyyy-MM-dd, yyyyMMdd, dd.MM.yyyy, d/M/yyyy, d-M-yyyy, MMM d yyyy and d MMM yyyy (English and Danish month names). dayFirst decides 03/04/2025 when both parts are 12 or lower.
+expression fnParseDate =
+		(value as any, optional dayFirst as nullable logical) as nullable date =>
+		let
+			typed =
+				if value is date then value
+				else if value is datetime then DateTime.Date(value)
+				else if value is datetimezone then DateTime.Date(DateTimeZone.RemoveZone(value))
+				else null,
+			t = if value = null or typed <> null then "" else if value is number then Text.From(Number.RoundDown(value)) else Text.Trim(Text.From(value)),
+			serial = if value is number and not (value >= 19000101 and value < 21000101) then Date.From(value) else null,
+			useDayFirst = if dayFirst = null then true else dayFirst,
+			isNum = (x as text) as logical => x <> "" and Text.Select(x, {"0".."9"}) = x,
+			months = [jan = 1, feb = 2, mar = 3, apr = 4, may = 5, maj = 5, jun = 6, jul = 7, aug = 8, sep = 9, oct = 10, okt = 10, nov = 11, dec = 12],
+			monthOf = (x as text) as nullable number => Record.FieldOrDefault(months, Text.Lower(Text.Start(x, 3)), null),
+			parts = List.Select(Text.SplitAny(t, "-./ ,"), each _ <> ""),
+			num = (x as text) as number => Number.From(Text.Select(Text.Start(x, 2), {"0".."9"})),
+			result =
+				if typed <> null then typed
+				else if serial <> null then serial
+				else if t = "" then null
+				else if isNum(t) and Text.Length(t) = 8 then #date(Number.From(Text.Start(t, 4)), Number.From(Text.Middle(t, 4, 2)), Number.From(Text.End(t, 2)))
+				else if List.Count(parts) < 3 then null
+				else if isNum(parts{0}) and Text.Length(parts{0}) = 4 then #date(Number.From(parts{0}), Number.From(parts{1}), num(parts{2}))
+				else if not isNum(parts{0}) then #date(Number.From(parts{2}), monthOf(parts{0}), Number.From(parts{1}))
+				else if not isNum(parts{1}) then #date(Number.From(parts{2}), monthOf(parts{1}), Number.From(parts{0}))
+				else
+					let
+						a = Number.From(parts{0}), b = Number.From(parts{1}), y = Number.From(Text.Start(parts{2}, 4)),
+						dayFirstHere = if a > 12 then true else if b > 12 then false else useDayFirst
+					in
+						if dayFirstHere then #date(y, b, a) else #date(y, a, b)
+		in
+			try result otherwise null
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Reads 1234.50, 1,234.50, 1.234,50, 1 234,50, 12,5, (50.00), $ 12, 12 USD and 12 kr. The last separator is the decimal separator when both occur; a single comma followed by exactly 3 digits is a thousands separator.
+expression fnParseNumber =
+		(value as any) as nullable number =>
+		let
+			raw = if value = null or value is number then "" else Text.Trim(Text.From(value)),
+			negativeParens = Text.StartsWith(raw, "(") and Text.EndsWith(raw, ")"),
+			cleaned = Text.Select(raw, {"0".."9", "-", ".", ","}),
+			lastDot = Text.PositionOf(cleaned, ".", Occurrence.Last),
+			lastComma = Text.PositionOf(cleaned, ",", Occurrence.Last),
+			dots = List.Count(Text.PositionOf(cleaned, ".", Occurrence.All)),
+			commas = List.Count(Text.PositionOf(cleaned, ",", Occurrence.All)),
+			decimalSep =
+				if dots > 0 and commas > 0 then (if lastDot > lastComma then "." else ",")
+				else if commas = 1 and Text.Length(cleaned) - lastComma - 1 <> 3 then ","
+				else if dots = 1 then "."
+				else null,
+			thousandSep = if decimalSep = "." then "," else if decimalSep = "," then "." else if commas > 0 then "," else ".",
+			noThousands = Text.Remove(cleaned, {thousandSep}),
+			normal = if decimalSep = null then noThousands else Text.Replace(noThousands, decimalSep, "."),
+			number = if normal = "" or normal = "-" then null else Number.FromText(normal, "en-US"),
+			result = if value is number then value else if number = null then null else if negativeParens then -number else number
+		in
+			try result otherwise null
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// true for true/yes/y/t/1/ja/j/sand/x, false for false/no/n/f/0/nej/falsk (any case); null otherwise.
+expression fnParseBool =
+		(value as any) as nullable logical =>
+		let
+			t = if value = null or value is logical then "" else Text.Lower(Text.Trim(Text.From(value)))
+		in
+			if value is logical then value
+			else if t = "" then null
+			else if List.Contains({"true", "yes", "y", "t", "1", "ja", "j", "sand", "x"}, t) then true
+			else if List.Contains({"false", "no", "n", "f", "0", "nej", "falsk"}, t) then false
+			else null
+	lineageTag: <guid>
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_bridge_customer_sales_reps =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "bridge_customer_sales_reps.csv"), [Delimiter = ",", Columns = 3, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"customer_id", "sales_rep_id", "sales_rep_name"}),
+			#"F11 Normalise customer_id" = Table.TransformColumns(#"F01 Keep data columns", {{"customer_id", each fnNormaliseId(_, "CUST", "-", 4), type text}}),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F11 Normalise customer_id", List.Transform({"customer_id", "sales_rep_id", "sales_rep_name"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"customer_id", type text}, {"sales_rep_id", type text}, {"sales_rep_name", type text}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_dim_customers =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "dim_customers.csv"), [Delimiter = ",", Columns = 5, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"customer_id", "customer_name", "segment", "region", "signup_date"}),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F01 Keep data columns", List.Transform({"customer_id", "customer_name", "segment", "region", "signup_date"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"customer_id", type text}, {"customer_name", type text}, {"segment", type text}, {"region", type text}, {"signup_date", type date}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_dim_locations =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "dim_locations.csv"), [Delimiter = ",", Columns = 4, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"location_id", "location_name", "city", "country"}),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F01 Keep data columns", List.Transform({"location_id", "location_name", "city", "country"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"location_id", type text}, {"location_name", type text}, {"city", type text}, {"country", type text}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_dim_products =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "dim_products.csv"), [Delimiter = ",", Columns = 4, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"product_id", "product_name", "category", "list_price"}),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F01 Keep data columns", List.Transform({"product_id", "product_name", "category", "list_price"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"product_id", type text}, {"product_name", type text}, {"category", type text}, {"list_price", type number}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_erp_customers =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "erp_customers.csv"), [Delimiter = ",", Columns = 3, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"customer_id", "customer_name", "region"}),
+			#"F11 Normalise customer_id" = Table.TransformColumns(#"F01 Keep data columns", {{"customer_id", each fnNormaliseId(_, "CUST", "-", 4), type text}}),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F11 Normalise customer_id", List.Transform({"customer_id", "customer_name", "region"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"customer_id", type text}, {"customer_name", type text}, {"region", type text}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_fact_orders =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "fact_orders.csv"), [Delimiter = ",", Columns = 10, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"order_id", "order_date", "customer_id", "product_id", "location_id", "quantity", "unit_price", "amount", "status", "is_paid"}),
+			#"F11 Normalise customer_id" = Table.TransformColumns(#"F01 Keep data columns", {{"customer_id", each fnNormaliseId(_, "CUST", "-", 4), type text}}),
+			#"F11 Normalise product_id" = Table.TransformColumns(#"F11 Normalise customer_id", {{"product_id", each fnNormaliseId(_, "PROD", "-", 4), type text}}),
+			#"F08 Parse order_date" = Table.TransformColumns(#"F11 Normalise product_id", {{"order_date", each fnParseDate(_, true), type nullable date}}),
+			#"F09 Parse amount" = Table.TransformColumns(#"F08 Parse order_date", {{"amount", each fnParseNumber(_), type nullable number}}),
+			#"F10 Parse is_paid" = Table.TransformColumns(#"F09 Parse amount", {{"is_paid", each fnParseBool(_), type nullable logical}}),
+			#"F14 Flag amount" = Table.AddColumn(#"F10 Parse is_paid", "amount issue", each if [amount] = null then "missing" else if [amount] < 0 then "negative" else if [amount] > 7552 then "spike" else "ok", type text),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F14 Flag amount", List.Transform({"order_id", "order_date", "customer_id", "product_id", "location_id", "quantity", "unit_price", "amount", "status", "is_paid"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"order_id", type text}, {"order_date", type date}, {"customer_id", type text}, {"product_id", type text}, {"location_id", type text}, {"quantity", Int64.Type}, {"unit_price", type number}, {"amount", type number}, {"status", type text}, {"is_paid", type logical}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_hist_product_prices =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "hist_product_prices.csv"), [Delimiter = ",", Columns = 4, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"product_id", "price", "valid_from", "valid_to"}),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F01 Keep data columns", List.Transform({"product_id", "price", "valid_from", "valid_to"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"product_id", type text}, {"price", type number}, {"valid_from", type date}, {"valid_to", type date}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table
+
+/// Staging (not loaded): undefined, with its cleaning steps.
+expression stg_wide_monthly_targets =
+		let
+			Source = Csv.Document(File.Contents(SourceFolder & "wide_monthly_targets.csv"), [Delimiter = ",", Columns = 14, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			#"F01 Promote headers" = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			#"F01 Keep data columns" = Table.SelectColumns(#"F01 Promote headers", {"location_id", "year", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"}),
+			#"F16 Unpivot Period" = Table.UnpivotOtherColumns(#"F01 Keep data columns", {"location_id", "year"}, "Period", "Value"),
+			#"F16 Period as date" = Table.AddColumn(#"F16 Unpivot Period", "Period start", each #date(Number.From([year]), List.PositionOf({"jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"}, Text.Lower(Text.Start(Text.Replace(Text.Replace([Period], "maj", "may"), "okt", "oct"), 3))) + 1, 1), type date),
+			#"F17 Empty text to null" = Table.TransformColumns(#"F16 Period as date", List.Transform({"location_id", "year", "Period", "Value"}, (c) => {c, each if _ = "" then null else _})),
+			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"location_id", type text}, {"year", Int64.Type}, {"Period", type text}, {"Value", type number}}, "en-US")
+		in
+			#"F17 Set types"
+	lineageTag: <guid>
+	queryGroup: 01_Stage
+
+	annotation PBI_ResultType = Table

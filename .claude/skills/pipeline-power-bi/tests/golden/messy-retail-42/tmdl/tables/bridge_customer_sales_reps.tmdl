@@ -1,0 +1,40 @@
+/// Drafted from bridge_customer_sales_reps.csv.
+table bridge_customer_sales_reps
+	lineageTag: <guid>
+
+	column customer_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column sales_rep_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: sales_rep_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column sales_rep_name
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: sales_rep_name
+
+		annotation SummarizationSetBy = Automatic
+
+	partition bridge_customer_sales_reps = m
+		mode: import
+		queryGroup: 03_Facts
+		source =
+				let
+					Source = stg_bridge_customer_sales_reps,
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(Source, {"customer_id", "sales_rep_id", "sales_rep_name"}), {}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"customer_id", type text}, {"sales_rep_id", type text}, {"sales_rep_name", type text}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,48 @@
+/// Drafted from dim_locations.csv.
+table dim_locations
+	lineageTag: <guid>
+
+	column location_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: location_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column location_name
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: location_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column city
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: city
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_locations = m
+		mode: import
+		queryGroup: 02_Dimensions
+		source =
+				let
+					Source = stg_dim_locations,
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(Source, {"location_id", "location_name", "city", "country"}), {}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"location_id", type text}, {"location_name", type text}, {"city", type text}, {"country", type text}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,7 @@
+relationship <guid>
+	fromColumn: fact_orders.kunde_id
+	toColumn: dim_customers.kunde_id
+
+relationship <guid>
+	fromColumn: fact_orders.dato
+	toColumn: dim_date.date
