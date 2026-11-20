@@ -63,6 +63,7 @@
   "Territory Lookup[Continent]": "dim_city[region]",
   "Territory Lookup[Country]": "dim_city[city]"
  },
+ "completeMonth": "dim_date[is_complete_month]",
  "labels": {
   "Measure Table[Total Revenue]": "Revenue",
   "Measure Table[Total Orders]": "Orders",
