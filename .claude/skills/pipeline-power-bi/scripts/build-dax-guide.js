@@ -164,8 +164,12 @@ const tablesOf = (text) => new Set([...logTables].filter((t) => new RegExp(`(^|[
 // fixes that change which rows count – always part of the why; the others only when the check names the column
 const ROW_FIX = new Set(['F03', 'F04', 'F12', 'F13', 'F14', 'F15', 'F16', 'F18', 'F20', 'F21', 'F27']);
 const snakeCol = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+// the log names source columns (Beløb), the DAX model columns (amount): the spec's tables map one to the other
+const modelCol = new Map();
+for (const t of ((choices.build || {}).tables || [])) for (const c of t.columns || []) if (!modelCol.has(c.from || c.name)) modelCol.set(c.from || c.name, c.name);
+const colName = (c) => modelCol.get(c) || c;
 const PHRASE = {
-  en: { F03: (n) => `${n} test or blank rows removed`, F04: (n) => `${n} total rows removed`, F05: (n, c) => `${c || 'text'} trimmed (${n} values)`,
+  en: { F01: (n) => `${n} title lines above the header skipped`, F03: (n) => `${n} test or blank rows removed`, F04: (n) => `${n} total rows removed`, F05: (n, c) => `${c || 'text'} trimmed (${n} values)`,
     F06: (n, c) => `${n} placeholder values in ${c || 'the columns'} made empty`, F07: (n, c) => `${n} spellings of ${c} unified`, F08: (n, c) => `${n} ${c} dates read from mixed formats`,
     F09: (n, c) => `${n} ${c} numbers read from text`, F10: (n, c) => `${n} ${c} yes/no values read`, F11: (n, c) => `${n} ${c} ids normalised to one format`,
     F12: (n) => `${n} exact copies removed`, F13: (n, c, v) => `${n} repeated ${c} values${/first/.test(v) ? ', first row kept' : ' removed'}`,
@@ -173,7 +177,7 @@ const PHRASE = {
     F16: (n) => `unpivoted from the month columns (${n} rows)`, F18: (n, c) => `${n} ${c} values only seen in the facts added as inferred members`, F20: (n) => `${n} short lines`,
     F21: () => 'files appended', F23: (n, c) => `${c} split (${n} values)`, F24: (n, c) => `${n} multi-value ${c} cells split`, F27: (n) => `${n} test rows removed`,
     F28: (n, c) => `${c} codes named`, other: (n, c, v, f) => `${f}${c ? ' on ' + c : ''} (${n} rows)` },
-  da: { F03: (n) => `${n} test- eller tomme rækker fjernet`, F04: (n) => `${n} totalrækker fjernet`, F05: (n, c) => `${c || 'tekst'} trimmet (${n} værdier)`,
+  da: { F01: (n) => `${n} titellinjer over overskriften sprunget over`, F03: (n) => `${n} test- eller tomme rækker fjernet`, F04: (n) => `${n} totalrækker fjernet`, F05: (n, c) => `${c || 'tekst'} trimmet (${n} værdier)`,
     F06: (n, c) => `${n} pladsholdere i ${c || 'kolonnerne'} gjort tomme`, F07: (n, c) => `${n} stavemåder af ${c} ensrettet`, F08: (n, c) => `${n} ${c}-datoer læst fra blandede formater`,
     F09: (n, c) => `${n} ${c}-tal læst fra tekst`, F10: (n, c) => `${n} ja/nej-værdier i ${c} læst`, F11: (n, c) => `${n} ${c}-id'er ensrettet til ét format`,
     F12: (n) => `${n} eksakte kopier fjernet`, F13: (n, c, v) => `${n} gentagne ${c}-værdier${/first/.test(v) ? ', første række beholdt' : ' fjernet'}`,
@@ -193,11 +197,11 @@ function autoWhy(c) {
   const parts = [];
   for (const code of codes) {
     const rows = logRows.filter((r) => r.fix === code && (r.targets.includes('*') || r.targets.some((t) => tables.has(t)))
-      && (ROW_FIX.has(code) || !r.column || lower.includes(snakeCol(r.column)) || lower.includes(r.column.toLowerCase())));
+      && (ROW_FIX.has(code) || !r.column || [r.column, colName(r.column)].some((x) => lower.includes(snakeCol(x)) || lower.includes(x.toLowerCase()))));
     if (!rows.length) continue;
     const byCol = new Map();
     for (const r of rows) { const k = r.column; const p = byCol.get(k) || { n: 0, variant: r.variant }; p.n += r.rows; byCol.set(k, p); }
-    for (const [col, p] of byCol) parts.push(`${(PHRASE[code] || ((n, cc, v) => PHRASE.other(n, cc, v, code)))(num(p.n), col, p.variant)} (${code})`);
+    for (const [col, p] of byCol) parts.push(`${(PHRASE[code] || ((n, cc, v) => PHRASE.other(n, cc, v, code)))(num(p.n), colName(col), p.variant)} (${code})`);
   }
   return parts.length ? parts.join('; ') + '.' : '';
 }

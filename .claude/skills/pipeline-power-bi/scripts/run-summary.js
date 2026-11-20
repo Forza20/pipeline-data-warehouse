@@ -22,7 +22,14 @@ const short = (col) => { const p = String(col).split(/,\s*/); return p.length > 
 const fixLabel = (f) => `${f.fix}${f.column ? ' ' + short(f.column) : ''}${f.variant && typeof f.variant !== 'object' ? ` (${f.variant})` : ''}`;
 
 const sources = Object.entries(c.tables || {}).filter(([, t]) => t && t.include !== false).map(([key, t]) => {
-  const fixes = t.fixes || [];
+  let fixes = t.fixes || [];
+  // fast mode: the kept fixes are only in the drafted staging query (draft-spec.js names it stg_<source>)
+  if (!fixes.length) {
+    const slug = String(key).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const stg = (b.staging || []).find((s) => s.name === `stg_${slug}`);
+    if (stg) fixes = (stg.steps || []).filter((s) => s.fix && s.fix !== 'M').map((s) => ({ fix: s.fix, column: s.column || (s.columns || []).join(', ') || null,
+      variant: s.mode || (s.dayFirst === true ? 'day-first' : s.dayFirst === false ? 'month-first' : undefined) }));
+  }
   return { source: key, table: t.table_name || key, role: t.role || '', mode: t.mode || '',
     kept: fixes.filter((f) => f.keep !== false).map(fixLabel), notKept: fixes.filter((f) => f.keep === false).map(fixLabel) };
 });
