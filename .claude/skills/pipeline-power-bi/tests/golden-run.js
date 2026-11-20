@@ -57,7 +57,8 @@ const readJson = (f) => json(fs.readFileSync(f, 'utf8'));
 const writeJson = (f, o) => fs.writeFileSync(f, JSON.stringify(o, null, 1) + '\n');
 
 function buildCase(c) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `golden-${c.name}-`));
+  // realpath: os.tmpdir() can be an 8.3 short path (C:\Users\RUNNER~1\…) while the scripts write the long one.
+  const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), `golden-${c.name}-`)));
   const runDir = path.join(tmp, 'run');
   fs.mkdirSync(runDir);
   const src = c.source(tmp);
