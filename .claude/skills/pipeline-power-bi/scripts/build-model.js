@@ -165,8 +165,14 @@ function fixStep(q, f, s) {
     }
     case 'F15': {
       const cut = cutoff(f.cutoff);
-      if (f.mode === 'remove') return q.add(`F15 Remove invalid ${c}`, `Table.SelectRows(<prev>, each [${c}] <> null and [${c}] <= ${cut} and Date.Year([${c}]) >= 1900)`);
-      return q.add(`F15 Flag ${c}`, `Table.AddColumn(<prev>, ${ms(f.flagColumn || `${c} status`)}, each if [${c}] = null then "missing or invalid" else if [${c}] > ${cut} then "future" else if Date.Year([${c}]) < 1900 then "too old" else "ok", type text)`);
+      // Without an F08 step on the column the value is still text here (F17 types it later): read it with
+      // fnParseDate, or "[col] > #date(…)" fails at refresh (operator > on Text and Date).
+      const parsedD = (s.steps || []).some((x) => x.fix === 'F08' && x.column === c);
+      if (!parsedD) fnUsed.add('fnParseDate');
+      const D = parsedD ? `[${c}]` : 'd';
+      const pre = parsedD ? '' : `let d = fnParseDate([${c}], ${f.dayFirst === false ? 'false' : 'true'}) in `;
+      if (f.mode === 'remove') return q.add(`F15 Remove invalid ${c}`, `Table.SelectRows(<prev>, each ${pre}${D} <> null and ${D} <= ${cut} and Date.Year(${D}) >= 1900)`);
+      return q.add(`F15 Flag ${c}`, `Table.AddColumn(<prev>, ${ms(f.flagColumn || `${c} status`)}, each ${pre}if ${D} = null then "missing or invalid" else if ${D} > ${cut} then "future" else if Date.Year(${D}) < 1900 then "too old" else "ok", type text)`);
     }
     case 'F16': {
       // month names without a year column fall in the current year – wrong for every past row
@@ -340,6 +346,21 @@ const DATE_SNAKE = { Date: 'date', Year: 'year', Quarter: 'quarter', 'Month no':
 const DN = (n) => (SNAKE ? DATE_SNAKE[n] : n);
 const MT = B.measuresTable || (SNAKE ? '_measures' : '_Measures');
 const PH = SNAKE ? 'placeholder' : 'Placeholder';
+// The loaded column (model name) that holds the F15 flag of <table>[<column>], or null: the F15 step (mode flag)
+// on the staging query the table is built from, for the column's query name, and that flag column kept in the
+// table's final columns.
+function dateFlagColumn(tableName, columnName) {
+  const t = (B.tables || []).find((x) => x.name === tableName);
+  if (!t) return null;
+  const c = (t.columns || []).find((x) => x.name === columnName);
+  const from = (c && (c.from || c.name)) || columnName;
+  const stg = (B.staging || []).find((s) => s.name === t.from);
+  const f15 = stg && (stg.steps || []).find((s) => s.fix === 'F15' && s.column === from && s.mode !== 'remove');
+  if (!f15) return null;
+  const flagFrom = f15.flagColumn || `${from} status`;
+  const kept = (t.columns || []).find((x) => (x.from || x.name) === flagFrom);
+  return kept ? kept.name : null;
+}
 function dateTmdl(d) {
   const name = d.name || (SNAKE ? 'dim_date' : 'Date');
   const refs = d.columns.map((r) => { const x = colRef(r); return `${mid(x.table)}[${x.column}]`; }).join(', ');
@@ -366,7 +387,11 @@ function dateTmdl(d) {
   let last = 'WeekStart';
   if (d.completeMonth) {
     const x = colRef(d.completeMonth);
-    steps.push(`DataStart = List.Min(List.RemoveNulls(${mid(x.table)}[${x.column}]))`, `DataEnd = List.Max(List.RemoveNulls(${mid(x.table)}[${x.column}]))`,
+    // Rows F15 flagged (a future or invalid date) must not decide which months are complete – one order dated
+    // 2029 would make every month up to 2029 "complete" and the month cards show an empty month.
+    const flag = dateFlagColumn(x.table, x.column);
+    const src = flag ? `Table.SelectRows(${mid(x.table)}, each [${flag}] = "ok")` : mid(x.table);
+    steps.push(`DataStart = List.Min(List.RemoveNulls(${src}[${x.column}]))`, `DataEnd = List.Max(List.RemoveNulls(${src}[${x.column}]))`,
       'Complete = Table.AddColumn(WeekStart, "Is complete month", each Date.StartOfMonth([Date]) >= DataStart and Date.EndOfMonth([Date]) <= DataEnd, type logical)');
     last = 'Complete';
   }
@@ -460,6 +485,25 @@ for (const r of B.relationships || []) {
 }
 for (const t of tables) { const n = new Set(); for (const c of t.columns) { if (n.has(c.name)) errors.push(`${t.name}: column ${c.name} twice`); n.add(c.name); } }
 for (const t of tables) for (const c of t.columns) if (c.sortBy && (c.sortBy === c.name || !t.columns.some((x) => x.name === c.sortBy))) errors.push(`${t.name}[${c.name}]: sortBy ${c.sortBy} is not another column of ${t.name}`);
+// Type "key" (and "int") is a whole number (Int64). A text id (K-001, CUST-0001) typed so loads as blank in
+// source-stats and fails at refresh – stop here with the reason. Evidence: an F11 step with a prefix on the
+// column, or a non-numeric value among the profile's examples of the source column.
+{
+  const prof = (() => { try { return JSON.parse(fs.readFileSync(path.join(runDir, 'profile.json'), 'utf8').replace(/^﻿/, '')); } catch { return null; } })();
+  const stgOf = (t) => (B.staging || []).find((s) => s.name === t.from);
+  const profOf = (s) => prof && s && (prof.tables || []).find((p) => (s.file && p.file && path.basename(p.file) === s.file && (!s.item || p.sheet === s.item || p.excelTable === s.item)) || p.name === s.name.replace(/^stg_/, ''));
+  for (const t of tables) {
+    const s = stgOf(t);
+    for (const c of t.columns) {
+      if (!['key', 'int'].includes(c.type) || !s) continue;
+      const from = c.from || c.name;
+      const f11 = (s.steps || []).find((x) => x.fix === 'F11' && x.column === from && x.prefix);
+      const pc = ((profOf(s) || {}).columns || []).find((x) => x.name === from);
+      const ex = f11 ? `${f11.prefix}${f11.separator || ''}${'0'.repeat((f11.digits || 4) - 1)}1` : ((pc && pc.examples) || []).find((v) => !/^\s*-?\d+\s*$/.test(String(v)));
+      if (ex !== undefined && ex !== null) errors.push(`${t.name}[${c.name}]: type "${c.type}" is a whole number (Int64), but ${from} holds text ids such as "${ex}" – use type "text"`);
+    }
+  }
+}
 if (errors.length) { console.log(JSON.stringify({ ok: false, errors, warnings }, null, 1)); process.exit(2); }
 
 // ---------- write ----------

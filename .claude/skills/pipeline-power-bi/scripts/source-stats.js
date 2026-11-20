@@ -404,7 +404,8 @@ function applyStep(t, f, name) {
     }
     case 'F15': {
       const cut = fnParseDate(f.cutoff || (B && B.cutoffDate) || new Date().toISOString().slice(0, 10));
-      const st = (v) => (v === null ? 'missing or invalid' : v > cut ? 'future' : v.getUTCFullYear() < 1900 ? 'too old' : 'ok');
+      // without an F08 step the value is still text: read it as build-model.js does (fnParseDate)
+      const st = (raw) => { const v = fnParseDate(raw, f.dayFirst !== false); return v === null ? 'missing or invalid' : v > cut ? 'future' : v.getUTCFullYear() < 1900 ? 'too old' : 'ok'; };
       if (f.mode === 'remove') { t.rows = t.rows.filter((r) => st(r[c]) === 'ok'); return; }
       const nm = f.flagColumn || `${c} status`;
       for (const r of t.rows) r[nm] = st(r[c]);

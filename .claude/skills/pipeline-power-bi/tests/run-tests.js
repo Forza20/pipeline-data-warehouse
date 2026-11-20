@@ -1080,6 +1080,61 @@ Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, b
     check('draft-spec: F27 removes K-100 by KundeID from the example row', prof.status === 0 && f27.column === 'KundeID' && JSON.stringify(f27.values) === '["K-100"]' && f27.mode === 'remove', JSON.stringify(f27) + prof.stderr.slice(0, 200));
     check('draft-spec: F07 maps nord -> Nord and syd -> Syd in Region', f07.column === 'Region' && f07.map && f07.map.nord === 'Nord' && f07.map.syd === 'Syd', JSON.stringify(f07));
     check('draft-spec: demo skips only F28', (out.skipped || []).every((x) => x.fix === 'F28'), JSON.stringify(out.skipped));
+
+    // complete-month flag: order 1010 is dated 2030 (F15 "future"); the months must end at the last valid
+    // date, not in 2030. Without an F15 flag column the plain column is used.
+    const ch = JSON.parse(fs.readFileSync(path.join(dm, 'choices.json'), 'utf8'));
+    const fact = ch.build.tables.find((t) => t.kind === 'fact');
+    const dcol = (fact.columns.find((c) => (c.from || c.name) === 'Dato') || {}).name;
+    const fcol = (fact.columns.find((c) => (c.from || c.name) === 'Dato status') || {}).name;
+    ch.build.date = { name: 'Date', columns: [`${fact.name}[${dcol}]`], completeMonth: `${fact.name}[${dcol}]` };
+    fs.writeFileSync(path.join(dm, 'choices.json'), JSON.stringify(ch, null, 2));
+    const bm = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), dm], { encoding: 'utf8' });
+    const dateTmdl = (() => { try { return fs.readFileSync(path.join(dm, 'pbip', 'Demo.SemanticModel', 'definition', 'tables', 'Date.tmdl'), 'utf8'); } catch { return ''; } })();
+    check('build-model: complete months skip F15-flagged dates (Table.SelectRows on the flag = "ok")',
+      bm.status === 0 && fcol && dateTmdl.includes(`DataEnd = List.Max(List.RemoveNulls(Table.SelectRows(${fact.name}, each [${fcol}] = "ok")[${dcol}]))`),
+      `${bm.stdout.slice(0, 300)} ${(dateTmdl.match(/DataEnd = .*/) || [''])[0]}`);
+    // without the flag column in the loaded table, the plain column is used (no reference to a missing column)
+    fact.columns = fact.columns.filter((c) => c.name !== fcol);
+    fs.writeFileSync(path.join(dm, 'choices.json'), JSON.stringify(ch, null, 2));
+    const bm2 = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), dm], { encoding: 'utf8' });
+    const dateTmdl2 = (() => { try { return fs.readFileSync(path.join(dm, 'pbip', 'Demo.SemanticModel', 'definition', 'tables', 'Date.tmdl'), 'utf8'); } catch { return ''; } })();
+    check('build-model: complete months use the plain column when the flag column is not loaded',
+      bm2.status === 0 && dateTmdl2.includes(`DataEnd = List.Max(List.RemoveNulls(${fact.name}[${dcol}]))`), (dateTmdl2.match(/DataEnd = .*/) || [''])[0]);
+
+    // type "key" is Int64: a text id (K-001) typed key must stop the build; the numeric Ordrenr (1001) may stay key
+    const kc = (n) => fact.columns.find((c) => (c.from || c.name) === n);
+    kc('KundeID').type = 'key'; kc('Ordrenr').type = 'key';
+    fs.writeFileSync(path.join(dm, 'choices.json'), JSON.stringify(ch, null, 2));
+    const bk = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), dm], { encoding: 'utf8' });
+    const bkOut = (() => { try { return JSON.parse(bk.stdout); } catch { return {}; } })();
+    check('build-model: a text id typed "key" stops the build with the reason; a numeric id typed "key" does not',
+      bk.status === 2 && (bkOut.errors || []).some((e) => /KundeID holds text ids such as "K-\d+"/.test(e)) && !(bkOut.errors || []).some((e) => /Ordrenr/.test(e)),
+      JSON.stringify(bkOut.errors));
+  }
+
+  // F15 without F08: dates in one format stay text until F17, so the flag must parse them (fnParseDate) –
+  // a plain "[order_date] > #date(…)" fails at refresh and source-stats crashed on v.getUTCFullYear.
+  {
+    const fd = path.join(TMP, 'f15-text'); const fs2 = path.join(fd, 'src'); fs.mkdirSync(fs2, { recursive: true });
+    const rows = ['order_id,order_date,amount'];
+    for (let i = 1; i <= 20; i++) rows.push(`O${i},2025-0${1 + (i % 9)}-1${i % 9},${10 * i}`);
+    rows.push('O21,2031-01-05,50');
+    fs.writeFileSync(path.join(fs2, 'orders.csv'), rows.join('\n') + '\n');
+    spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
+      '-Path', fs2, '-OutFile', path.join(fd, 'profile.json'), '-RowsDir', path.join(fd, 'rows')], { encoding: 'utf8' });
+    spawnSync('node', [path.join(SKILL, 'scripts', 'draft-spec.js'), fd, '--write', '--name', 'F15Text'], { encoding: 'utf8' });
+    const spec = (() => { try { return JSON.parse(fs.readFileSync(path.join(fd, 'choices.json'), 'utf8')).build; } catch { return { staging: [] }; } })();
+    const stg = spec.staging[0] || { steps: [] };
+    const hasF15 = stg.steps.some((s) => s.fix === 'F15'); const hasF08 = stg.steps.some((s) => s.fix === 'F08');
+    const b = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), fd], { encoding: 'utf8' });
+    const ex = (() => { try { return fs.readFileSync(path.join(fd, 'pbip', 'F15Text.SemanticModel', 'definition', 'expressions.tmdl'), 'utf8'); } catch { return ''; } })();
+    check('build-model: F15 on a text date (no F08) parses it with fnParseDate', hasF15 && !hasF08 && b.status === 0
+      && ex.includes('let d = fnParseDate([order_date], true) in if d = null') && ex.includes('expression fnParseDate'), `F15=${hasF15} F08=${hasF08} ${b.stdout.slice(0, 200)}`);
+    const tbl = (spec.tables[0] || {}).name;
+    const ss = spawnSync('node', [path.join(SKILL, 'scripts', 'source-stats.js'), fd, '--q', JSON.stringify([{ name: 's', table: tbl, agg: 'rows', by: 'order_date status' }])], { encoding: 'utf8' });
+    const v = (() => { try { return JSON.parse(ss.stdout).results[0].values || {}; } catch { return {}; } })();
+    check('source-stats: F15 on a text date flags 1 future, 20 ok', v.future === 1 && v.ok === 20, ss.stdout.slice(0, 300) + ss.stderr.slice(0, 200));
   }
 
   // score-run.js: without an answer key it stops with exit 2 and names what is missing (scoring itself is
