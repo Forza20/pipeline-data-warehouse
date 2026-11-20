@@ -30,7 +30,6 @@ Drafted from dim_customers.csv.
 | segment | text | – |
 | region | text | – |
 | signup_date | date | – |
-| is_inferred | bool | – |
 
 ### dim_locations (dimension)
 Drafted from dim_locations.csv.

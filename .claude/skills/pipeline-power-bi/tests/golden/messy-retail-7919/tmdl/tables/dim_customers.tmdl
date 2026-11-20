@@ -1,0 +1,59 @@
+/// Drafted from dim_customers.csv.
+table dim_customers
+	lineageTag: <guid>
+
+	column customer_id
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_name
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: customer_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column segment
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: segment
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column signup_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: <guid>
+		summarizeBy: none
+		sourceColumn: signup_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition dim_customers = m
+		mode: import
+		queryGroup: 02_Dimensions
+		source =
+				let
+					Source = stg_dim_customers,
+					#"M10 Select and name columns" = Table.RenameColumns(Table.SelectColumns(Source, {"customer_id", "customer_name", "segment", "region", "signup_date"}), {}),
+					#"M99 Set final types" = Table.TransformColumnTypes(#"M10 Select and name columns", {{"customer_id", type text}, {"customer_name", type text}, {"segment", type text}, {"region", type text}, {"signup_date", type date}})
+				in
+					#"M99 Set final types"
+
+	annotation PBI_ResultType = Table

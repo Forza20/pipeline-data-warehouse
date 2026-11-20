@@ -518,7 +518,7 @@ Other skills used: `analysis-planning`, `pbip-layout`, `pbip-catalog`, `pbip-gov
 `node .claude\skills\pipeline-power-bi\tests\run-tests.js` (and
 `python -m unittest discover -s .claude\skills\pbip-catalog\tests` and
 `node .claude\skills\pipeline-power-bi\tests\golden-run.js` – the whole chain on the demo and messy retail
-seed 42, compared with `tests/golden/`; after an intended output change rerun it with `--update` and review
+seed 7919, compared with `tests/golden/`; after an intended output change rerun it with `--update` and review
 the snapshot diff) – all must pass, also in CI (`.github/workflows/tests.yml`). `--quick` is for use
 while working; a change is only done when the full run passes **and every new path has a test of its
 own** – a new fix, variant, source kind, op or flag gets a check in `run-tests.js` that fails without the
