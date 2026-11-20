@@ -194,7 +194,7 @@ expression stg_fact_orders =
 			#"F10 Parse is_paid" = Table.TransformColumns(#"F09 Parse amount", {{"is_paid", each fnParseBool(_), type nullable logical}}),
 			#"F12 Remove exact duplicates" = Table.Distinct(#"F10 Parse is_paid"),
 			#"F13 Keep first row per order_id" = Table.Distinct(Table.Buffer(#"F12 Remove exact duplicates"), {"order_id", Comparer.OrdinalIgnoreCase}),
-			#"F14 Flag amount" = Table.AddColumn(#"F13 Keep first row per order_id", "amount issue", each if [amount] = null then "missing" else if [amount] < 0 then "negative" else if [amount] > 6001.8 then "spike" else "ok", type text),
+			#"F14 Flag amount" = Table.AddColumn(#"F13 Keep first row per order_id", "amount issue", each if [amount] = null then "missing" else if [amount] < 0 then "negative" else if (fnParseNumber([quantity]) <> null and fnParseNumber([unit_price]) <> null and [amount] > 5 * fnParseNumber([quantity]) * fnParseNumber([unit_price])) then "spike" else if ([amount] = 0 and [status] = "Completed") then "zero" else "ok", type text),
 			#"F17 Empty text to null" = Table.TransformColumns(#"F14 Flag amount", List.Transform({"order_id", "order_date", "customer_id", "product_id", "location_id", "quantity", "unit_price", "amount", "status", "is_paid"}, (c) => {c, each if _ = "" then null else _})),
 			#"F17 Set types" = Table.TransformColumnTypes(#"F17 Empty text to null", {{"order_id", type text}, {"order_date", type date}, {"customer_id", type text}, {"product_id", type text}, {"location_id", type text}, {"quantity", Int64.Type}, {"unit_price", type number}, {"amount", type number}, {"status", type text}, {"is_paid", type logical}}, "en-US")
 		in

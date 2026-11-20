@@ -302,6 +302,7 @@ const tryRead = (f) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
     F29: 'design: filter op on the detail table – Contact test above',
     M01: 'date.completeMonth – date table test above',
     M02: 'design: a new dimension table – no staging step',
+    M03: 'design: a history table is kept whole – no staging step; profiler test below',
   };
   const K = {
     csv: { file: 'orders.csv', kind: 'csv', delimiter: ';', codePage: 65001, headerRow: 3, columns: csvCols,
@@ -971,7 +972,7 @@ Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, b
     check('real data: profiled', real.prof.status === 0 && fs.existsSync(path.join(real.run, 'profile.json')), real.prof.stderr.slice(0, 400));
     const p = JSON.parse(tryRead(path.join(real.run, 'profile.json')).replace(/^﻿/, '') || '{"tables":[]}');
     check('real data: CSV and Excel sheets in the profile', p.tables.some((t) => t.kind === 'csv') && p.tables.some((t) => t.kind === 'sheet'));
-    const spikes = p.tables.flatMap((t) => (t.findings || []).filter((f) => f.fix === 'F14' && /above/.test(f.detail)));
+    const spikes = p.tables.flatMap((t) => (t.findings || []).filter((f) => f.fix === 'F14' && /median/.test(f.detail)));   // a spikeRule finding has no median limit
     check('real data: F14 spike finding has a numeric limit and a culture-independent median (199.38, not 199,38)',
       spikes.length > 0 && spikes.every((f) => typeof f.limit === 'number' && f.limit > 0 && /\(\d+\.\d{2}\)$/.test(f.detail)), JSON.stringify(spikes.map((f) => [f.detail, f.limit])));
     const d = node('draft-spec.js', [real.run, '--write', '--name', 'Real']);
@@ -1021,6 +1022,47 @@ Promise.all([driftSame, driftNew, bizProfile, realData]).then(([same, changed, b
     check('drift: renamed column guessed', driftMd.includes('column "Beløb" is gone – renamed to "Belob"?'));
     check('drift: missing file found', driftMd.includes('file customers.csv not found'));
     check('drift --save-profile: the new profile is kept', fs.existsSync(path.join(TMP, 'drift-new-profile.json')));
+  }
+
+  // F14 row rules and M03 history tables: profiler → draft-spec → build-model → source-stats on a small
+  // order file (one spike that the 10 x median limit misses, zeros on two statuses) and a price history.
+  {
+    const rr = path.join(TMP, 'rowrules'); const rs = path.join(rr, 'src'); fs.mkdirSync(rs, { recursive: true });
+    const lines = ['order_id,quantity,unit_price,amount,status'];
+    for (let i = 1; i <= 30; i++) lines.push(`O${i},${1 + (i % 3)},${20 + i},${(1 + (i % 3)) * (20 + i)},${i <= 22 ? 'Completed' : 'Shipped'}`);
+    lines.push('O31,1,10,100,Completed');                                           // spike: 100 > 5 × 1 × 10, far below 10 × median
+    lines.push('O32,2,30,0,Completed', 'O33,1,40,0,Completed');                     // zeros on the main status: anomalies
+    lines.push('O34,1,25,0,Cancelled', 'O35,3,25,0,Cancelled', 'O36,2,25,0,Cancelled'); // zeros on another status: normal
+    fs.writeFileSync(path.join(rs, 'orders.csv'), lines.join('\n') + '\n');
+    fs.writeFileSync(path.join(rs, 'prices.csv'), ['product_id,price,valid_from,valid_to', 'P1,10,2024-01-01,2024-06-30', 'P1,12,2024-07-01,',
+      'P2,20,2024-01-01,2024-03-31', 'P2,21,2024-04-01,2024-09-30', 'P2,23,2024-10-01,', 'P3,30,2024-01-01,'].join('\n') + '\n');
+    const rrun = path.join(rr, 'run'); fs.mkdirSync(rrun);
+    execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(SKILL, 'scripts', 'Profile-Sources.ps1'),
+      '-Path', rs, '-OutFile', path.join(rrun, 'profile.json'), '-RowsDir', path.join(rrun, 'rows'), '-Today', '2026-11-19'], { stdio: 'pipe' });
+    const p = JSON.parse(fs.readFileSync(path.join(rrun, 'profile.json'), 'utf8').replace(/^﻿/, ''));
+    const fo = (p.tables.find((t) => t.name === 'orders') || { findings: [] }).findings.filter((f) => f.fix === 'F14');
+    const sp = fo.find((f) => f.spikeRule); const zs = fo.find((f) => f.zeroStatus);
+    check('F14 row rule: spike = amount > 5 x quantity x unit price (1 row), no 10 x median finding',
+      sp && sp.rows === 1 && sp.spikeRule.quantity === 'quantity' && sp.spikeRule.price === 'unit_price' && !fo.some((f) => /median/.test(f.detail)), JSON.stringify(fo));
+    check('F14 zero on the main status: 2 rows on Completed, recommended; the plain zero finding stays not recommended',
+      zs && zs.rows === 2 && zs.recommended && zs.zeroStatus.value === 'Completed' && fo.some((f) => f.detail === 'Zero values' && !f.recommended), JSON.stringify(fo));
+    const m3 = (p.tables.find((t) => t.name === 'prices') || { findings: [] }).findings;
+    const h = m3.find((f) => f.fix === 'M03');
+    check('M03 history table: 2 product_id values with versions (3 extra rows), and no F13 keep-first on it',
+      h && h.rows === 3 && /^2 product_id/.test(h.detail) && !m3.some((f) => f.fix === 'F13'), JSON.stringify(m3));
+    const d = spawnSync('node', [path.join(SKILL, 'scripts', 'draft-spec.js'), rrun, '--write', '--name', 'RowRules'], { encoding: 'utf8' });
+    const st = JSON.parse(fs.readFileSync(path.join(rrun, 'choices.json'), 'utf8')).build.staging.find((s) => /orders/.test(s.name));
+    const f14 = (st || { steps: [] }).steps.find((s) => s.fix === 'F14') || {};
+    check('draft-spec: F14 step carries spikeRule and zeroStatus; M03 is a model note', f14.spikeRule && f14.zeroStatus && f14.checks.includes('zero') && !('spike' in f14)
+      && /M03/.test(d.stdout), JSON.stringify(f14) + d.stdout.slice(0, 300));
+    const b = spawnSync('node', [path.join(SKILL, 'scripts', 'build-model.js'), rrun], { encoding: 'utf8' });
+    const ex = fs.readFileSync(path.join(rrun, 'pbip', 'RowRules.SemanticModel', 'definition', 'expressions.tmdl'), 'utf8');
+    check('build-model: F14 M uses 5 x fnParseNumber([quantity]) x fnParseNumber([unit_price]) and the status for zeros',
+      b.status === 0 && ex.includes('> 5 * fnParseNumber([quantity]) * fnParseNumber([unit_price])') && ex.includes('fnParseNumber([amount]) = 0 and [status] = "Completed"') && ex.includes('expression fnParseNumber'), b.stderr + ex.slice(0, 200));
+    const tbl = JSON.parse(fs.readFileSync(path.join(rrun, 'choices.json'), 'utf8')).build.tables.find((t) => /orders/.test(t.name)).name;
+    const ss = spawnSync('node', [path.join(SKILL, 'scripts', 'source-stats.js'), rrun, '--q', JSON.stringify([{ name: 'issues', table: tbl, agg: 'rows', by: 'amount issue' }])], { encoding: 'utf8' });
+    const v = ((JSON.parse(ss.stdout).results || [])[0] || {}).values || {};
+    check('source-stats replays the row rules: 1 spike, 2 zero, 33 ok', v.spike === 1 && v.zero === 2 && v.ok === 33, JSON.stringify(v));
   }
 
   // score-run.js: without an answer key it stops with exit 2 and names what is missing (scoring itself is

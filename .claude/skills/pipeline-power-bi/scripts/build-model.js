@@ -141,12 +141,26 @@ function fixStep(q, f, s) {
       return q.add(`F13 Keep first row per ${c}`, `Table.Distinct(Table.Buffer(<prev>), {${ms(c)}${f.ignoreCase === false ? '' : ', Comparer.OrdinalIgnoreCase'}})`);
     case 'F14': {
       const checks = f.checks || ['negative', 'spike'];
-      const conds = [`if [${c}] = null then "missing"`];
-      if (checks.includes('negative')) conds.push(`else if [${c}] < 0 then "negative"`);
-      if (checks.includes('spike') && f.spike) conds.push(`else if [${c}] > ${f.spike} then "spike"`);
-      if (checks.includes('zero')) conds.push(`else if [${c}] = 0 then "zero"`);
+      // Without an F09 step on the column the value can still be text ("0", "-12.5"): read it with fnParseNumber,
+      // so the comparisons with numbers work.
+      const parsed = (s.steps || []).some((x) => x.fix === 'F09' && x.column === c);
+      if (!parsed) fnUsed.add('fnParseNumber');
+      const A = parsed ? `[${c}]` : `fnParseNumber([${c}])`;
+      const conds = [`if ${A} = null then "missing"`];
+      if (checks.includes('negative')) conds.push(`else if ${A} < 0 then "negative"`);
+      // spikeRule { quantity, price, factor }: row level – amount above factor × quantity × unit price (the
+      // columns may still be text here, so fnParseNumber reads them); a row without both stays unchecked.
+      const sr = checks.includes('spike') && f.spikeRule && f.spikeRule.quantity && f.spikeRule.price ? f.spikeRule : null;
+      if (sr) fnUsed.add('fnParseNumber');
+      const srCond = (v) => `(fnParseNumber([${sr.quantity}]) <> null and fnParseNumber([${sr.price}]) <> null and ${v} > ${sr.factor || 5} * fnParseNumber([${sr.quantity}]) * fnParseNumber([${sr.price}]))`;
+      // zeroStatus { column, value }: only a zero on that status is an anomaly (zeros on other statuses are normal)
+      const zs = checks.includes('zero') && f.zeroStatus && f.zeroStatus.column ? f.zeroStatus : null;
+      const zCond = (v) => (zs ? `(${v} = 0 and [${zs.column}] = ${ms(zs.value)})` : `${v} = 0`);
+      if (sr) conds.push(`else if ${srCond(A)} then "spike"`);
+      else if (checks.includes('spike') && f.spike) conds.push(`else if ${A} > ${f.spike} then "spike"`);
+      if (checks.includes('zero')) conds.push(`else if ${zCond(A)} then "zero"`);
       const name = f.flagColumn || `${c} issue`;
-      if (f.mode === 'remove') return q.add(`F14 Remove ${c} anomalies`, `Table.SelectRows(<prev>, each let v = [${c}] in v <> null${checks.includes('negative') ? ' and v >= 0' : ''}${checks.includes('spike') && f.spike ? ` and v <= ${f.spike}` : ''}${checks.includes('zero') ? ' and v <> 0' : ''})`);
+      if (f.mode === 'remove') return q.add(`F14 Remove ${c} anomalies`, `Table.SelectRows(<prev>, each let v = ${A} in v <> null${checks.includes('negative') ? ' and v >= 0' : ''}${sr ? ` and not ${srCond('v')}` : checks.includes('spike') && f.spike ? ` and v <= ${f.spike}` : ''}${checks.includes('zero') ? ` and not ${zCond('v')}` : ''})`);
       return q.add(`F14 Flag ${c}`, `Table.AddColumn(<prev>, ${ms(name)}, each ${conds.join(' ')} else "ok", type text)`);
     }
     case 'F15': {

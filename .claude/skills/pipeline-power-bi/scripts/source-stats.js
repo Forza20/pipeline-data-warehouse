@@ -388,10 +388,18 @@ function applyStep(t, f, name) {
     }
     case 'F14': {
       const checks = f.checks || ['negative', 'spike'];
-      const ok = (v) => v !== null && !(checks.includes('negative') && v < 0) && !(checks.includes('spike') && f.spike && v > f.spike) && !(checks.includes('zero') && v === 0);
-      if (f.mode === 'remove') { t.rows = t.rows.filter((r) => ok(r[c])); return; }
+      // same rules as build-model.js: spikeRule (row level) before the fixed spike limit, zeroStatus limits zeros to one status
+      const sr = checks.includes('spike') && f.spikeRule && f.spikeRule.quantity && f.spikeRule.price ? f.spikeRule : null;
+      const spikeOf = (r, v) => {
+        if (sr) { const qv = fnParseNumber(r[sr.quantity]); const pv = fnParseNumber(r[sr.price]); return qv !== null && pv !== null && v > (sr.factor || 5) * qv * pv; }
+        return checks.includes('spike') && f.spike && v > f.spike;
+      };
+      const zs = checks.includes('zero') && f.zeroStatus && f.zeroStatus.column ? f.zeroStatus : null;
+      const zeroOf = (r, v) => checks.includes('zero') && v === 0 && (!zs || String(r[zs.column]) === String(zs.value));
+      const issue = (r) => { const v = fnParseNumber(r[c]); return v === null ? 'missing' : checks.includes('negative') && v < 0 ? 'negative' : spikeOf(r, v) ? 'spike' : zeroOf(r, v) ? 'zero' : 'ok'; };
+      if (f.mode === 'remove') { t.rows = t.rows.filter((r) => issue(r) === 'ok'); return; }
       const nm = f.flagColumn || `${c} issue`;
-      for (const r of t.rows) { const v = r[c]; r[nm] = v === null ? 'missing' : checks.includes('negative') && v < 0 ? 'negative' : checks.includes('spike') && f.spike && v > f.spike ? 'spike' : checks.includes('zero') && v === 0 ? 'zero' : 'ok'; }
+      for (const r of t.rows) r[nm] = issue(r);
       t.columns.push(nm); return;
     }
     case 'F15': {

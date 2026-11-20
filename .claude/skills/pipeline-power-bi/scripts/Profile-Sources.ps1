@@ -240,6 +240,35 @@ namespace PpbiProfile {
             return counts;
         }
 
+        // F14 row rules on one amount column: spikes = amount > factor x quantity x unit price (qi/pi < 0: not
+        // checked), and the zero amounts and row count per status value (si < 0: not counted).
+        // Returns { spikes, zerosByStatus, rowsByStatus }.
+        public static object[] RowRules(List<string[]> rows, int h, int n, int ai, int qi, int pi, int si, double factor) {
+            int spikes = 0;
+            var zeros = new Dictionary<string, int>(); var counts = new Dictionary<string, int>();
+            for (int r = h + 1; r < rows.Count; r++) {
+                string[] f = rows[r];
+                if (f.Length != n) continue;
+                string a = f[ai].Trim();
+                if (a.Length == 0) continue;
+                double? av = ToDouble(a, Classify(a));
+                if (av == null) continue;
+                int c;
+                if (si >= 0) {
+                    string s = f[si].Trim();
+                    counts.TryGetValue(s, out c); counts[s] = c + 1;
+                    if (av.Value == 0) { zeros.TryGetValue(s, out c); zeros[s] = c + 1; }
+                }
+                if (qi >= 0 && pi >= 0) {
+                    string qs = f[qi].Trim(), ps = f[pi].Trim();
+                    if (qs.Length == 0 || ps.Length == 0) continue;
+                    double? qv = ToDouble(qs, Classify(qs)), pv = ToDouble(ps, Classify(ps));
+                    if (qv != null && pv != null && qv.Value > 0 && pv.Value > 0 && av.Value > factor * qv.Value * pv.Value) spikes++;
+                }
+            }
+            return new object[] { spikes, zeros, counts };
+        }
+
         // The rows from the header row on, as JSON: {"header":[…],"rows":[[…],…]} – for source-stats.js.
         // Excel adds "kinds": one string per data row, one type char per cell (s text, n number, b true/false, d date).
         public static void WriteRows(string path, List<string[]> rows, int h, List<string> kinds) {
@@ -1047,6 +1076,40 @@ foreach ($src in $sources) {
             }
         }
     }
+    # F14 row rules: with quantity and unit price columns a spike is amount > 5 x quantity x unit price on the
+    # row itself (replaces the 10 x median limit, which misses spikes on small orders); with a status column a
+    # zero amount on the most common status is an anomaly (zeros on other statuses, e.g. cancelled, are normal).
+    $amtIdx = -1; $qtyIdx = -1; $priceIdx = -1; $statusIdx = -1
+    for ($ci = 0; $ci -lt $cols.Count; $ci++) {
+        $nm = $cols[$ci].Name.Trim()
+        if ($amtIdx -lt 0 -and $nm -match '(?i)(^|[_ ])(amount|revenue|sales|line_?total|beløb|belob|omsætning)($|[_ ])' -and $nm -notmatch '(?i)price|qty|quantity|issue|status') { $amtIdx = $ci }
+        elseif ($qtyIdx -lt 0 -and $nm -match '(?i)(^|[_ ])(quantity|qty|units|nights|seats|antal)$') { $qtyIdx = $ci }
+        elseif ($priceIdx -lt 0 -and $nm -match '(?i)(unit_?price|unit price|nightly_?rate|seat_?price|^price$|^rate$|stykpris|enhedspris)') { $priceIdx = $ci }
+        elseif ($statusIdx -lt 0 -and $nm -match '(?i)(^|[_ ])(status|state|order_status)$') { $statusIdx = $ci }
+    }
+    if ($amtIdx -ge 0 -and (($qtyIdx -ge 0 -and $priceIdx -ge 0) -or $statusIdx -ge 0)) {
+        $amtName = $cols[$amtIdx].Name
+        $rr = [PpbiProfile.Profiler]::RowRules($rows, $h, $nCol, $amtIdx, $(if ($priceIdx -ge 0) { $qtyIdx } else { -1 }), $(if ($qtyIdx -ge 0) { $priceIdx } else { -1 }), $statusIdx, 5.0)
+        if ($qtyIdx -ge 0 -and $priceIdx -ge 0) {
+            $old = @($findings | Where-Object { $_.fix -eq 'F14' -and $_.column -eq $amtName -and $_.detail -like 'Values above 10 x the median*' })
+            foreach ($o in $old) { [void]$findings.Remove($o) }
+            if ([int]$rr[0] -gt 0) {
+                $fs = New-Finding $tableName 'F14' $amtName ([int]$rr[0]) "Values above 5 x $($cols[$qtyIdx].Name) x $($cols[$priceIdx].Name) on the same row" @() $true 'flag'
+                $fs | Add-Member -NotePropertyName spikeRule -NotePropertyValue ([pscustomobject]@{ quantity = $cols[$qtyIdx].Name; price = $cols[$priceIdx].Name; factor = 5 })
+                $findings.Add($fs)
+            }
+        }
+        if ($statusIdx -ge 0 -and $rr[2].Count -ge 2) {
+            $main = ($rr[2].GetEnumerator() | Sort-Object -Property @{ Expression = 'Value'; Descending = $true }, @{ Expression = 'Key' } | Select-Object -First 1).Key
+            $z = 0; if ($rr[1].ContainsKey($main)) { $z = [int]$rr[1][$main] }
+            if ($z -gt 0) {
+                $fz = New-Finding $tableName 'F14' $amtName $z "Zero values with $($cols[$statusIdx].Name) = '$main' (the most common status)" @() $true 'flag'
+                $fz | Add-Member -NotePropertyName zeroStatus -NotePropertyValue ([pscustomobject]@{ column = $cols[$statusIdx].Name; value = $main })
+                $findings.Add($fz)
+            }
+        }
+    }
+
     foreach ($dep in $dependencies) {
         $findings.Add((New-Finding $tableName 'M02' $dep.key $dep.distinct ("$($dep.attributes.Count) column(s) repeat the same value for every $($dep.key) (" + ($dep.attributes -join ', ') + ") - candidates for a $($dep.key) dimension") @($dep.attributes) $true $null))
     }
@@ -1068,7 +1131,23 @@ foreach ($src in $sources) {
     if ($ts.TotalRows -gt 0) { $findings.Add((New-Finding $tableName 'F04' $null $ts.TotalRows 'Total/sum rows inside the data' @($ts.TotalExamples) $true $null)) }
     if ($dupRows -gt 0) { $findings.Add((New-Finding $tableName 'F12' $null $dupRows 'Rows that are exact copies of an earlier row' @() $true $null)) }
     $keyCol = $colOut | Where-Object { $rxIdName.IsMatch($_.name) } | Select-Object -First 1
+    # M03 history table: the key repeats and a validity column says from when each row holds (valid_from,
+    # effective_date, start_date …) – one row per key and period, a slowly changing history. Never F13 here:
+    # keep-first would delete the history.
+    $isHistory = $false
     if ($keyCol) {
+        $ks = $keyStore["$tableName|$($keyCol.name)"]
+        $fromCol = $colOut | Where-Object { $_.name -match '(?i)(valid_?from|valid from|effective|start_?date|start date|^from$|_from$|gyldig_?fra|fra_?dato)' } | Select-Object -First 1
+        if ($ks -and $fromCol -and $ks.counts.Count -lt $ks.nonEmpty) {
+            $isHistory = $true
+            $toCol = $colOut | Where-Object { $_.name -match '(?i)(valid_?to|valid to|expir|end_?date|end date|^to$|_to$|_until$|gyldig_?til|til_?dato)' } | Select-Object -First 1
+            $multi = @($ks.counts.GetEnumerator() | Where-Object { $_.Value -gt 1 }).Count
+            $period = $(if ($toCol) { "$($fromCol.name) / $($toCol.name)" } else { $fromCol.name })
+            $fh = New-Finding $tableName 'M03' $keyCol.name ($ks.nonEmpty - $ks.counts.Count) "$multi $($keyCol.name) value(s) have more than one version ($period) - a history table: keep every version" @(@($fromCol.name) + @($(if ($toCol) { $toCol.name }))) $true 'keep-history'
+            $findings.Add($fh)
+        }
+    }
+    if ($keyCol -and -not $isHistory) {
         $ks = $keyStore["$tableName|$($keyCol.name)"]
         if ($ks -and $ks.counts.Count -ge 0.9 * $ks.nonEmpty -and $ks.counts.Count -lt $ks.nonEmpty) {
             $extra = $ks.nonEmpty - $ks.counts.Count - $dupRows

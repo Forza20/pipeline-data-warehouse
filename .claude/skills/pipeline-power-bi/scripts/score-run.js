@@ -75,6 +75,10 @@ function modelKept(fix) {
   if (fix === 'M01') return !!(B.date && (B.date.cutoff || B.date.lastCompleteMonth || B.cutoffDate));
   return false;
 }
+// rows of the recommended findings only (a "not recommended" finding on the same column shares its log line)
+const profT = (src) => (profile.tables || []).find((t) => String(t.name).toLowerCase() === src) || { findings: [] };
+const recRows = (src, fix) => profT(src).findings.filter((x) => x.fix === fix && x.recommended).reduce((s, x) => s + (x.rows || 0), 0);
+const keysIn = (src, fix) => { const x = profT(src).findings.find((y) => y.fix === fix); const m = x && /^(\d+)/.exec(x.detail || ''); return m ? Number(m[1]) : x ? x.rows : 0; };
 const found = (src, fix, col) => { const a = inLog(src, fix, col); return a.length ? a : profFind(src, fix, col); };
 
 // Text the run wrote about business rules: design review, handover notes, measures, checks.
@@ -93,10 +97,13 @@ const TYPES = [
   [5, 'Many-to-many fanout', 'bridge_fanout', () => { const a = found(ROLES.bridge, 'F12'); const rule = /fan-?out|allocat|1\/n|bridge/.test(ruleText); return { hits: a, partial: a.length && !rule ? 'duplicated pairs removed; fanout not named in the review or a measure' : null, rule, count: `${sum(a)} duplicated pairs`, want: INJ.bridge_fanout ? `${INJ.bridge_fanout.duplicated_pairs} duplicated pairs` : null }; }],
   [6, 'Wide month columns with gaps', 'wide_table', () => { const a = found(ROLES.wide, 'F16'); return { hits: a, rule: true /* the table is wide by design; only the gaps are injected */, count: a.length ? 'unpivoted' : '–', want: INJ.wide_table ? `${INJ.wide_table.empty_cells} empty cells` : null }; }],
   [7, 'Revenue on non-revenue statuses', 'status_revenue', () => { const rule = /status/.test(ruleText); return { hits: rule ? [{ kept: true, rows: 0 }] : [], rule, count: rule ? 'status rule named' : '–', want: null }; }],
-  [8, 'Amount anomalies', 'amount_anomalies', () => { const a = found(F, 'F14'); return { hits: a, count: `${sum(a.filter((x) => x.kept))} rows flagged`, want: INJ.amount_anomalies ? `${(INJ.amount_anomalies.negative || 0) + (INJ.amount_anomalies.spike || 0) + (INJ.amount_anomalies.zero_on_status || 0)} rows` : null }; }],
+  [8, 'Amount anomalies', 'amount_anomalies', () => { const a = found(F, 'F14'); return { hits: a, count: `${recRows(F, 'F14')} rows flagged`, want: INJ.amount_anomalies ? `${(INJ.amount_anomalies.negative || 0) + (INJ.amount_anomalies.spike || 0) + (INJ.amount_anomalies.zero_on_status || 0)} rows` : null }; }],
   [9, 'Missing and future dates', 'bad_dates', () => { const a = found(F, 'F15'); return { hits: a, count: `${sum(a)} rows`, want: INJ.bad_dates ? `${(INJ.bad_dates.missing || 0) + (INJ.bad_dates.future || 0)} rows` : null }; }],
   [10, 'Incomplete last month', 'incomplete_month', () => { const a = found(F, 'M01'); return { hits: a, count: a.length ? 'flagged' : '–', want: INJ.incomplete_month ? `last date ${INJ.incomplete_month.last_date}` : null }; }],
-  [11, 'Versioned prices (SCD)', 'scd_prices', () => { const a = [...found(ROLES.hist, 'F13'), ...found(ROLES.hist, 'M02')]; const rule = /price (history|version)|scd|valid_from|versioned/.test(ruleText); return { hits: rule ? [...a, { kept: true, rows: 0 }] : a, rule, count: a.length || rule ? 'named' : '–', want: INJ.scd_prices ? `${INJ.scd_prices.products_with_changes} products` : null }; }],
+  [11, 'Versioned prices (SCD)', 'scd_prices', () => {
+    // M03 = the profiler's history-table finding; kept unless an F13 step deduplicated the history away
+    const dedup = inLog(ROLES.hist, 'F13').some((x) => x.kept);
+    const a = profFind(ROLES.hist, 'M03').map((x) => ({ ...x, kept: !dedup })); const rule = /price (history|version)|scd|valid_from|versioned/.test(ruleText); return { hits: rule ? [...a, { kept: true, rows: 0 }] : a, rule, count: a.length ? `${keysIn(ROLES.hist, 'M03')} products` : rule ? 'named' : '–', want: INJ.scd_prices ? `${INJ.scd_prices.products_with_changes} products` : null }; }],
   [12, 'Conflicting source attribute', 'source_conflict', () => { const rule = /conflict|disagree|two sources|second source/.test(ruleText); return { hits: rule ? [{ kept: true, rows: 0 }] : [], rule, count: rule ? 'named' : '–', want: INJ.source_conflict ? `${INJ.source_conflict.conflicts} customers` : null }; }],
   [13, 'Data dictionary lies', 'lying_docs', null],
 ];
