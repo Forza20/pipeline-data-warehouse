@@ -180,15 +180,12 @@ pipeline.config.example.json            the shape of your pipeline.config.json
 
 MIT – see `LICENSE`. Some skills are adapted from other MIT-licensed projects; see `NOTICE.md`.
 
-## Obsidian: DAX notes and skill log
+## Obsidian: DAX notes
 
 With `obsidian.vault` set in `pipeline.config.json`:
 
 - `python tools/dax-vault.py sync <pbip> --vault <vault>` writes one note per measure (`type: dax-measure`) with status and
   checks for Dataview; `status` and `list` update and show them.
-- The `power-bi-skill-log` skill adds dated entries (what was learned, the exact code, why it works) to
-  `Power BI Learning/Power-BI-Skill-Log.md`. To use it in every project, link it into your user skills:
-  `New-Item -ItemType Junction -Path "$HOME\.claude\skills\power-bi-skill-log" -Target "<repo>\.claude\skills\power-bi-skill-log"`.
 - `pipeline-power-bi` also writes `model-context.md` (definitions for AI assistants), `model-health.md` (size and
   performance) and, before a refresh with new files, `check-drift.js` → `drift.md` (what would break). Business terms
   (`choices.json` → `glossary`) become `DAX/Begreber` notes in the vault on `dax-vault.py sync`; `certify` records who
