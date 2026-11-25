@@ -39,6 +39,12 @@ trustworthy.
    together, then rerun the quality checks.
 8. If the environment provides a dedicated interview skill (for example one called `grill-me`), you may
    use it to run the conversation, but keep the evidence, options, recommendation and log described here.
+9. **Auto-apply mode.** When the user says "use your recommendations for the rest", or their standing
+   instructions say to apply recommendations after the purpose question, ask R1-1 as usual, then apply
+   your recommendation for each later question instead of waiting (steps 3 and 7). Still investigate,
+   and log each decision with its evidence and "auto-applied" in the Choice column. Keep asking, one
+   question per message, on risky or irreversible decisions: repo visibility, credentials and access,
+   deleting or overwriting data.
 
 Message shape (adapt the wording, keep the parts):
 
