@@ -14,6 +14,7 @@ description: >
 compatibility: >
   Supabase project (SQL Editor, Table Editor or the Supabase MCP server), Power BI Desktop on Windows,
   optional psql. Works with any CSV source; examples use a CRM/ERP sales dataset.
+disable-model-invocation: true
 ---
 
 # Supabase medallion → Power BI (PBIP/TMDL)
@@ -65,8 +66,10 @@ with detection SQL. The short version:
   recommendation and why. Wait for the answer before the next question.
 - Log every decision in `docs/model-decisions.md` and implement each round's decisions together, then
   rerun the quality checks.
-- If the user says "use your recommendations for the rest", do so, but still log each decision and
-  list them in the hand-over.
+- If the user says "use your recommendations for the rest", or their standing instructions (for example
+  a global `CLAUDE.md`) say to apply recommendations after the purpose question, do so, but still log
+  each decision with its evidence and list them in the hand-over. Keep asking on risky or irreversible
+  decisions, such as repo visibility, credentials and access, or dropping data.
 
 ## Phase 0 – Understand the sources and agree the model
 
